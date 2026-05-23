@@ -181,6 +181,9 @@ export const ProductsOverview = () => {
   return (
     <section
       ref={rootRef}
+      data-section="products"
+      data-transition-type="flash"
+      data-transition-color="#172D6D"
       className="relative px-6 md:px-10 py-28 md:py-40 max-w-[1400px] mx-auto"
     >
       <div data-anim="po-head" className="grid grid-cols-12 gap-6 mb-20 md:mb-32">

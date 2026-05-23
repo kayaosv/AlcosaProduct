@@ -63,7 +63,13 @@ export const Hero = () => {
   )
 
   return (
-    <section ref={rootRef} className="relative min-h-screen w-full overflow-hidden">
+    <section
+      ref={rootRef}
+      data-section="hero"
+      data-transition-type="double-plane"
+      data-transition-color="#0D0D0D"
+      className="relative min-h-screen w-full overflow-hidden"
+    >
       <style>{`
         @media (min-width: 768px) {
           .hero-lime { margin-left: -0.2em; }

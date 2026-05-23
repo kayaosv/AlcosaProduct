@@ -10,6 +10,7 @@ import { View } from '@react-three/drei'
 import { useAppStore } from './stores/useAppStore.js'
 import { SmoothScroll } from './components/dom/SmoothScroll.jsx'
 import { Preloader } from './components/dom/Preloader.jsx'
+import { SectionTransitions } from './components/dom/SectionTransitions.jsx'
 
 gsap.registerPlugin(useGSAP, ScrollTrigger, SplitText)
 
@@ -27,6 +28,7 @@ export const App = () => {
   return (
     <SmoothScroll>
       {!isLoaded && <Preloader />}
+      <SectionTransitions />
       <RouterProvider router={router} />
       <Canvas
         style={{

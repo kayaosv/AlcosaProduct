@@ -97,6 +97,9 @@ export const AboutSection = () => {
   return (
     <section
       ref={rootRef}
+      data-section="about"
+      data-nav-theme="dark"
+      data-transition-color="#0D0D0D"
       className="relative w-full py-32 md:py-48"
       style={{ background: 'var(--color-dark)', color: 'var(--color-cream)' }}
     >

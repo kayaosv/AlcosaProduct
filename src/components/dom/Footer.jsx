@@ -34,6 +34,7 @@ export const Footer = () => {
   return (
     <footer
       ref={rootRef}
+      data-nav-theme="dark"
       className="relative w-full"
       style={{ background: 'var(--color-navy)', color: 'var(--color-cream)' }}
     >

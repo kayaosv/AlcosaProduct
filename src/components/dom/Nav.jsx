@@ -12,131 +12,317 @@ const LINKS = [
   { to: '/catalog?cat=vapers', label: 'Vapers' },
 ]
 
-const NavLink = ({ to, label, onClick }) => {
+const MenuLink = ({ index, to, label, onNavigate }) => {
   const ref = useRef(null)
   const lineRef = useRef(null)
+  const textRef = useRef(null)
   const { contextSafe } = useGSAP({ scope: ref })
 
   const onEnter = contextSafe(() => {
+    gsap.to(textRef.current, { color: 'var(--color-lime)', duration: 0.3, ease: 'power2.out' })
     gsap.fromTo(
       lineRef.current,
       { scaleX: 0, transformOrigin: 'left center' },
-      { scaleX: 1, duration: 0.45, ease: 'power3.out' },
+      { scaleX: 1, duration: 0.55, ease: 'power3.out' },
     )
   })
   const onLeave = contextSafe(() => {
+    gsap.to(textRef.current, { color: 'var(--color-cream)', duration: 0.3, ease: 'power2.in' })
     gsap.to(lineRef.current, {
       scaleX: 0,
       transformOrigin: 'right center',
-      duration: 0.35,
+      duration: 0.4,
       ease: 'power3.in',
     })
   })
 
   return (
-    <Link
+    <li
       ref={ref}
-      to={to}
-      onClick={onClick}
-      data-cursor="link"
-      onMouseEnter={onEnter}
-      onMouseLeave={onLeave}
-      className="relative inline-block py-1"
-      style={{ color: 'var(--color-navy)' }}
+      data-menu-link
+      className="relative flex items-start gap-4 md:gap-6 group"
     >
-      {label}
       <span
-        ref={lineRef}
-        aria-hidden
-        className="absolute left-0 right-0 bottom-0 block h-px"
+        className="pt-3 md:pt-5 shrink-0"
         style={{
-          background: 'var(--color-navy)',
-          transform: 'scaleX(0)',
-          transformOrigin: 'left center',
+          fontWeight: 200,
+          fontSize: '11px',
+          letterSpacing: '0.2em',
+          color: 'var(--color-lime)',
         }}
-      />
-    </Link>
+      >
+        [{String(index + 1).padStart(2, '0')}]
+      </span>
+      <Link
+        to={to}
+        onClick={onNavigate}
+        data-cursor="link"
+        onMouseEnter={onEnter}
+        onMouseLeave={onLeave}
+        className="relative inline-block leading-[0.95]"
+      >
+        <span
+          ref={textRef}
+          className="block"
+          style={{
+            fontWeight: 900,
+            fontSize: 'clamp(3.5rem, 10vw, 7rem)',
+            letterSpacing: '-0.04em',
+            color: 'var(--color-cream)',
+          }}
+        >
+          {label}.
+        </span>
+        <span
+          ref={lineRef}
+          aria-hidden
+          className="absolute left-0 right-0 -bottom-1 block h-[2px]"
+          style={{
+            background: 'var(--color-lime)',
+            transform: 'scaleX(0)',
+            transformOrigin: 'left center',
+          }}
+        />
+      </Link>
+    </li>
   )
 }
 
-const MobileMenu = ({ open, onClose }) => {
-  const rootRef = useRef(null)
-  const panelRef = useRef(null)
+const MenuOverlay = ({ open, onClose, onOpenCart, itemsCount }) => {
+  const overlayRef = useRef(null)
+
+  useGSAP(
+    () => {
+      gsap.set(overlayRef.current, {
+        clipPath: 'circle(0% at 95% 5%)',
+        display: 'none',
+      })
+    },
+    { scope: overlayRef },
+  )
 
   useGSAP(
     () => {
       if (open) {
-        gsap.set(rootRef.current, { display: 'block' })
-        gsap.to(rootRef.current, { opacity: 1, duration: 0.25, ease: 'power2.out' })
+        gsap.set(overlayRef.current, { display: 'flex' })
         gsap.fromTo(
-          panelRef.current,
-          { yPercent: -100 },
-          { yPercent: 0, duration: 0.55, ease: 'power4.out' },
+          overlayRef.current,
+          { clipPath: 'circle(0% at 95% 5%)' },
+          { clipPath: 'circle(150% at 95% 5%)', duration: 0.7, ease: 'power4.inOut' },
         )
         gsap.fromTo(
-          '[data-mobile-link]',
-          { y: 40, opacity: 0 },
+          '[data-menu-link]',
+          { y: 60, opacity: 0 },
           {
             y: 0,
             opacity: 1,
+            stagger: 0.07,
             duration: 0.5,
-            stagger: 0.06,
-            delay: 0.15,
+            delay: 0.25,
             ease: 'power3.out',
           },
         )
+        gsap.fromTo(
+          '[data-menu-footer]',
+          { opacity: 0, y: 20 },
+          { opacity: 1, y: 0, duration: 0.4, delay: 0.45, ease: 'power2.out' },
+        )
+        gsap.fromTo(
+          '[data-menu-cta]',
+          { opacity: 0, y: 30 },
+          { opacity: 1, y: 0, duration: 0.5, delay: 0.55, ease: 'power3.out' },
+        )
       } else {
-        gsap.to(panelRef.current, {
-          yPercent: -100,
-          duration: 0.4,
+        gsap.to('[data-menu-link]', {
+          y: -30,
+          opacity: 0,
+          stagger: 0.04,
+          duration: 0.3,
           ease: 'power3.in',
         })
-        gsap.to(rootRef.current, {
+        gsap.to(['[data-menu-footer]', '[data-menu-cta]'], {
           opacity: 0,
-          duration: 0.3,
-          delay: 0.1,
-          onComplete: () => gsap.set(rootRef.current, { display: 'none' }),
+          duration: 0.2,
+        })
+        gsap.to(overlayRef.current, {
+          clipPath: 'circle(0% at 95% 5%)',
+          duration: 0.55,
+          delay: 0.15,
+          ease: 'power4.inOut',
+          onComplete: () => gsap.set(overlayRef.current, { display: 'none' }),
         })
       }
     },
     { dependencies: [open] },
   )
 
+  const handleNavigate = () => onClose()
+  const handleCart = () => {
+    onClose()
+    setTimeout(() => onOpenCart(), 400)
+  }
+
   return (
     <div
-      ref={rootRef}
-      className="fixed inset-0 z-[200] md:hidden"
-      style={{ display: 'none', opacity: 0 }}
+      ref={overlayRef}
+      className="fixed inset-0 z-[200] flex-col"
+      style={{
+        background: 'var(--color-navy)',
+        display: 'none',
+      }}
     >
-      <div
-        ref={panelRef}
-        className="absolute inset-0 px-6 pt-24 pb-16 flex flex-col"
-        style={{ background: 'var(--color-cream)' }}
-      >
-        <ul className="flex flex-col gap-6">
-          {LINKS.map((l) => (
-            <li key={l.to} data-mobile-link>
-              <Link
-                to={l.to}
-                onClick={onClose}
-                data-cursor="link"
-                className="block leading-none"
-                style={{
-                  fontWeight: 900,
-                  fontSize: 'clamp(2.5rem, 10vw, 5rem)',
-                  color: 'var(--color-navy)',
-                  letterSpacing: '-0.03em',
-                }}
-              >
-                {l.label}.
-              </Link>
-            </li>
+      <div className="flex items-center justify-between px-6 md:px-10 py-5 shrink-0">
+        <Link
+          to="/"
+          onClick={handleNavigate}
+          data-cursor="link"
+          style={{
+            color: 'var(--color-cream)',
+            fontWeight: 900,
+            fontSize: '13px',
+            letterSpacing: '-0.02em',
+          }}
+        >
+          VAPERS·ALCOSA
+        </Link>
+        <button
+          type="button"
+          onClick={onClose}
+          data-cursor="link"
+          className="px-2 py-1"
+          style={{
+            color: 'var(--color-cream)',
+            fontWeight: 700,
+            fontSize: '11px',
+            letterSpacing: '0.25em',
+          }}
+        >
+          CERRAR
+        </button>
+      </div>
+
+      <div className="flex-1 flex flex-col justify-center px-6 md:px-10 overflow-hidden">
+        <ul className="flex flex-col gap-2 md:gap-4">
+          {LINKS.map((l, i) => (
+            <MenuLink
+              key={l.to}
+              index={i}
+              to={l.to}
+              label={l.label}
+              onNavigate={handleNavigate}
+            />
           ))}
         </ul>
-        <div data-mobile-link className="mt-12 text-[10px] tracking-[0.3em] uppercase opacity-60">
-          Sevilla · Parque Alcosa · Est. 2025
+
+        <div data-menu-cta className="mt-10 md:mt-14">
+          <button
+            type="button"
+            onClick={handleCart}
+            data-cursor="link"
+            className="inline-flex items-center gap-3 px-8 py-3"
+            style={{
+              background: 'var(--color-lime)',
+              color: 'var(--color-navy)',
+              fontWeight: 700,
+              fontSize: '12px',
+              letterSpacing: '0.22em',
+            }}
+          >
+            <span>▸ CARRITO</span>
+            {itemsCount > 0 && (
+              <span
+                className="text-[10px] px-1.5 py-0.5"
+                style={{
+                  background: 'var(--color-navy)',
+                  color: 'var(--color-lime)',
+                  fontWeight: 700,
+                }}
+              >
+                {itemsCount}
+              </span>
+            )}
+          </button>
         </div>
       </div>
+
+      <div
+        data-menu-footer
+        className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 px-6 md:px-10 py-6 shrink-0"
+        style={{ color: 'var(--color-cream)' }}
+      >
+        <span
+          className="text-[10px] uppercase opacity-60"
+          style={{ letterSpacing: '0.3em' }}
+        >
+          Sevilla · Parque Alcosa · Est. 2025
+        </span>
+        <span
+          className="text-[10px] uppercase opacity-80"
+          style={{ letterSpacing: '0.25em' }}
+        >
+          @vapers.alcosa · 682 72 57 80
+        </span>
+      </div>
+    </div>
+  )
+}
+
+const MenuToggle = ({ open, onToggle, itemsCount, theme }) => {
+  const labelRef = useRef(null)
+  const { contextSafe } = useGSAP({ scope: labelRef })
+
+  const handleClick = contextSafe(() => {
+    gsap.to(labelRef.current, {
+      opacity: 0,
+      duration: 0.15,
+      ease: 'power2.in',
+      onComplete: () => {
+        onToggle()
+        gsap.to(labelRef.current, {
+          opacity: 1,
+          duration: 0.15,
+          delay: 0.05,
+          ease: 'power2.out',
+        })
+      },
+    })
+  })
+
+  const fg = open || theme === 'dark' ? 'var(--color-cream)' : 'var(--color-navy)'
+
+  return (
+    <div className="flex items-center gap-5">
+      {itemsCount > 0 && !open && (
+        <span
+          className="text-[13px]"
+          style={{
+            color: 'var(--color-lime)',
+            fontWeight: 700,
+            letterSpacing: '0.18em',
+          }}
+        >
+          ▸ {itemsCount}
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={handleClick}
+        data-cursor="link"
+        aria-label={open ? 'Cerrar menú' : 'Abrir menú'}
+        aria-expanded={open}
+        className="px-2 py-1"
+        style={{
+          fontWeight: 700,
+          fontSize: '13px',
+          letterSpacing: '0.25em',
+          color: fg,
+          transition: 'color 0.4s ease',
+        }}
+      >
+        <span ref={labelRef} className="inline-block">
+          {open ? 'CERRAR' : 'MENÚ'}
+        </span>
+      </button>
     </div>
   )
 }
@@ -146,21 +332,35 @@ export const Nav = () => {
   const itemsCount = useCartStore((s) => s.items.length)
   const isLoaded = useAppStore((s) => s.isLoaded)
   const setCartOpen = useAppStore((s) => s.setCartOpen)
-  const [scrolled, setScrolled] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [open, setOpen] = useState(false)
+  const [theme, setTheme] = useState('light')
+  const toggleMenu = () => setOpen((v) => !v)
+  const closeMenu = () => setOpen(false)
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 40)
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
-
-  useEffect(() => {
-    document.body.style.overflow = menuOpen ? 'hidden' : ''
+    document.body.style.overflow = open ? 'hidden' : ''
     return () => {
       document.body.style.overflow = ''
     }
-  }, [menuOpen])
+  }, [open])
+
+  useEffect(() => {
+    const sections = document.querySelectorAll('[data-nav-theme="dark"]')
+    if (!sections.length) return
+    const visible = new Set()
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) visible.add(entry.target)
+          else visible.delete(entry.target)
+        })
+        setTheme(visible.size > 0 ? 'dark' : 'light')
+      },
+      { rootMargin: '-30px 0px -95% 0px', threshold: 0 },
+    )
+    sections.forEach((s) => io.observe(s))
+    return () => io.disconnect()
+  }, [])
 
   useGSAP(
     () => {
@@ -182,101 +382,34 @@ export const Nav = () => {
     <>
       <header
         ref={navRef}
-        className="fixed top-0 left-0 right-0 z-[100] transition-all duration-300"
-        style={{
-          background: scrolled || menuOpen ? 'rgba(255,248,240,0.7)' : 'transparent',
-          backdropFilter: scrolled || menuOpen ? 'blur(12px)' : 'none',
-        }}
+        className="fixed top-0 left-0 right-0 z-[100]"
+        style={{ background: 'transparent' }}
       >
-        <div className="flex items-center justify-between px-6 md:px-10 py-5">
+        <div className="flex items-center justify-between px-6 md:px-10 py-6">
           <Link
             to="/"
-            onClick={() => setMenuOpen(false)}
-            className="flex items-baseline gap-2"
+            onClick={closeMenu}
             data-cursor="link"
-            style={{ color: 'var(--color-navy)' }}
+            style={{
+              color: theme === 'dark' ? 'var(--color-cream)' : 'var(--color-navy)',
+              fontWeight: 900,
+              fontSize: '16px',
+              letterSpacing: '-0.02em',
+              transition: 'color 0.4s ease',
+            }}
           >
-            <span style={{ fontWeight: 900, fontSize: '14px', letterSpacing: '-0.02em' }}>
-              VAPERS·ALCOSA
-            </span>
-            <span className="text-[10px] tracking-[0.2em] uppercase opacity-60 hidden sm:inline">
-              EST·2025
-            </span>
+            VAPERS·ALCOSA
           </Link>
-
-          <nav className="hidden md:flex items-center gap-8 text-[12px] tracking-[0.18em] uppercase">
-            {LINKS.map((l) => (
-              <NavLink key={l.to} to={l.to} label={l.label} />
-            ))}
-            <button
-              type="button"
-              onClick={() => setCartOpen(true)}
-              data-cursor="link"
-              className="inline-flex items-center gap-2 px-4 py-2"
-              style={{
-                background: 'var(--color-navy)',
-                color: 'var(--color-lime)',
-                borderRadius: 0,
-                fontWeight: 700,
-              }}
-            >
-              <span>▸ Carrito</span>
-              {itemsCount > 0 && (
-                <span
-                  className="text-[10px] px-1.5 py-0.5"
-                  style={{ background: 'var(--color-lime)', color: 'var(--color-navy)', fontWeight: 700 }}
-                >
-                  {itemsCount}
-                </span>
-              )}
-            </button>
-          </nav>
-
-          <div className="md:hidden flex items-center gap-4">
-            <button
-              type="button"
-              onClick={() => setCartOpen(true)}
-              data-cursor="link"
-              aria-label="Abrir carrito"
-              className="inline-flex items-center gap-2 px-3 py-2 text-[11px] tracking-[0.18em] uppercase"
-              style={{
-                background: 'var(--color-navy)',
-                color: 'var(--color-lime)',
-                fontWeight: 700,
-              }}
-            >
-              ▸ {itemsCount}
-            </button>
-            <button
-              type="button"
-              onClick={() => setMenuOpen((v) => !v)}
-              data-cursor="link"
-              aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}
-              aria-expanded={menuOpen}
-              className="relative w-9 h-9 flex flex-col items-center justify-center gap-1.5"
-            >
-              <span
-                className="block h-px transition-transform duration-300"
-                style={{
-                  width: 22,
-                  background: 'var(--color-navy)',
-                  transform: menuOpen ? 'translateY(4px) rotate(45deg)' : 'none',
-                }}
-              />
-              <span
-                className="block h-px transition-transform duration-300"
-                style={{
-                  width: 22,
-                  background: 'var(--color-navy)',
-                  transform: menuOpen ? 'translateY(-3px) rotate(-45deg)' : 'none',
-                }}
-              />
-            </button>
-          </div>
+          <MenuToggle open={open} onToggle={toggleMenu} itemsCount={itemsCount} theme={theme} />
         </div>
       </header>
 
-      <MobileMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
+      <MenuOverlay
+        open={open}
+        onClose={closeMenu}
+        onOpenCart={() => setCartOpen(true)}
+        itemsCount={itemsCount}
+      />
     </>
   )
 }

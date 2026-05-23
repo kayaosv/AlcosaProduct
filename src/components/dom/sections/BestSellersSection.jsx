@@ -52,6 +52,10 @@ export const BestSellersSection = () => {
   return (
     <section
       ref={rootRef}
+      data-section="best-sellers"
+      data-nav-theme="dark"
+      data-transition-type="none"
+      data-transition-color="#172D6D"
       className="relative w-full overflow-hidden py-32 md:py-40"
       style={{ background: 'var(--color-dark)', color: 'var(--color-cream)' }}
     >
