@@ -11,28 +11,68 @@ export const OxvaSection = () => {
 
   useGSAP(
     () => {
-      gsap.from('[data-anim="oxva-kicker"]', {
+      gsap.registerPlugin(ScrollTrigger)
+
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: rootRef.current,
+          start: 'top 65%',
+          once: true,
+        },
+      })
+
+      tl.from('[data-anim="oxva-kicker"]', {
         y: 20,
         opacity: 0,
-        duration: 0.7,
+        duration: 0.5,
         ease: 'power3.out',
-        scrollTrigger: { trigger: rootRef.current, start: 'top 75%', once: true },
       })
-      gsap.from('[data-anim="oxva-number"]', {
-        clipPath: 'inset(0 0 100% 0)',
-        y: 60,
-        duration: 1.4,
-        ease: 'expo.out',
-        scrollTrigger: { trigger: rootRef.current, start: 'top 70%', once: true },
-      })
-      gsap.from('[data-anim="oxva-copy"] > *', {
-        y: 30,
-        opacity: 0,
-        stagger: 0.08,
-        duration: 0.8,
-        ease: 'power3.out',
-        scrollTrigger: { trigger: rootRef.current, start: 'top 65%', once: true },
-      })
+        .from(
+          '[data-anim="oxva-headline"]',
+          {
+            y: 40,
+            opacity: 0,
+            duration: 0.8,
+            ease: 'expo.out',
+          },
+          '+=0.05',
+        )
+        .from(
+          '[data-anim="oxva-body"]',
+          {
+            y: 25,
+            opacity: 0,
+            stagger: 0.1,
+            duration: 0.65,
+            ease: 'power3.out',
+          },
+          '-=0.4',
+        )
+        .from(
+          '[data-anim="oxva-badge"]',
+          {
+            scale: 0.88,
+            opacity: 0,
+            duration: 0.45,
+            ease: 'back.out(1.8)',
+          },
+          '-=0.15',
+        )
+        .from(
+          '[data-anim="oxva-cta"]',
+          { y: 20, opacity: 0, duration: 0.45, ease: 'power3.out' },
+          '-=0.1',
+        )
+        .from(
+          '[data-anim="oxva-number"]',
+          {
+            clipPath: 'inset(0 0 100% 0)',
+            y: 50,
+            duration: 1.4,
+            ease: 'expo.out',
+          },
+          0.05,
+        )
     },
     { scope: rootRef },
   )
@@ -67,8 +107,9 @@ export const OxvaSection = () => {
             Tienda oficial · OXVA
           </span>
 
-          <div data-anim="oxva-copy" className="mt-10 space-y-6">
+          <div className="mt-10 space-y-6">
             <h2
+              data-anim="oxva-headline"
               className="leading-[0.9]"
               style={{
                 fontSize: 'clamp(2.2rem, 4.5vw, 4rem)',
@@ -79,6 +120,7 @@ export const OxvaSection = () => {
               Somos uno de los pocos.
             </h2>
             <p
+              data-anim="oxva-body"
               className="text-[16px] md:text-[18px] leading-relaxed max-w-md"
               style={{ color: 'rgba(255,248,240,0.75)' }}
             >
@@ -86,6 +128,7 @@ export const OxvaSection = () => {
               Producto auténtico, garantía directa de marca y precios sin intermediarios.
             </p>
             <p
+              data-anim="oxva-body"
               className="text-[14px] leading-relaxed max-w-md"
               style={{ color: 'rgba(255,248,240,0.5)' }}
             >
@@ -93,7 +136,7 @@ export const OxvaSection = () => {
               registro oficial — el número lo dice.
             </p>
 
-            <div className="pt-6 flex flex-wrap items-center gap-4">
+            <div data-anim="oxva-badge" className="pt-6 flex flex-wrap items-center gap-4">
               <span
                 className="inline-flex items-center gap-2 px-4 py-2 text-[10px] tracking-[0.25em] uppercase"
                 style={{
@@ -106,7 +149,7 @@ export const OxvaSection = () => {
               </span>
             </div>
 
-            <div className="pt-4">
+            <div data-anim="oxva-cta" className="pt-4">
               <Link
                 ref={cta.ref}
                 onMouseEnter={cta.onMouseEnter}

@@ -55,7 +55,9 @@ body {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  *, *::before, *::after {
+  body:not(:has(.admin-layout)):not(:has(.admin-login-wrapper)) *,
+  body:not(:has(.admin-layout)):not(:has(.admin-login-wrapper)) *::before,
+  body:not(:has(.admin-layout)):not(:has(.admin-login-wrapper)) *::after {
     cursor: none !important;
   }
 }

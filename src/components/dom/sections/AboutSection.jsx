@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { SplitText } from 'gsap/SplitText'
 
 const STATS = [
   { value: 6, suffix: '+', label: 'Categorías de producto' },
@@ -66,30 +67,52 @@ const Stat = ({ stat, index }) => {
 
 export const AboutSection = () => {
   const rootRef = useRef(null)
+  const headingRef = useRef(null)
 
   useGSAP(
     () => {
-      gsap.from('[data-anim="about-kicker"]', {
+      gsap.registerPlugin(SplitText, ScrollTrigger)
+
+      const split = new SplitText(headingRef.current, { type: 'lines' })
+
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: rootRef.current,
+          start: 'top 65%',
+          once: true,
+        },
+      })
+
+      tl.from('[data-anim="about-kicker"]', {
         y: 20,
         opacity: 0,
-        duration: 0.7,
+        duration: 0.5,
         ease: 'power3.out',
-        scrollTrigger: { trigger: rootRef.current, start: 'top 75%', once: true },
       })
-      gsap.from('[data-anim="about-head"]', {
-        clipPath: 'inset(0 100% 0 0)',
-        duration: 1.3,
-        ease: 'expo.out',
-        scrollTrigger: { trigger: rootRef.current, start: 'top 70%', once: true },
-      })
-      gsap.from('[data-anim="about-copy"] > *', {
-        y: 25,
-        opacity: 0,
-        stagger: 0.1,
-        duration: 0.8,
-        ease: 'power3.out',
-        scrollTrigger: { trigger: rootRef.current, start: 'top 65%', once: true },
-      })
+        .from(
+          split.lines,
+          {
+            y: 60,
+            opacity: 0,
+            stagger: 0.1,
+            duration: 0.85,
+            ease: 'expo.out',
+          },
+          '+=0.05',
+        )
+        .from(
+          '[data-anim="about-copy"] > *',
+          {
+            y: 25,
+            opacity: 0,
+            stagger: 0.1,
+            duration: 0.7,
+            ease: 'power3.out',
+          },
+          '-=0.4',
+        )
+
+      return () => split.revert()
     },
     { scope: rootRef },
   )
@@ -114,6 +137,7 @@ export const AboutSection = () => {
           </span>
 
           <h2
+            ref={headingRef}
             data-anim="about-head"
             className="mt-8 leading-[0.85]"
             style={{

@@ -17,32 +17,48 @@ export const BestSellersSection = () => {
 
   useGSAP(
     () => {
+      gsap.registerPlugin(SplitText, ScrollTrigger)
+
       const split = new SplitText(headingRef.current, { type: 'chars' })
 
-      gsap.from(split.chars, {
-        yPercent: 110,
-        stagger: 0.03,
-        duration: 0.7,
-        ease: 'power4.out',
-        scrollTrigger: { trigger: rootRef.current, start: 'top 70%', once: true },
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: rootRef.current,
+          start: 'top 65%',
+          once: true,
+        },
       })
 
-      gsap.from('[data-anim="bs-kicker"]', {
+      tl.from('[data-anim="bs-kicker"]', {
         y: 20,
         opacity: 0,
-        duration: 0.6,
+        duration: 0.5,
         ease: 'power3.out',
-        scrollTrigger: { trigger: rootRef.current, start: 'top 75%', once: true },
       })
-
-      gsap.from('[data-anim="bs-card"]', {
-        y: 60,
-        opacity: 0,
-        stagger: 0.12,
-        duration: 0.8,
-        ease: 'power3.out',
-        scrollTrigger: { trigger: rootRef.current, start: 'top 70%', once: true },
-      })
+        .from(
+          split.chars,
+          {
+            yPercent: 110,
+            opacity: 0,
+            stagger: 0.025,
+            duration: 0.6,
+            ease: 'power4.out',
+          },
+          '-=0.1',
+        )
+        .from(
+          '[data-anim="bs-card"]',
+          {
+            y: 80,
+            opacity: 0,
+            rotateX: 18,
+            transformPerspective: 900,
+            stagger: 0.1,
+            duration: 0.9,
+            ease: 'power4.out',
+          },
+          '-=0.1',
+        )
 
       return () => split.revert()
     },

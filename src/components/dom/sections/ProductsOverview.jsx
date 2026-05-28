@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { SplitText } from 'gsap/SplitText'
 
 const CARDS = [
   {
@@ -145,35 +146,62 @@ const Card = ({ card, layout }) => {
 
 export const ProductsOverview = () => {
   const rootRef = useRef(null)
+  const headingRef = useRef(null)
 
   useGSAP(
     () => {
-      gsap.from('[data-anim="po-head"] > *', {
-        y: 30,
-        opacity: 0,
-        stagger: 0.08,
-        duration: 0.8,
-        ease: 'power3.out',
+      gsap.registerPlugin(SplitText, ScrollTrigger)
+
+      const split = new SplitText(headingRef.current, { type: 'chars' })
+
+      const tl = gsap.timeline({
         scrollTrigger: {
           trigger: rootRef.current,
-          start: 'top 75%',
+          start: 'top 65%',
           once: true,
         },
       })
 
-      gsap.from('[data-anim="product-card"]', {
-        clipPath: 'inset(0 0 100% 0)',
-        y: 40,
+      tl.from('[data-anim="po-kicker"]', {
+        y: 20,
         opacity: 0,
-        stagger: 0.1,
-        duration: 1,
+        duration: 0.55,
         ease: 'power3.out',
-        scrollTrigger: {
-          trigger: '[data-anim="product-grid"]',
-          start: 'top 80%',
-          once: true,
-        },
       })
+        .from(
+          split.chars,
+          {
+            yPercent: 110,
+            opacity: 0,
+            stagger: { amount: 0.5 },
+            duration: 0.65,
+            ease: 'power4.out',
+          },
+          '-=0.2',
+        )
+        .from(
+          '[data-anim="po-desc"]',
+          { y: 25, opacity: 0, duration: 0.6, ease: 'power3.out' },
+          '-=0.3',
+        )
+
+      gsap.utils.toArray('[data-anim="product-card"]').forEach((card) => {
+        gsap.from(card, {
+          y: 70,
+          opacity: 0,
+          rotateX: 20,
+          transformPerspective: 900,
+          duration: 1,
+          ease: 'power4.out',
+          scrollTrigger: {
+            trigger: card,
+            start: 'top 85%',
+            once: true,
+          },
+        })
+      })
+
+      return () => split.revert()
     },
     { scope: rootRef },
   )
@@ -186,9 +214,10 @@ export const ProductsOverview = () => {
       data-transition-color="#172D6D"
       className="relative px-6 md:px-10 py-28 md:py-40 max-w-[1400px] mx-auto"
     >
-      <div data-anim="po-head" className="grid grid-cols-12 gap-6 mb-20 md:mb-32">
+      <div className="grid grid-cols-12 gap-6 mb-20 md:mb-32">
         <div className="col-span-12 md:col-span-3">
           <span
+            data-anim="po-kicker"
             className="text-[11px] tracking-[0.3em] uppercase"
             style={{ color: 'var(--color-blue)' }}
           >
@@ -196,17 +225,20 @@ export const ProductsOverview = () => {
           </span>
         </div>
         <h2
-          className="col-span-12 md:col-span-9 leading-[0.85]"
+          ref={headingRef}
+          className="col-span-12 leading-[0.85] overflow-hidden"
           style={{
-            fontSize: 'clamp(4rem, 13vw, 14rem)',
+            fontSize: 'clamp(3.5rem, 12.5vw, 13rem)',
             fontWeight: 900,
             color: 'var(--color-navy)',
             letterSpacing: '-0.05em',
+            whiteSpace: 'nowrap',
           }}
         >
           PRODUCTOS<span style={{ color: 'var(--color-lime)' }}>.</span>
         </h2>
         <p
+          data-anim="po-desc"
           className="col-span-12 md:col-start-4 md:col-span-6 mt-6 text-[16px] md:text-[18px] leading-relaxed"
           style={{ color: 'rgba(23,45,109,0.7)' }}
         >
