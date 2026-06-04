@@ -4,7 +4,7 @@ import gsap from 'gsap'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAdminProducts } from '../../hooks/useAdminProducts.js'
 import { useCategories } from '../../hooks/useCategories.js'
-import { BRANDS, categoryColor, categoryKind } from '../../lib/productSpecs.js'
+import { categoryColor, categoryKind } from '../../lib/productSpecs.js'
 
 const SORT_FIELDS = {
   name: (a, b) => a.name.localeCompare(b.name),
@@ -37,6 +37,11 @@ export const Products = () => {
   const [priceMax, setPriceMax] = useState('')
   const [sort, setSort] = useState({ field: null, dir: 'asc' })
   const [confirmDelete, setConfirmDelete] = useState(null)
+
+  const uniqueBrands = useMemo(
+    () => [...new Set(products.map((p) => p.brand).filter(Boolean))].sort(),
+    [products],
+  )
 
   const filtered = useMemo(() => {
     let list = products
@@ -138,7 +143,7 @@ export const Products = () => {
           onChange={(e) => setBrand(e.target.value)}
         >
           <option value="all">Todas las marcas</option>
-          {BRANDS.map((b) => <option key={b} value={b}>{b}</option>)}
+          {uniqueBrands.map((b) => <option key={b} value={b}>{b}</option>)}
         </select>
         <div className="filter-price-range">
           <input

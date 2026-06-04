@@ -140,8 +140,13 @@ create policy "profiles_admin_all" on profiles
 insert into categories (name, slug, sort_order) values
   ('Sales de Nicotina',    'sales-de-nicotina',    10),
   ('Longfill',             'longfill',             20),
-  ('Vapers',               'vapers',               30),
-  ('Vapers Desechables',   'vapers-desechables',   40),
-  ('Accesorios',           'accesorios',           50),
-  ('Alquimia',             'alquimia',             60)
+  ('Minilongfill',         'minilongfill',         30),
+  ('Vapers',               'vapers',               40),
+  ('Vapers Desechables',   'vapers-desechables',   50),
+  ('Alquimia',             'alquimia',             60),
+  ('Accesorios',           'accesorios',           70),
+  ('CBD',                  'cbd',                  80),
+  ('Resistencia',          'resistencia',          90),
+  ('Parafernalia',         'parafernalia',        100),
+  ('Merchandising',        'merchandising',       110)
 on conflict (slug) do nothing;

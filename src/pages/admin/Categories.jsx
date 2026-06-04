@@ -9,12 +9,18 @@ import { categoryColor } from '../../lib/productSpecs.js'
 
 const effectivePrice = (p) => Number((p.is_on_sale && p.sale_price) ? p.sale_price : p.price ?? 0)
 
+const slugify = (str) =>
+  str.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-')
+
 export const Categories = () => {
   const ref = useRef(null)
   const { products, loading: pLoading } = useAdminProducts()
   const { categories, loading: cLoading } = useCategories()
   const [order, setOrder] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [showNewForm, setShowNewForm] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [creating, setCreating] = useState(false)
 
   const list = useMemo(() => {
     if (order) return order
@@ -47,6 +53,28 @@ export const Categories = () => {
     setOrder(next)
   }
 
+  const createCategory = async () => {
+    if (!newName.trim()) return
+    setCreating(true)
+    try {
+      const slug = slugify(newName)
+      const maxOrder = list.length ? Math.max(...list.map((c) => c.sort_order)) : 0
+      const { error } = await supabase.from('categories').insert({
+        name: newName.trim(),
+        slug,
+        sort_order: maxOrder + 10,
+      })
+      if (error) throw error
+      setNewName('')
+      setShowNewForm(false)
+      window.location.reload()
+    } catch (err) {
+      alert(`Error creando categoría: ${err.message}`)
+    } finally {
+      setCreating(false)
+    }
+  }
+
   const saveOrder = async () => {
     if (!order) return
     setSaving(true)
@@ -77,17 +105,55 @@ export const Categories = () => {
           <h1 className="page-title">Categorías</h1>
           <p className="page-subtitle">Vista por tipo de producto · reordena con ↑ ↓</p>
         </div>
-        {order && (
-          <div className="header-actions">
-            <button className="btn-ghost" onClick={() => setOrder(null)} disabled={saving}>
-              Descartar
-            </button>
-            <button className="btn-primary" onClick={saveOrder} disabled={saving}>
-              {saving ? 'Guardando…' : 'Guardar orden'}
+        <div className="header-actions">
+          <button
+            className="btn-ghost"
+            onClick={() => { setShowNewForm((v) => !v); setNewName('') }}
+          >
+            {showNewForm ? 'Cancelar' : '+ Nueva categoría'}
+          </button>
+          {order && (
+            <>
+              <button className="btn-ghost" onClick={() => setOrder(null)} disabled={saving}>
+                Descartar
+              </button>
+              <button className="btn-primary" onClick={saveOrder} disabled={saving}>
+                {saving ? 'Guardando…' : 'Guardar orden'}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {showNewForm && (
+        <div className="editor-section" style={{ marginBottom: 24, padding: '20px 24px', background: '#111', borderRadius: 10, border: '1px solid #1e1e1e' }}>
+          <h2 className="editor-section-title" style={{ marginBottom: 16 }}>Nueva categoría</h2>
+          <div className="field-row" style={{ alignItems: 'flex-end', gap: 12 }}>
+            <div className="field" style={{ flex: 1 }}>
+              <label>Nombre</label>
+              <input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="ej. Minilongfill"
+                onKeyDown={(e) => e.key === 'Enter' && createCategory()}
+                autoFocus
+              />
+              {newName.trim() && (
+                <span className="field-hint">Slug: {slugify(newName)}</span>
+              )}
+            </div>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={createCategory}
+              disabled={creating || !newName.trim()}
+              style={{ flexShrink: 0 }}
+            >
+              {creating ? 'Creando…' : 'Crear'}
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="cat-cards-grid">
         {cards.map((c, idx) => (

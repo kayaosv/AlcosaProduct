@@ -10,7 +10,7 @@ import {
   updateProduct,
 } from '../../hooks/useAdminProducts.js'
 import {
-  BRANDS, NICOTINE_LEVELS, SALES_SIZES,
+  NICOTINE_LEVELS, SALES_SIZES,
   LONGFILL_CONCENTRATES, LONGFILL_BOTTLES, categoryKind,
 } from '../../lib/productSpecs.js'
 
@@ -184,10 +184,11 @@ export const ProductEditor = () => {
               <div className="field-row">
                 <div className="field">
                   <label>Marca</label>
-                  <select value={form.brand || ''} onChange={(e) => set('brand', e.target.value)}>
-                    <option value="">Sin marca</option>
-                    {BRANDS.map((m) => <option key={m} value={m}>{m}</option>)}
-                  </select>
+                  <input
+                    value={form.brand || ''}
+                    onChange={(e) => set('brand', e.target.value)}
+                    placeholder="ej. Bombo, OXVA, Elf Bar…"
+                  />
                 </div>
                 <div className="field">
                   <label>Categoría *</label>
