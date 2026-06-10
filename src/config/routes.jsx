@@ -15,6 +15,7 @@ import { OrderDetail } from '../pages/admin/OrderDetail.jsx'
 import { Categories } from '../pages/admin/Categories.jsx'
 import { Wholesale } from '../pages/admin/Wholesale.jsx'
 import { Analytics } from '../pages/admin/Analytics.jsx'
+import { StockScanner } from '../pages/admin/StockScanner.jsx'
 
 export const router = createBrowserRouter([
   {
@@ -41,6 +42,7 @@ export const router = createBrowserRouter([
       { path: 'categories', element: <Categories /> },
       { path: 'wholesale', element: <Wholesale /> },
       { path: 'analytics', element: <Analytics /> },
+      { path: 'stock-scanner', element: <StockScanner /> },
     ],
   },
 ])

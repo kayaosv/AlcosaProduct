@@ -42,6 +42,12 @@ const IconChart = () => (
     <line x1="6" y1="20" x2="6" y2="14" /><line x1="2" y1="20" x2="22" y2="20" />
   </svg>
 )
+const IconBarcode = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M3 5v14M7 5v14M11 5v14M15 5v9M19 5v14M15 17v2" strokeLinecap="round" />
+    <rect x="13" y="14" width="6" height="5" rx="1" />
+  </svg>
+)
 const IconExternalLink = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
@@ -58,6 +64,7 @@ const IconLogout = () => (
 const NAV_ITEMS = [
   { to: '/admin', label: 'Dashboard', icon: IconGrid, exact: true },
   { to: '/admin/products', label: 'Productos', icon: IconBox },
+  { to: '/admin/stock-scanner', label: 'Escáner stock', icon: IconBarcode },
   { to: '/admin/orders', label: 'Pedidos', icon: IconCart },
   { to: '/admin/categories', label: 'Categorías', icon: IconTag },
   { to: '/admin/wholesale', label: 'Mayorista', icon: IconTruck },

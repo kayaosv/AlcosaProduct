@@ -17,6 +17,7 @@ import {
 const EMPTY = {
   name: '',
   brand: '',
+  barcode: '',
   category_id: '',
   price: '',
   sale_price: '',
@@ -54,6 +55,7 @@ export const ProductEditor = () => {
         setForm({
           name: p.name ?? '',
           brand: p.brand ?? '',
+          barcode: p.barcode ?? '',
           category_id: p.category_id ?? '',
           price: p.price ?? '',
           sale_price: p.sale_price ?? '',
@@ -113,6 +115,7 @@ export const ProductEditor = () => {
       const payload = {
         name: form.name.trim(),
         brand: form.brand || null,
+        barcode: form.barcode.trim() || null,
         category_id: form.category_id || null,
         price: parseFloat(form.price) || 0,
         sale_price: form.is_on_sale && form.sale_price !== '' ? parseFloat(form.sale_price) : null,
@@ -191,17 +194,26 @@ export const ProductEditor = () => {
                   />
                 </div>
                 <div className="field">
-                  <label>Categoría *</label>
-                  <select
-                    required
-                    value={form.category_id}
-                    onChange={(e) => set('category_id', e.target.value)}
-                  >
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
+                  <label>Código de barras (EAN/UPC)</label>
+                  <input
+                    value={form.barcode || ''}
+                    onChange={(e) => set('barcode', e.target.value)}
+                    placeholder="ej. 8410076470038"
+                    maxLength={50}
+                  />
                 </div>
+              </div>
+              <div className="field">
+                <label>Categoría *</label>
+                <select
+                  required
+                  value={form.category_id}
+                  onChange={(e) => set('category_id', e.target.value)}
+                >
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
               </div>
             </div>
           </section>
