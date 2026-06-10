@@ -17,10 +17,10 @@ export const CATEGORY_META = {
 }
 
 export const NICOTINE_LEVELS = [0, 3, 6, 9, 10, 12, 18, 20]
-export const SALES_SIZES = [10, 20, 30, 50, 60, 100]
-export const LONGFILL_CONCENTRATES = [10, 12, 15, 16, 20, 30]
+export const SALES_SIZES = [10]
+export const LONGFILL_CONCENTRATES = [10, 12, 15, 16, 20, 24, 30]
 export const LONGFILL_BOTTLES = [30, 60, 120]
-export const MINILONGFILL_SIZES = [6, 10]
+export const MINILONGFILL_CONCENTRATES = [6, 10]
 
 export const categoryColor = (slug) => CATEGORY_META[slug]?.color ?? '#6b7280'
 export const categoryKind = (slug) => CATEGORY_META[slug]?.kind ?? 'accesorios'
