@@ -11,7 +11,7 @@ import {
 } from '../../hooks/useAdminProducts.js'
 import {
   NICOTINE_LEVELS, SALES_SIZES,
-  LONGFILL_CONCENTRATES, LONGFILL_BOTTLES, categoryKind,
+  LONGFILL_CONCENTRATES, LONGFILL_BOTTLES, MINILONGFILL_SIZES, categoryKind,
 } from '../../lib/productSpecs.js'
 
 const EMPTY = {
@@ -242,7 +242,7 @@ export const ProductEditor = () => {
             </section>
           )}
 
-          {kind === 'longfill' && (
+          {kind === 'longfill' && currentSlug !== 'minilongfill' && (
             <section className="editor-section">
               <h2 className="editor-section-title">Especificaciones — Longfill</h2>
               <div className="field-group">
@@ -263,6 +263,42 @@ export const ProductEditor = () => {
                       onChange={(e) => setDetail('bottle_ml', Number(e.target.value))}
                     >
                       {LONGFILL_BOTTLES.map((v) => <option key={v} value={v}>{v} ml</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Sabor / Descripción</label>
+                  <input
+                    value={form.details.flavor ?? ''}
+                    onChange={(e) => setDetail('flavor', e.target.value)}
+                    placeholder="ej. Arándanos y frambuesas heladas"
+                  />
+                </div>
+              </div>
+            </section>
+          )}
+
+          {currentSlug === 'minilongfill' && (
+            <section className="editor-section">
+              <h2 className="editor-section-title">Especificaciones — Minilongfill</h2>
+              <div className="field-group">
+                <div className="field-row">
+                  <div className="field">
+                    <label>Concentrado (ml)</label>
+                    <select
+                      value={form.details.concentrate_ml ?? 6}
+                      onChange={(e) => setDetail('concentrate_ml', Number(e.target.value))}
+                    >
+                      {MINILONGFILL_SIZES.map((v) => <option key={v} value={v}>{v} ml</option>)}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>Botella final (ml)</label>
+                    <select
+                      value={form.details.bottle_ml ?? 10}
+                      onChange={(e) => setDetail('bottle_ml', Number(e.target.value))}
+                    >
+                      {MINILONGFILL_SIZES.map((v) => <option key={v} value={v}>{v} ml</option>)}
                     </select>
                   </div>
                 </div>
