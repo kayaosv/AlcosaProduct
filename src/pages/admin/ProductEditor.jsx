@@ -312,7 +312,7 @@ export const ProductEditor = () => {
                   <div className="field">
                     <label>Aroma concentrado (ml)</label>
                     <select
-                      value={form.details.concentrate_ml ?? 6}
+                      value={form.details.concentrate_ml ?? 10}
                       onChange={(e) => setDetail('concentrate_ml', Number(e.target.value))}
                     >
                       {MINILONGFILL_CONCENTRATES.map((v) => <option key={v} value={v}>{v} ml</option>)}
@@ -327,7 +327,7 @@ export const ProductEditor = () => {
                       {LONGFILL_BOTTLES.map((v) => <option key={v} value={v}>{v} ml</option>)}
                     </select>
                     {(() => {
-                      const space = (form.details.bottle_ml ?? 30) - (form.details.concentrate_ml ?? 6)
+                      const space = (form.details.bottle_ml ?? 30) - (form.details.concentrate_ml ?? 10)
                       return <span className="field-hint">Espacio para nicokit + base: {space} ml</span>
                     })()}
                   </div>
