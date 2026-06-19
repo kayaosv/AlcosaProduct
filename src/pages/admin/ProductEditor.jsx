@@ -379,7 +379,9 @@ export const ProductEditor = () => {
                     </select>
                     {(() => {
                       const space = (form.details.bottle_ml ?? 30) - (form.details.concentrate_ml ?? 10)
-                      return <span className="field-hint">Espacio para nicokit + base: {space} ml</span>
+                      return space > 0
+                        ? <span className="field-hint">Espacio para nicokit + base: {space} ml</span>
+                        : <span className="field-hint" style={{ color: '#e53935' }}>El concentrado supera la botella</span>
                     })()}
                   </div>
                 </div>
