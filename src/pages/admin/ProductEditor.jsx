@@ -362,12 +362,12 @@ export const ProductEditor = () => {
                 <div className="field-row">
                   <div className="field">
                     <label>Aroma concentrado (ml)</label>
-                    <select
-                      value={form.details.concentrate_ml ?? 10}
-                      onChange={(e) => setDetail('concentrate_ml', Number(e.target.value))}
-                    >
-                      {MINILONGFILL_CONCENTRATES.map((v) => <option key={v} value={v}>{v} ml</option>)}
-                    </select>
+                    <input
+                      type="text"
+                      value={form.details.concentrate_ml ?? ''}
+                      onChange={(e) => setDetail('concentrate_ml', e.target.value)}
+                      placeholder="ej. 10"
+                    />
                   </div>
                   <div className="field">
                     <label>Botella final (ml)</label>
@@ -378,10 +378,12 @@ export const ProductEditor = () => {
                       {LONGFILL_BOTTLES.map((v) => <option key={v} value={v}>{v} ml</option>)}
                     </select>
                     {(() => {
-                      const space = (form.details.bottle_ml ?? 30) - (form.details.concentrate_ml ?? 10)
-                      return space > 0
+                      const space = (form.details.bottle_ml ?? 30) - parseFloat(form.details.concentrate_ml)
+                      return !isNaN(space) && space > 0
                         ? <span className="field-hint">Espacio para nicokit + base: {space} ml</span>
-                        : <span className="field-hint" style={{ color: '#e53935' }}>El concentrado supera la botella</span>
+                        : !isNaN(space) && space <= 0
+                          ? <span className="field-hint" style={{ color: '#e53935' }}>El concentrado supera la botella</span>
+                          : null
                     })()}
                   </div>
                 </div>
