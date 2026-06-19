@@ -53,7 +53,7 @@ export const Products = () => {
     if (search.trim()) {
       const q = search.toLowerCase()
       list = list.filter(
-        (p) => p.name.toLowerCase().includes(q) || (p.brand || '').toLowerCase().includes(q),
+        (p) => p.name.toLowerCase().includes(q) || (p.brand || '').toLowerCase().includes(q) || (p.barcode || '').includes(q),
       )
     }
     if (sort.field) {

@@ -67,6 +67,17 @@ body {
   color: var(--color-navy);
 }
 
+/* Best Sellers cards — equal on mobile/tablet, asymmetric on desktop */
+.bs-card {
+  flex: 1;
+}
+@media (min-width: 1024px) {
+  .bs-card {
+    flex: var(--bs-flex, 1);
+    min-width: 160px;
+  }
+}
+
 .section-transition-plane {
   position: fixed;
   inset: 0;

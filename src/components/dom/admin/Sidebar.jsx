@@ -71,7 +71,7 @@ const NAV_ITEMS = [
   { to: '/admin/analytics', label: 'Analytics', icon: IconChart },
 ]
 
-export const Sidebar = () => {
+export const Sidebar = ({ isOpen, onClose }) => {
   const ref = useRef(null)
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
@@ -87,13 +87,14 @@ export const Sidebar = () => {
   }
 
   return (
-    <aside ref={ref} className="admin-sidebar">
+    <aside ref={ref} className={`admin-sidebar ${isOpen ? 'admin-sidebar--open' : ''}`}>
       <div className="sidebar-logo">
         <div className="logo-mark">VA</div>
         <div className="logo-text">
           <span className="logo-title">Vapers Alcosa</span>
           <span className="logo-sub">Panel de gestión</span>
         </div>
+        <button className="sidebar-close-btn" onClick={onClose} aria-label="Cerrar menú">✕</button>
       </div>
 
       <nav className="sidebar-nav">
@@ -105,6 +106,7 @@ export const Sidebar = () => {
               key={to}
               to={to}
               end={exact}
+              onClick={onClose}
               className={({ isActive }) => `nav-item ${isActive ? 'nav-item--active' : ''}`}
             >
               <Icon />

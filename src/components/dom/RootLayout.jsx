@@ -17,8 +17,13 @@ export const RootLayout = () => {
   // Once preloader unmounts, recompute ScrollTrigger positions.
   useEffect(() => {
     if (!isLoaded) return
-    const id = requestAnimationFrame(() => ScrollTrigger.refresh())
-    return () => cancelAnimationFrame(id)
+    // Two rAF frames: first lets Lenis complete its initial tick,
+    // second lets the DOM settle before ScrollTrigger measures positions.
+    let id2
+    const id1 = requestAnimationFrame(() => {
+      id2 = requestAnimationFrame(() => ScrollTrigger.refresh())
+    })
+    return () => { cancelAnimationFrame(id1); cancelAnimationFrame(id2) }
   }, [isLoaded])
 
   return (

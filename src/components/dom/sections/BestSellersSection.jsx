@@ -72,7 +72,7 @@ export const BestSellersSection = () => {
       data-nav-theme="dark"
       data-transition-type="none"
       data-transition-color="#172D6D"
-      className="relative w-full overflow-hidden py-32 md:py-40"
+      className="relative w-full py-32 md:py-40"
       style={{ background: 'var(--color-dark)', color: 'var(--color-cream)' }}
     >
       <div className="relative px-6 md:px-10 max-w-[1500px] mx-auto">
@@ -107,7 +107,7 @@ export const BestSellersSection = () => {
           </span>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-4 md:gap-5 items-stretch">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-5 items-stretch">
           {BEST_SELLERS.map((product, i) => (
             <ProductCard3D
               key={product.id}

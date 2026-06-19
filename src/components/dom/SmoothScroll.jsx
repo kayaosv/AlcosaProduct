@@ -3,12 +3,21 @@ import Lenis from 'lenis'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
+const isTouch = () =>
+  typeof window !== 'undefined' &&
+  ('ontouchstart' in window || navigator.maxTouchPoints > 0)
+
 export const SmoothScroll = ({ children }) => {
   useEffect(() => {
+    const touch = isTouch()
+
     const lenis = new Lenis({
-      duration: 1.2,
+      duration: touch ? 0 : 1.2,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      smoothWheel: true,
+      smoothWheel: !touch,
+      // On touch devices Lenis acts as a thin scroll proxy so GSAP
+      // ScrollTrigger stays in sync without fighting the native momentum.
+      smoothTouch: false,
     })
 
     const onScroll = () => ScrollTrigger.update()

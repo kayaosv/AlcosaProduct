@@ -2,8 +2,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase.js'
 
 const SELECT = `
-  id, name, brand, price, sale_price, is_on_sale, wholesale_price,
-  stock, is_active, is_featured, image_url, details, category_id,
+  id, name, brand, barcode, price, sale_price, is_on_sale, wholesale_price,
+  stock, is_active, is_featured, image_url, images, details, category_id,
   created_at, updated_at,
   categories(id, name, slug)
 `

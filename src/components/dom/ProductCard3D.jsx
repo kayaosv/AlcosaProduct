@@ -45,9 +45,9 @@ export const ProductCard3D = ({ product, flex = 1 }) => {
     <div
       ref={rootRef}
       data-anim="bs-card"
-      className="relative flex flex-col overflow-hidden"
+      className="bs-card relative flex flex-col overflow-hidden"
       style={{
-        flex,
+        '--bs-flex': flex,
         background: 'var(--color-navy)',
         minWidth: 0,
         willChange: 'transform',

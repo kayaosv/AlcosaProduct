@@ -3,17 +3,17 @@
 // y los colores que las cards/pills usan en el panel.
 
 export const CATEGORY_META = {
-  'sales-de-nicotina':  { color: '#e53935', kind: 'sales' },
-  'longfill':           { color: '#8b5cf6', kind: 'longfill' },
-  'minilongfill':       { color: '#7c3aed', kind: 'longfill' },
-  'vapers':             { color: '#3b82f6', kind: 'vapers' },
-  'vapers-desechables': { color: '#f59e0b', kind: 'desechables' },
-  'alquimia':           { color: '#10b981', kind: 'alquimia' },
-  'accesorios':         { color: '#6b7280', kind: 'accesorios' },
-  'cbd':                { color: '#16a34a', kind: 'accesorios' },
-  'resistencia':        { color: '#f97316', kind: 'accesorios' },
-  'parafernalia':       { color: '#ec4899', kind: 'accesorios' },
-  'merchandising':      { color: '#06b6d4', kind: 'accesorios' },
+  'sales-de-nicotina':  { color: '#e53935', kind: 'sales',       variantType: 'nic'    },
+  'longfill':           { color: '#8b5cf6', kind: 'longfill',    variantType: 'volume' },
+  'minilongfill':       { color: '#7c3aed', kind: 'longfill',    variantType: 'volume' },
+  'vapers':             { color: '#3b82f6', kind: 'vapers',      variantType: 'color'  },
+  'vapers-desechables': { color: '#f59e0b', kind: 'desechables', variantType: 'color'  },
+  'alquimia':           { color: '#10b981', kind: 'alquimia',    variantType: 'flavor' },
+  'accesorios':         { color: '#6b7280', kind: 'accesorios',  variantType: null     },
+  'cbd':                { color: '#16a34a', kind: 'accesorios',  variantType: null     },
+  'resistencia':        { color: '#f97316', kind: 'accesorios',  variantType: 'ohm'   },
+  'parafernalia':       { color: '#ec4899', kind: 'accesorios',  variantType: null     },
+  'merchandising':      { color: '#06b6d4', kind: 'accesorios',  variantType: 'color'  },
 }
 
 export const NICOTINE_LEVELS = [0, 3, 6, 9, 10, 12, 18, 20]
@@ -24,3 +24,4 @@ export const MINILONGFILL_CONCENTRATES = [10]
 
 export const categoryColor = (slug) => CATEGORY_META[slug]?.color ?? '#6b7280'
 export const categoryKind = (slug) => CATEGORY_META[slug]?.kind ?? 'accesorios'
+export const categoryVariantType = (slug) => CATEGORY_META[slug]?.variantType ?? null
