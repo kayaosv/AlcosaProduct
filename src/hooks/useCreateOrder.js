@@ -9,41 +9,23 @@ export const useCreateOrder = () => {
     setLoading(true)
     setError(null)
 
-    const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
-
     try {
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          customer_name: customer.name,
-          customer_email: customer.email,
-          customer_phone: customer.phone,
-          customer_address: customer.address,
-          notes: notes || null,
-          status: 'pending',
-          total,
-        })
-        .select('id')
-        .single()
+      const { data, error: rpcError } = await supabase.rpc('create_order', {
+        p_customer_name: customer.name,
+        p_customer_email: customer.email,
+        p_customer_phone: customer.phone,
+        p_customer_address: customer.address,
+        p_notes: notes || null,
+        p_items: items.map((i) => ({ product_id: i.productId, quantity: i.quantity })),
+      })
 
-      if (orderError) throw orderError
+      if (rpcError) throw rpcError
 
-      const orderItems = items.map((i) => ({
-        order_id: order.id,
-        product_id: i.productId,
-        product_name: i.name,
-        product_price: i.price,
-        quantity: i.quantity,
-      }))
-
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems)
-
-      if (itemsError) throw itemsError
+      const result = Array.isArray(data) ? data[0] : data
+      if (!result) throw new Error('No se pudo crear el pedido')
 
       setLoading(false)
-      return { id: order.id, total }
+      return { id: result.order_id, total: result.total }
     } catch (e) {
       setError(e.message || 'Error al crear el pedido')
       setLoading(false)

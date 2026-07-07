@@ -1,3 +1,5 @@
+-- ⚠️ SUPERADO por create-order-rpc.sql — NO aplicar. Ver AUDIT-2026-07.md.
+
 -- ============================================================
 -- Vapers Alcosa — Phase 4: public checkout policies
 -- Run this in the Supabase SQL Editor.
