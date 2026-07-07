@@ -104,17 +104,39 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
   (catálogo) sigue sin variante — añade "a ciegas" sin elegir una,
   porque hacerlo bien requeriría cargar variantes por card en el grid.
 
+- **Motor de sugerencias por familia de producto** — `src/config/crossSell.js`
+  mapea categoría → categorías complementarias (p.ej. `longfill`/`minilongfill`
+  → `alquimia`, porque un aroma concentrado necesita base neutra/nicokit para
+  vapearse; `vapers`/`resistencia` se sugieren entre sí, etc. — es el único
+  archivo que hace falta tocar para afinar las reglas de negocio). El hook
+  `useSuggestedProducts` calcula, a partir de las categorías ya presentes en
+  el carrito, qué categorías complementarias faltan, y trae 1 producto activo
+  y con stock real por categoría (excluyendo lo que ya está en el carrito).
+  Se muestra como "también te puede interesar" en `CartDrawer.jsx`
+  (`SuggestedProducts.jsx`). **Importante**: el chequeo de stock consulta
+  `product_variants` aparte de `products.stock` (mismo motivo que el
+  checkout de variantes arriba — `products.stock` es 0 cuando el producto
+  tiene variantes), así que un producto sugerido nunca aparece "en stock"
+  por error. Los productos con variantes se sugieren como link a la ficha
+  ("Ver →") en vez de quick-add, para no repetir la limitación de
+  `ProductCard.jsx` (añadir sin elegir variante). Las líneas del carrito
+  ahora llevan `categorySlug` (además de `productId`/`variantId`) para que
+  el motor sepa qué hay dentro; carritos guardados antes de este cambio no
+  lo tienen y simplemente no disparan sugerencias hasta que se añada algo
+  nuevo — no hace falta migración.
+
 **Pendiente (por prioridad):**
-1. Motor de sugerencias por familia de producto (ej. longfill → sugerir
-   base + nicokit al añadir al carrito). No existe ningún mecanismo hoy;
-   tampoco lo tiene sinhumo.net (competencia) — sería diferenciador real.
-2. Best Sellers conectado a productos reales (`is_featured=true`) en vez
+1. Best Sellers conectado a productos reales (`is_featured=true`) en vez
    del placeholder — pendiente hasta que el cliente suba catálogo real;
    el slot destacado debe apuntar a una máquina de precio medio.
-3. Quick-add de `ProductCard.jsx` sin variante elegida (ver limitación
+2. Quick-add de `ProductCard.jsx` sin variante elegida (ver limitación
    arriba) — evaluar si vale la pena el costo de fetch por card.
-4. Limpieza de imágenes huérfanas en Storage al borrar un producto.
-5. `Products.jsx` (admin) no refleja el stock agregado de variantes,
+3. Limpieza de imágenes huérfanas en Storage al borrar un producto.
+4. `Products.jsx` (admin) no refleja el stock agregado de variantes,
    solo el del producto base.
-6. Bucket `product-images` permite listar todos los archivos públicamente
+5. Bucket `product-images` permite listar todos los archivos públicamente
    (advertencia menor del linter de Supabase, no crítico).
+6. El motor de sugerencias solo tiene 2 productos reales para ofrecer en
+   `alquimia` (ambos nicokits) — no hay "base neutra" cargada todavía en
+   el catálogo; cuando el cliente la suba, aparecerá sola (no requiere
+   cambio de código).

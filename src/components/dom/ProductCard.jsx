@@ -51,6 +51,7 @@ export const ProductCard = ({ product, span = 1 }) => {
     const price = product.is_on_sale && product.sale_price != null ? product.sale_price : product.price
     addItem({
       productId: product.id,
+      categorySlug: product.categories?.slug ?? null,
       name: product.name,
       brand: product.brand,
       price: Number(price),

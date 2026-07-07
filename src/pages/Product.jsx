@@ -260,6 +260,7 @@ export const Product = () => {
     if (out) return
     addItem({
       productId: product.id,
+      categorySlug: slug,
       variantId: hasVariants ? selectedVariant.id : null,
       variantLabel: hasVariants ? selectedVariant.label : null,
       name: product.name,

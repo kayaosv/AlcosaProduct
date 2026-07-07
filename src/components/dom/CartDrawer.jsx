@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppStore } from '../../stores/useAppStore.js'
 import { useCartStore } from '../../stores/useCartStore.js'
+import { SuggestedProducts } from './SuggestedProducts.jsx'
 
 const formatPrice = (n) => `${Number(n).toFixed(2)}€`
 
@@ -156,6 +157,8 @@ export const CartDrawer = () => {
             </ul>
           )}
         </div>
+
+        {items.length > 0 && <SuggestedProducts items={items} />}
 
         {items.length > 0 && (
           <footer
