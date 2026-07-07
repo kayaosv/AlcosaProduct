@@ -97,26 +97,19 @@ body {
   }
 }
 
-/* Add-to-cart bar on the product page — pinned to the viewport bottom
-   below the desktop breakpoint so it's always reachable without scrolling */
+/* Add-to-cart bar on the product page — always pinned to the viewport
+   bottom regardless of window width, so it never depends on guessing a
+   breakpoint against a resized/split browser window. */
 .add-to-cart-bar {
   position: fixed;
   inset-inline: 0;
   bottom: 0;
   z-index: 90;
   padding: 1rem 1.5rem;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
   background: rgba(255, 248, 240, 0.97);
   backdrop-filter: blur(8px);
   border-top: 1px solid rgba(23, 45, 109, 0.12);
-}
-@media (min-width: 1024px) {
-  .add-to-cart-bar {
-    position: static;
-    padding: 0;
-    background: transparent;
-    backdrop-filter: none;
-    border-top: none;
-  }
 }
 
 .section-transition-plane {

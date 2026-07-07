@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { useAppStore } from '../../stores/useAppStore.js'
 import { useCartStore } from '../../stores/useCartStore.js'
@@ -19,23 +18,24 @@ export const CartDrawer = () => {
   const drawerRef = useRef(null)
   const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
 
-  useGSAP(
-    () => {
-      if (open) {
-        gsap.set(overlayRef.current, { display: 'block' })
-        gsap.to(overlayRef.current, { opacity: 1, duration: 0.3 })
-        gsap.to(drawerRef.current, { xPercent: 0, duration: 0.5, ease: 'power4.out' })
-      } else {
-        gsap.to(overlayRef.current, {
-          opacity: 0,
-          duration: 0.3,
-          onComplete: () => gsap.set(overlayRef.current, { display: 'none' }),
-        })
-        gsap.to(drawerRef.current, { xPercent: 100, duration: 0.4, ease: 'power3.in' })
-      }
-    },
-    { dependencies: [open] },
-  )
+  // Plain useEffect on purpose, not useGSAP({ dependencies }) — useGSAP
+  // reverts the previous run's tweens on every dependency change, which
+  // fought this open/close toggle and could leave the drawer snapped back
+  // off-screen while only the backdrop's fade/blur played through.
+  useEffect(() => {
+    if (open) {
+      gsap.set(overlayRef.current, { display: 'block' })
+      gsap.to(overlayRef.current, { opacity: 1, duration: 0.3 })
+      gsap.to(drawerRef.current, { xPercent: 0, duration: 0.5, ease: 'power4.out' })
+    } else {
+      gsap.to(overlayRef.current, {
+        opacity: 0,
+        duration: 0.3,
+        onComplete: () => gsap.set(overlayRef.current, { display: 'none' }),
+      })
+      gsap.to(drawerRef.current, { xPercent: 100, duration: 0.4, ease: 'power3.in' })
+    }
+  }, [open])
 
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : ''

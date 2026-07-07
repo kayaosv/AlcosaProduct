@@ -360,6 +360,8 @@ const MenuToggle = ({ open, onToggle, theme }) => {
   )
 }
 
+const SCROLL_SOLIDIFY_THRESHOLD = 24
+
 export const Nav = () => {
   const navRef = useRef(null)
   const itemsCount = useCartStore((s) => s.items.length)
@@ -367,6 +369,7 @@ export const Nav = () => {
   const setCartOpen = useAppStore((s) => s.setCartOpen)
   const [open, setOpen] = useState(false)
   const [theme, setTheme] = useState('light')
+  const [scrolled, setScrolled] = useState(false)
   const toggleMenu = () => setOpen((v) => !v)
   const closeMenu = () => setOpen(false)
 
@@ -395,6 +398,15 @@ export const Nav = () => {
     return () => io.disconnect()
   }, [])
 
+  // Lenis (SmoothScroll) still drives real window scroll under the hood,
+  // so a plain scroll listener here tracks it fine.
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > SCROLL_SOLIDIFY_THRESHOLD)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
   useGSAP(
     () => {
       gsap.set(navRef.current, { y: -40, opacity: 0 })
@@ -411,12 +423,23 @@ export const Nav = () => {
     { dependencies: [isLoaded], scope: navRef },
   )
 
+  // Once the header solidifies into its own opaque band, it defines its
+  // own contrast — ignore the underlying section's dark/light theme so
+  // e.g. cream icons never end up on a cream bar.
+  const effectiveTheme = scrolled ? 'light' : theme
+
   return (
     <>
       <header
         ref={navRef}
         className="fixed top-0 left-0 right-0 z-[100]"
-        style={{ background: 'transparent' }}
+        style={{
+          background: scrolled ? 'rgba(255,248,240,0.92)' : 'transparent',
+          backdropFilter: scrolled ? 'blur(10px)' : 'none',
+          WebkitBackdropFilter: scrolled ? 'blur(10px)' : 'none',
+          boxShadow: scrolled ? '0 1px 0 rgba(23,45,109,0.1)' : 'none',
+          transition: 'background 0.35s ease, box-shadow 0.35s ease',
+        }}
       >
         <div className="flex items-center justify-between px-6 md:px-10 py-6">
           <Link
@@ -424,7 +447,7 @@ export const Nav = () => {
             onClick={closeMenu}
             data-cursor="link"
             style={{
-              color: theme === 'dark' ? 'var(--color-cream)' : 'var(--color-navy)',
+              color: effectiveTheme === 'dark' ? 'var(--color-cream)' : 'var(--color-navy)',
               fontWeight: 900,
               fontSize: '16px',
               letterSpacing: '-0.02em',
@@ -434,8 +457,8 @@ export const Nav = () => {
             VAPERS·ALCOSA
           </Link>
           <div className="flex items-center gap-1 md:gap-3">
-            <CartButton itemsCount={itemsCount} onOpen={() => setCartOpen(true)} theme={theme} />
-            <MenuToggle open={open} onToggle={toggleMenu} theme={theme} />
+            <CartButton itemsCount={itemsCount} onOpen={() => setCartOpen(true)} theme={effectiveTheme} />
+            <MenuToggle open={open} onToggle={toggleMenu} theme={effectiveTheme} />
           </div>
         </div>
       </header>
