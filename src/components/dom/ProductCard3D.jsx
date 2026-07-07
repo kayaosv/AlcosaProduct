@@ -109,7 +109,7 @@ export const ProductCard3D = ({ product, flex = 1 }) => {
 
           <Link
             ref={ctaRef}
-            to={`/catalog?categoria=${product.catalogSlug}`}
+            to={`/catalog?cat=${product.catalogSlug}`}
             data-cursor="link"
             className="text-[11px] tracking-[0.25em] uppercase"
             style={{ color: 'var(--color-cream)', fontWeight: 700 }}

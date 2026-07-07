@@ -1,11 +1,13 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import gsap from 'gsap'
 import { useAppStore } from '../../stores/useAppStore.js'
 import { useCartStore } from '../../stores/useCartStore.js'
 
 const formatPrice = (n) => `${Number(n).toFixed(2)}€`
 
+// TEMPORAL: sin animación a propósito, para confirmar visualmente que el
+// panel existe y se muestra antes de reintroducir el motion de GSAP.
+// Ver CLAUDE.md / commit — restaurar la animación una vez confirmado.
 export const CartDrawer = () => {
   const open = useAppStore((s) => s.cartOpen)
   const setOpen = useAppStore((s) => s.setCartOpen)
@@ -14,28 +16,7 @@ export const CartDrawer = () => {
   const removeItem = useCartStore((s) => s.removeItem)
   const clearCart = useCartStore((s) => s.clearCart)
 
-  const overlayRef = useRef(null)
-  const drawerRef = useRef(null)
   const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
-
-  // Plain useEffect on purpose, not useGSAP({ dependencies }) — useGSAP
-  // reverts the previous run's tweens on every dependency change, which
-  // fought this open/close toggle and could leave the drawer snapped back
-  // off-screen while only the backdrop's fade/blur played through.
-  useEffect(() => {
-    if (open) {
-      gsap.set(overlayRef.current, { display: 'block' })
-      gsap.to(overlayRef.current, { opacity: 1, duration: 0.3 })
-      gsap.to(drawerRef.current, { xPercent: 0, duration: 0.5, ease: 'power4.out' })
-    } else {
-      gsap.to(overlayRef.current, {
-        opacity: 0,
-        duration: 0.3,
-        onComplete: () => gsap.set(overlayRef.current, { display: 'none' }),
-      })
-      gsap.to(drawerRef.current, { xPercent: 100, duration: 0.4, ease: 'power3.in' })
-    }
-  }, [open])
 
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : ''
@@ -44,29 +25,26 @@ export const CartDrawer = () => {
     }
   }, [open])
 
+  if (!open) return null
+
   return (
     <>
       <div
-        ref={overlayRef}
         onClick={() => setOpen(false)}
         className="fixed inset-0"
         style={{
-          background: 'rgba(13,13,13,0.5)',
-          backdropFilter: 'blur(4px)',
-          opacity: 0,
-          display: 'none',
+          background: 'rgba(13,13,13,0.6)',
           zIndex: 1000,
         }}
       />
       <aside
-        ref={drawerRef}
         className="fixed top-0 right-0 h-full w-full sm:w-[440px] flex flex-col"
         style={{
           background: 'var(--color-cream)',
           color: 'var(--color-navy)',
-          transform: 'translateX(100%)',
           zIndex: 1001,
           borderLeft: '1px solid rgba(23,45,109,0.1)',
+          boxShadow: '-8px 0 24px rgba(0,0,0,0.25)',
         }}
       >
         <header
