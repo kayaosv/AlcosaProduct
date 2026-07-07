@@ -22,6 +22,14 @@ export const LONGFILL_CONCENTRATES = [10, 12, 15, 16, 20, 24, 30]
 export const LONGFILL_BOTTLES = [30, 60, 120]
 export const MINILONGFILL_CONCENTRATES = [10]
 
+export const VARIANT_LABELS = {
+  color: 'Color',
+  flavor: 'Sabor',
+  ohm: 'Resistencia',
+  nic: 'Nicotina',
+  volume: 'Volumen',
+}
+
 export const categoryColor = (slug) => CATEGORY_META[slug]?.color ?? '#6b7280'
 export const categoryKind = (slug) => CATEGORY_META[slug]?.kind ?? 'accesorios'
 export const categoryVariantType = (slug) => CATEGORY_META[slug]?.variantType ?? null

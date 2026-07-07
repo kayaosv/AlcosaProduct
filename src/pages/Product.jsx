@@ -1,4 +1,4 @@
-import { Suspense, useRef } from 'react'
+import { Suspense, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
@@ -6,8 +6,10 @@ import { SplitText } from 'gsap/SplitText'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Float, Environment, useGLTF } from '@react-three/drei'
 import { useProduct } from '../hooks/useProduct.js'
+import { useProductVariants } from '../hooks/useProductVariants.js'
 import { useCartStore } from '../stores/useCartStore.js'
 import { useAppStore } from '../stores/useAppStore.js'
+import { categoryVariantType, VARIANT_LABELS } from '../lib/productSpecs.js'
 
 const formatPrice = (n) => `${Number(n).toFixed(2)}€`
 
@@ -55,6 +57,57 @@ const Specs = ({ slug, details }) => {
   )
 }
 
+const resolvePrice = (v) => (v?.sale_price ?? v?.price ?? null)
+
+const VariantPicker = ({ variantType, variants, selectedId, onSelect }) => (
+  <div data-anim="text" className="mt-6">
+    <span
+      className="block text-[10px] tracking-[0.2em] uppercase mb-3"
+      style={{ color: 'rgba(23,45,109,0.5)' }}
+    >
+      {VARIANT_LABELS[variantType] ?? 'Variante'}
+    </span>
+    <div className="flex flex-wrap gap-2">
+      {variants.map((v) => {
+        const isSelected = v.id === selectedId
+        const isOut = v.stock === 0
+        return (
+          <button
+            key={v.id}
+            type="button"
+            data-cursor="link"
+            onClick={() => onSelect(v.id)}
+            className="inline-flex items-center gap-2 px-4 py-2 text-[12px]"
+            style={{
+              border: `1px solid ${isSelected ? 'var(--color-navy)' : 'rgba(23,45,109,0.25)'}`,
+              background: isSelected ? 'var(--color-navy)' : 'transparent',
+              color: isOut ? 'rgba(23,45,109,0.4)' : isSelected ? 'var(--color-lime)' : 'var(--color-navy)',
+              fontWeight: 700,
+              textDecoration: isOut ? 'line-through' : 'none',
+            }}
+          >
+            {variantType === 'color' && v.hex && (
+              <span
+                aria-hidden
+                style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: '50%',
+                  background: v.hex,
+                  border: '1px solid rgba(0,0,0,0.15)',
+                  flexShrink: 0,
+                }}
+              />
+            )}
+            {v.label}
+            {isOut && <span style={{ fontWeight: 400, fontSize: '10px' }}>· agotado</span>}
+          </button>
+        )
+      })}
+    </div>
+  </div>
+)
+
 const ProductVape = () => {
   const ref = useRef(null)
   const { scene } = useGLTF('/models/vape.glb')
@@ -92,6 +145,8 @@ export const Product = () => {
   const titleRef = useRef(null)
   const buttonRef = useRef(null)
   const { product, loading } = useProduct(id)
+  const { variants } = useProductVariants(product?.id)
+  const [selectedVariantId, setSelectedVariantId] = useState(null)
   const addItem = useCartStore((s) => s.addItem)
   const setCartOpen = useAppStore((s) => s.setCartOpen)
 
@@ -148,25 +203,6 @@ export const Product = () => {
     { scope: containerRef, dependencies: [loading, product?.id] },
   )
 
-  const handleAdd = () => {
-    if (!product || product.stock === 0) return
-    const price = product.is_on_sale && product.sale_price != null ? product.sale_price : product.price
-    addItem({
-      productId: product.id,
-      name: product.name,
-      brand: product.brand,
-      price: Number(price),
-      image_url: product.image_url,
-      quantity: 1,
-    })
-    gsap
-      .timeline()
-      .to(buttonRef.current, { scale: 0.95, duration: 0.1 })
-      .to(buttonRef.current, { scale: 1.05, duration: 0.2, ease: 'elastic.out(1, 0.4)' })
-      .to(buttonRef.current, { scale: 1, duration: 0.15 })
-    setCartOpen(true)
-  }
-
   if (loading) {
     return (
       <main className="min-h-screen pt-32 px-6 md:px-10">
@@ -191,12 +227,54 @@ export const Product = () => {
     )
   }
 
-  const out = product.stock === 0
-  const low = product.stock > 0 && product.stock < 5
   const slug = product.categories?.slug
-  const showCanvas = slug === 'vapers' || slug === 'vapers-desechables'
-  const finalPrice =
+  const variantType = categoryVariantType(slug)
+  const hasVariants = variantType && variants.length > 0
+
+  // Self-healing: if the picked id doesn't belong to the current
+  // product's variants (e.g. just navigated here), fall back to the
+  // primary one instead of needing an effect to reset selection.
+  const primaryVariant = variants.find((v) => v.is_primary) ?? variants[0] ?? null
+  const selectedVariant = hasVariants
+    ? (variants.find((v) => v.id === selectedVariantId) ?? primaryVariant)
+    : null
+
+  const baseEffectivePrice =
     product.is_on_sale && product.sale_price != null ? product.sale_price : product.price
+
+  const finalPrice = hasVariants
+    ? (resolvePrice(selectedVariant) ?? resolvePrice(primaryVariant) ?? baseEffectivePrice)
+    : baseEffectivePrice
+
+  const hasOwnSale = hasVariants && selectedVariant?.sale_price != null
+  const strikePrice = hasVariants
+    ? (hasOwnSale ? (selectedVariant.price ?? primaryVariant?.price ?? product.price) : null)
+    : (product.is_on_sale && product.sale_price != null ? product.price : null)
+
+  const effectiveStock = hasVariants ? selectedVariant.stock : product.stock
+  const out = effectiveStock === 0
+  const low = effectiveStock > 0 && effectiveStock < 5
+  const showCanvas = slug === 'vapers' || slug === 'vapers-desechables'
+
+  const handleAdd = () => {
+    if (out) return
+    addItem({
+      productId: product.id,
+      variantId: hasVariants ? selectedVariant.id : null,
+      variantLabel: hasVariants ? selectedVariant.label : null,
+      name: product.name,
+      brand: product.brand,
+      price: Number(finalPrice),
+      image_url: (hasVariants && selectedVariant.image_url) || product.image_url,
+      quantity: 1,
+    })
+    gsap
+      .timeline()
+      .to(buttonRef.current, { scale: 0.95, duration: 0.1 })
+      .to(buttonRef.current, { scale: 1.05, duration: 0.2, ease: 'elastic.out(1, 0.4)' })
+      .to(buttonRef.current, { scale: 1, duration: 0.15 })
+    setCartOpen(true)
+  }
 
   return (
     <main ref={containerRef} className="min-h-screen pt-32 pb-24 relative overflow-hidden">
@@ -226,8 +304,12 @@ export const Product = () => {
             background: product.image_url ? 'transparent' : 'var(--color-navy)',
           }}
         >
-          {product.image_url ? (
-            <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+          {(hasVariants && selectedVariant.image_url) || product.image_url ? (
+            <img
+              src={(hasVariants && selectedVariant.image_url) || product.image_url}
+              alt={product.name}
+              className="w-full h-full object-cover"
+            />
           ) : (
             <div
               className="absolute inset-0 flex items-center justify-center"
@@ -271,13 +353,13 @@ export const Product = () => {
           )}
 
           <div data-anim="text" className="mt-6 flex items-end gap-4">
-            {product.is_on_sale && product.sale_price != null ? (
+            {strikePrice != null ? (
               <>
                 <span
                   className="line-through text-[14px]"
                   style={{ color: 'rgba(23,45,109,0.5)' }}
                 >
-                  {formatPrice(product.price)}
+                  {formatPrice(strikePrice)}
                 </span>
                 <span
                   style={{
@@ -287,15 +369,24 @@ export const Product = () => {
                     padding: '4px 10px',
                   }}
                 >
-                  {formatPrice(product.sale_price)}
+                  {formatPrice(finalPrice)}
                 </span>
               </>
             ) : (
               <span style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>
-                {formatPrice(product.price)}
+                {formatPrice(finalPrice)}
               </span>
             )}
           </div>
+
+          {hasVariants && (
+            <VariantPicker
+              variantType={variantType}
+              variants={variants}
+              selectedId={selectedVariant.id}
+              onSelect={setSelectedVariantId}
+            />
+          )}
 
           <div data-anim="text">
             <Specs slug={slug} details={product.details} />
@@ -308,7 +399,7 @@ export const Product = () => {
               <span style={{ color: 'var(--color-blue)' }}>Últimas unidades</span>
             ) : (
               <span style={{ color: 'rgba(23,45,109,0.7)' }}>
-                En stock ({product.stock} uds.)
+                En stock ({effectiveStock} uds.)
               </span>
             )}
           </div>

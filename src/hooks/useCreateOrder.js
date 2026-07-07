@@ -16,7 +16,11 @@ export const useCreateOrder = () => {
         p_customer_phone: customer.phone,
         p_customer_address: customer.address,
         p_notes: notes || null,
-        p_items: items.map((i) => ({ product_id: i.productId, quantity: i.quantity })),
+        p_items: items.map((i) => ({
+          product_id: i.productId,
+          quantity: i.quantity,
+          variant_id: i.variantId ?? null,
+        })),
       })
 
       if (rpcError) throw rpcError

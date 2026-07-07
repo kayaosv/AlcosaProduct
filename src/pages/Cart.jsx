@@ -67,6 +67,11 @@ const CartRow = ({ item, onMinus, onPlus, onRemove }) => (
       >
         {item.name}
       </h3>
+      {item.variantLabel && (
+        <p className="mt-0.5 text-[12px]" style={{ color: 'rgba(23,45,109,0.6)' }}>
+          {item.variantLabel}
+        </p>
+      )}
       <button
         data-cursor="link"
         onClick={onRemove}
@@ -179,12 +184,12 @@ export const Cart = () => {
         <div className="mt-12 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-12">
           <ul style={{ borderBottom: '1px solid rgba(23,45,109,0.12)' }}>
             {items.map((item) => (
-              <div key={item.productId} data-anim="cart-row">
+              <div key={`${item.productId}-${item.variantId ?? 'base'}`} data-anim="cart-row">
                 <CartRow
                   item={item}
-                  onMinus={() => updateQuantity(item.productId, item.quantity - 1)}
-                  onPlus={() => updateQuantity(item.productId, item.quantity + 1)}
-                  onRemove={() => removeItem(item.productId)}
+                  onMinus={() => updateQuantity(item.productId, item.variantId, item.quantity - 1)}
+                  onPlus={() => updateQuantity(item.productId, item.variantId, item.quantity + 1)}
+                  onRemove={() => removeItem(item.productId, item.variantId)}
                 />
               </div>
             ))}
