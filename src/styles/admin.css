@@ -2070,7 +2070,11 @@
   letter-spacing: 0.04em;
 }
 
-@media (max-width: 767px) {
+/* Sidebar colapsable también en tablets (no solo <768px) — un iPad/
+   Android tablet de ~10" cae por encima de 767px en ambas orientaciones
+   y antes se quedaba con el sidebar fijo de escritorio sin forma de
+   retraerlo. Reusa exactamente las mismas reglas que móvil. */
+@media (max-width: 1024px) {
   /* ── Overlay ── */
   .sidebar-overlay {
     display: block;
@@ -2140,6 +2144,9 @@
 
   .sidebar-hamburger:hover span { background: #e8e8e8; }
 
+}
+
+@media (max-width: 767px) {
   /* ── Layouts ── */
   .page-content { padding: 16px; }
 

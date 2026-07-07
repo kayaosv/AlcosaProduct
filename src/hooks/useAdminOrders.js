@@ -20,7 +20,7 @@ const LIST_SELECT = `
 const DETAIL_SELECT = `
   id, customer_name, customer_email, customer_phone, customer_address,
   status, total, notes, created_at,
-  order_items(id, product_id, product_name, product_price, quantity)
+  order_items(id, product_id, product_name, product_price, quantity, variant_id, variant_label)
 `
 
 export const useAdminOrders = () => {

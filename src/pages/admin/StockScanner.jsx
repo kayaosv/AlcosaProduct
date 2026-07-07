@@ -24,6 +24,8 @@ export const StockScanner = () => {
 
   const [barcode, setBarcode]     = useState('')
   const [product, setProduct]     = useState(null)
+  const [variants, setVariants]   = useState([])
+  const [selectedVariantId, setSelectedVariantId] = useState(null)
   const [notFound, setNotFound]   = useState(false)
   const [delta, setDelta]         = useState(1)
   const [saving, setSaving]       = useState(false)
@@ -123,6 +125,8 @@ export const StockScanner = () => {
     if (!clean) return
     setNotFound(false)
     setProduct(null)
+    setVariants([])
+    setSelectedVariantId(null)
     setDelta(1)
 
     const { data } = await supabase
@@ -138,6 +142,17 @@ export const StockScanner = () => {
     }
 
     setProduct(data)
+
+    // Productos con variantes guardan el stock real por variante, no en
+    // products.stock (mismo motivo que en la ficha pública y el checkout
+    // de variantes) — hay que traerlas para poder pedir cuál se repuso.
+    const { data: variantRows } = await supabase
+      .from('product_variants')
+      .select('id, label, stock, sort_order')
+      .eq('product_id', data.id)
+      .order('sort_order')
+    setVariants(variantRows ?? [])
+
     requestAnimationFrame(() => {
       if (resultRef.current)
         gsap.from(resultRef.current, { y: 10, opacity: 0, duration: 0.3, ease: 'power2.out' })
@@ -153,18 +168,38 @@ export const StockScanner = () => {
     }
   }
 
+  const hasVariants = variants.length > 0
+  const selectedVariant = hasVariants ? (variants.find((v) => v.id === selectedVariantId) ?? null) : null
+  const effectiveStock = hasVariants ? (selectedVariant?.stock ?? null) : (product?.stock ?? null)
+
   const applyDelta = async (amount) => {
     if (!product || saving) return
-    const newStock = Math.max(0, product.stock + amount)
+    if (hasVariants && !selectedVariant) return
+    const currentStock = hasVariants ? selectedVariant.stock : product.stock
+    const newStock = Math.max(0, currentStock + amount)
     setSaving(true)
     try {
-      const { error } = await supabase.from('products').update({ stock: newStock }).eq('id', product.id)
-      if (error) throw error
+      if (hasVariants) {
+        const { error } = await supabase.from('product_variants').update({ stock: newStock }).eq('id', selectedVariant.id)
+        if (error) throw error
+        setVariants((vs) => vs.map((v) => (v.id === selectedVariant.id ? { ...v, stock: newStock } : v)))
+      } else {
+        const { error } = await supabase.from('products').update({ stock: newStock }).eq('id', product.id)
+        if (error) throw error
+        setProduct((p) => ({ ...p, stock: newStock }))
+      }
       setHistory((h) => [
-        { id: product.id, name: product.name, before: product.stock, after: newStock, delta: amount, ts: new Date() },
+        {
+          id: product.id,
+          name: product.name,
+          variantLabel: hasVariants ? selectedVariant.label : null,
+          before: currentStock,
+          after: newStock,
+          delta: amount,
+          ts: new Date(),
+        },
         ...h.slice(0, 19),
       ])
-      setProduct((p) => ({ ...p, stock: newStock }))
       gsap.from('.stock-updated', { scale: 0.9, opacity: 0, duration: 0.2, ease: 'back.out(2)' })
     } finally {
       setSaving(false)
@@ -173,6 +208,8 @@ export const StockScanner = () => {
 
   const reset = () => {
     setProduct(null)
+    setVariants([])
+    setSelectedVariantId(null)
     setNotFound(false)
     setBarcode('')
     setScanMode(true)
@@ -285,13 +322,44 @@ export const StockScanner = () => {
                   </p>
                 </div>
                 <div className="scanner-result-stock">
-                  <span className="stock-updated" style={{ color: stockColor(product.stock), fontSize: 36, fontWeight: 800, letterSpacing: -1 }}>
-                    {product.stock}
+                  <span className="stock-updated" style={{ color: effectiveStock == null ? '#555' : stockColor(effectiveStock), fontSize: 36, fontWeight: 800, letterSpacing: -1 }}>
+                    {effectiveStock == null ? '—' : effectiveStock}
                   </span>
-                  <span style={{ fontSize: 11, color: '#555' }}>en stock</span>
+                  <span style={{ fontSize: 11, color: '#555' }}>
+                    {hasVariants && !selectedVariant ? 'elige variante' : 'en stock'}
+                  </span>
                 </div>
               </div>
 
+              {hasVariants && (
+                <div style={{ margin: '4px 0 16px' }}>
+                  <p style={{ fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+                    Elige variante
+                  </p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {variants.map((v) => (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => setSelectedVariantId(v.id)}
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: 12,
+                          borderRadius: 6,
+                          border: `1px solid ${v.id === selectedVariantId ? '#e53935' : '#2a2a2a'}`,
+                          background: v.id === selectedVariantId ? '#e53935' : 'transparent',
+                          color: v.id === selectedVariantId ? '#fff' : '#aaa',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {v.label} <span style={{ opacity: 0.7 }}>({v.stock})</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {(!hasVariants || selectedVariant) && (
               <div className="scanner-controls">
                 <div className="scanner-quick-btns">
                   {QUICK_DELTAS.map((d) => (
@@ -322,6 +390,7 @@ export const StockScanner = () => {
                   </div>
                 </div>
               </div>
+              )}
 
               <div className="scanner-result-actions">
                 <Link to={`/admin/products/${product.id}`} className="btn-ghost" style={{ fontSize: 12 }}>
@@ -343,7 +412,7 @@ export const StockScanner = () => {
             : history.map((h, i) => (
               <div key={i} className="scanner-history-row">
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p className="scanner-history-name">{h.name}</p>
+                  <p className="scanner-history-name">{h.name}{h.variantLabel ? ` · ${h.variantLabel}` : ''}</p>
                   <p className="scanner-history-time">{h.ts.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
                 </div>
                 <div className="scanner-history-delta" style={{ color: h.delta > 0 ? '#4ade80' : '#ef4444' }}>

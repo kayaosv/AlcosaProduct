@@ -52,7 +52,17 @@ manual, por Instagram.
   el mismo patrón `useGSAP({ dependencies })` y no se ha auditado),
   sospechar primero de esto, pero considerar quitar la animación en vez
   de perseguir un fix — para UI funcional crítica, este proyecto prioriza
-  fiabilidad sobre motion.
+  fiabilidad sobre motion. **Confirmado un segundo caso real**: la ficha
+  de producto (`Product.jsx`) tenía el mismo patrón (`useGSAP({ scope,
+  dependencies: [loading, product?.id] })`) animando con `tl.from(...)`
+  (arranca en `opacity:0`) el título, el precio, el selector de
+  variantes y el botón "Agregar al carrito" — el usuario reportó no ver
+  ni el botón ni las variantes en su tablet, coincidiendo con el tween
+  quedando revertido/parado en su estado inicial. Se quitó esa animación
+  por completo (sin sustituto) — mismo criterio que `CartDrawer.jsx`.
+  `OrderDetail.jsx` (admin) usa un `useGSAP` parecido gateado por
+  `loading` y **no se ha auditado todavía** — vigilar si aparece un
+  síntoma similar ahí.
 
 ## Estado y hallazgos (auditoría 2026-07)
 
@@ -124,6 +134,44 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
   el motor sepa qué hay dentro; carritos guardados antes de este cambio no
   lo tienen y simplemente no disparan sugerencias hasta que se añada algo
   nuevo — no hace falta migración.
+
+- **Ficha de producto sin botón/variantes visibles** — causado por la
+  animación de reveal con `useGSAP({ dependencies })` (ver nota de GSAP
+  arriba); se quitó de `Product.jsx`. Precio, specs, variantes y el botón
+  de compra ahora se renderizan sin animación de entrada, igual que el
+  carrito.
+- **Carrusel "también te puede interesar" en la ficha de producto** —
+  `src/components/dom/ProductSuggestions.jsx`, reutiliza
+  `useSuggestedProducts` (el mismo hook del carrito) pasándole un
+  carrito sintético de un solo producto (`[{ productId, categorySlug }]`),
+  así que usa exactamente el mismo mapa de `crossSell.js` y el mismo
+  chequeo de stock real por variante. Fila horizontal con scroll nativo,
+  sin librería de carrusel nueva.
+- **Sidebar del admin no se retraía en tablet** — el bloque colapsable
+  (hamburguesa/overlay/`transform`) en `src/styles/admin.css` solo
+  existía en `@media (max-width: 767px)`; una tablet de ~10" cae por
+  encima de ese ancho en ambas orientaciones y se quedaba con el sidebar
+  fijo de escritorio sin forma de retraerlo. Ahora ese mismo bloque
+  también vive en `@media (max-width: 1024px)` (duplicado, no
+  reescrito — mismo mecanismo, más rango). Las reglas de layout
+  específicas de móvil (`.dash-row`, `.editor-layout`, etc.) se quedaron
+  en 767px a propósito, sin tocar.
+- **`OrderDetail.jsx` no mostraba qué variante pidió el cliente** —
+  `order_items.variant_label` se guarda desde `variant-checkout.sql`
+  pero la vista de admin nunca lo pintaba ni lo traía en el `select`
+  (`useAdminOrders.js`, `DETAIL_SELECT`). Sin esto, el empleado que
+  prepara el pedido no podía saber qué sabor/volumen/color/Ω recoger si
+  el producto tiene variantes. Corregido en ambos archivos.
+- **`StockScanner.jsx` no tocaba el stock real de productos con
+  variantes** — escribía siempre en `products.stock`, que queda en 0/
+  sin uso en cuanto un producto tiene variantes (el stock real vive en
+  `product_variants.stock`). `product_variants` no tiene columna de
+  barcode propia, así que no hay forma de identificar la variante solo
+  con el código escaneado. Decisión con el cliente: tras encontrar el
+  producto, si tiene variantes se pide elegir una (chips) antes de
+  habilitar los botones +/-; con variante elegida, el ajuste escribe en
+  `product_variants.stock` y el historial de sesión guarda también qué
+  variante se movió. Sin variantes, comportamiento idéntico a antes.
 
 **Pendiente (por prioridad):**
 1. Best Sellers conectado a productos reales (`is_featured=true`) en vez

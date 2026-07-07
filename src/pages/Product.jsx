@@ -1,8 +1,6 @@
 import { Suspense, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
-import { SplitText } from 'gsap/SplitText'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Float, Environment, useGLTF } from '@react-three/drei'
 import { useProduct } from '../hooks/useProduct.js'
@@ -10,6 +8,7 @@ import { useProductVariants } from '../hooks/useProductVariants.js'
 import { useCartStore } from '../stores/useCartStore.js'
 import { useAppStore } from '../stores/useAppStore.js'
 import { categoryVariantType, VARIANT_LABELS } from '../lib/productSpecs.js'
+import { ProductSuggestions } from '../components/dom/ProductSuggestions.jsx'
 
 const formatPrice = (n) => `${Number(n).toFixed(2)}€`
 
@@ -44,7 +43,7 @@ const Specs = ({ slug, details }) => {
   return (
     <div className="grid grid-cols-2 gap-y-3 gap-x-6 mt-8 py-6 border-y" style={{ borderColor: 'rgba(23,45,109,0.15)' }}>
       {entries.map(([label, value]) => (
-        <div key={label} data-anim="spec">
+        <div key={label}>
           <span className="block text-[10px] tracking-[0.2em] uppercase" style={{ color: 'rgba(23,45,109,0.5)' }}>
             {label}
           </span>
@@ -60,7 +59,7 @@ const Specs = ({ slug, details }) => {
 const resolvePrice = (v) => (v?.sale_price ?? v?.price ?? null)
 
 const VariantPicker = ({ variantType, variants, selectedId, onSelect }) => (
-  <div data-anim="text" className="mt-6">
+  <div className="mt-6">
     <span
       className="block text-[10px] tracking-[0.2em] uppercase mb-3"
       style={{ color: 'rgba(23,45,109,0.5)' }}
@@ -141,67 +140,12 @@ const ProductCanvas = () => (
 
 export const Product = () => {
   const { id } = useParams()
-  const containerRef = useRef(null)
-  const titleRef = useRef(null)
   const buttonRef = useRef(null)
   const { product, loading } = useProduct(id)
   const { variants } = useProductVariants(product?.id)
   const [selectedVariantId, setSelectedVariantId] = useState(null)
   const addItem = useCartStore((s) => s.addItem)
   const setCartOpen = useAppStore((s) => s.setCartOpen)
-
-  useGSAP(
-    () => {
-      if (loading || !product) return
-
-      const tl = gsap.timeline()
-
-      tl.from('[data-anim="image"]', {
-        clipPath: 'inset(100% 0 0 0)',
-        duration: 1.1,
-        ease: 'power4.out',
-      })
-
-      if (titleRef.current) {
-        const split = new SplitText(titleRef.current, { type: 'chars' })
-        tl.from(
-          split.chars,
-          {
-            yPercent: 110,
-            opacity: 0,
-            stagger: 0.025,
-            duration: 0.7,
-            ease: 'power4.out',
-          },
-          '-=0.85',
-        )
-      }
-
-      tl.from(
-        '[data-anim="text"]',
-        {
-          y: 30,
-          opacity: 0,
-          stagger: 0.07,
-          duration: 0.7,
-          ease: 'power3.out',
-        },
-        '-=0.5',
-      )
-      tl.from(
-        '[data-anim="spec"]',
-        {
-          y: 16,
-          opacity: 0,
-          stagger: 0.05,
-          duration: 0.5,
-          ease: 'power3.out',
-        },
-        '-=0.4',
-      )
-    },
-    { scope: containerRef, dependencies: [loading, product?.id] },
-  )
 
   if (loading) {
     return (
@@ -278,7 +222,7 @@ export const Product = () => {
   }
 
   return (
-    <main ref={containerRef} className="min-h-screen pt-32 pb-24 relative overflow-hidden">
+    <main className="min-h-screen pt-32 pb-24 relative overflow-hidden">
       {showCanvas && (
         <div className="hidden lg:block absolute top-32 right-0 w-[40%] h-[80vh] opacity-30 pointer-events-none">
           <ProductCanvas />
@@ -298,7 +242,6 @@ export const Product = () => {
 
       <div className="px-6 md:px-10 grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-10 lg:gap-16">
         <div
-          data-anim="image"
           className="relative overflow-hidden"
           style={{
             aspectRatio: '4/3',
@@ -324,7 +267,6 @@ export const Product = () => {
         <div className="flex flex-col">
           {product.categories?.name && (
             <span
-              data-anim="text"
               className="text-[11px] tracking-[0.2em] uppercase"
               style={{ color: 'var(--color-blue)' }}
             >
@@ -332,7 +274,6 @@ export const Product = () => {
             </span>
           )}
           <h1
-            ref={titleRef}
             className="mt-3 leading-none overflow-hidden"
             style={{
               fontSize: 'var(--text-xl)',
@@ -345,7 +286,6 @@ export const Product = () => {
           </h1>
           {product.brand && (
             <p
-              data-anim="text"
               className="mt-3 text-[14px]"
               style={{ fontWeight: 300, color: 'rgba(23,45,109,0.7)' }}
             >
@@ -353,7 +293,7 @@ export const Product = () => {
             </p>
           )}
 
-          <div data-anim="text" className="mt-6 flex items-end gap-4">
+          <div className="mt-6 flex items-end gap-4">
             {strikePrice != null ? (
               <>
                 <span
@@ -389,11 +329,9 @@ export const Product = () => {
             />
           )}
 
-          <div data-anim="text">
-            <Specs slug={slug} details={product.details} />
-          </div>
+          <Specs slug={slug} details={product.details} />
 
-          <div data-anim="text" className="mt-6 text-[12px] tracking-[0.18em] uppercase">
+          <div className="mt-6 text-[12px] tracking-[0.18em] uppercase">
             {out ? (
               <span style={{ color: 'var(--color-dark)' }}>Sin stock</span>
             ) : low ? (
@@ -408,7 +346,6 @@ export const Product = () => {
           <div className="add-to-cart-bar mt-8">
             <button
               ref={buttonRef}
-              data-anim="text"
               data-cursor="link"
               onClick={handleAdd}
               disabled={out}
@@ -424,6 +361,10 @@ export const Product = () => {
             </button>
           </div>
         </div>
+      </div>
+
+      <div className="px-6 md:px-10 mt-16">
+        <ProductSuggestions productId={product.id} categorySlug={slug} />
       </div>
     </main>
   )

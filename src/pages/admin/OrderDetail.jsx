@@ -108,6 +108,9 @@ export const OrderDetail = () => {
                   <tr key={it.id} className="table-row">
                     <td>
                       <div className="producto-nombre">{it.product_name}</div>
+                      {it.variant_label && (
+                        <div style={{ fontSize: 11, color: '#888' }}>{it.variant_label}</div>
+                      )}
                       {it.product_id && (
                         <Link
                           to={`/admin/products/${it.product_id}`}
