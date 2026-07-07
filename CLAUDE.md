@@ -15,7 +15,8 @@ manual, por Instagram.
   categorías, mayorista, analíticas, escáner de stock por código de barra).
 - `src/hooks/` — acceso a datos vía Supabase JS client (`src/lib/supabase.js`).
 - `src/stores/` — Zustand: `useCartStore` (carrito, persistido en
-  localStorage) y `useAppStore` (UI: carrito abierto, tema, loader).
+  localStorage, líneas identificadas por `productId` + `variantId`) y
+  `useAppStore` (UI: carrito abierto, tema, loader).
 - `supabase/` — SQL de esquema, políticas RLS y notas de despliegue.
   **Leer `supabase/README.md` antes de tocar la base** — documenta el
   orden de aplicación y qué archivos están superados.
@@ -38,15 +39,20 @@ manual, por Instagram.
 - Si `npm run build` falla con `Cannot find native binding` en
   `@tailwindcss/oxide`: es el bug conocido de npm con dependencias
   opcionales (`npm/cli#4828`). Fix: `rm -rf node_modules package-lock.json && npm install`.
-- **Cuidado con `useGSAP({ dependencies })` para toggles de UI** (abrir/
-  cerrar un panel, drawer, modal): revierte las tweens del run anterior
-  en cada cambio de dependencia, lo que puede dejar un elemento animado
-  "atascado" a mitad de camino mientras otro (ej. un backdrop) sí anima
-  bien — muy difícil de notar sin probarlo en vivo. Para toggles usar un
-  `useEffect(() => { gsap.to(...) }, [dep])` plano en su lugar. Bug real
-  encontrado y corregido en `CartDrawer.jsx` — si aparece un síntoma
-  parecido en otro componente (`MenuOverlay` usa el mismo patrón y no se
-  ha auditado), sospechar de esto primero.
+- **Evitar GSAP en el `CartDrawer` y, en general, desconfiar de
+  `useGSAP({ dependencies })` para toggles de UI** (abrir/cerrar un
+  panel, drawer, modal). Se intentaron dos variantes animadas (useGSAP
+  con dependencias, y luego un `useEffect` plano con `gsap.to` — ambas
+  técnicamente más correctas que la original) y **ambas fallaron de
+  forma intermitente en el dispositivo real del usuario** — el panel a
+  veces no llegaba a mostrarse. Decisión explícita del cliente: dejar
+  `CartDrawer.jsx` sin animación (render condicional simple) de forma
+  **definitiva**. No reintroducir motion ahí sin pedirlo explícitamente.
+  Si aparece un síntoma parecido en otro componente (`MenuOverlay` usa
+  el mismo patrón `useGSAP({ dependencies })` y no se ha auditado),
+  sospechar primero de esto, pero considerar quitar la animación en vez
+  de perseguir un fix — para UI funcional crítica, este proyecto prioriza
+  fiabilidad sobre motion.
 
 ## Estado y hallazgos (auditoría 2026-07)
 
@@ -64,9 +70,9 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
   ahora hay un ícono de carrito persistente en el nav, con banner sólido
   (blur + sombra) que aparece al hacer scroll para que nunca se pierda
   contra el fondo.
-- El panel lateral del carrito (`CartDrawer`) no se abría — bug real de
-  `useGSAP({ dependencies })` revirtiendo la animación (ver nota arriba).
-  Corregido con `useEffect` plano; confirmado visualmente por el usuario.
+- El panel lateral del carrito no se abría — se dejó sin animación de
+  forma definitiva (ver nota de GSAP arriba). Confirmado visualmente por
+  el usuario.
 - Catálogo (`ProductCard`) no tenía botón de añadir rápido — ahora lo
   tiene, visible en hover (desktop) y siempre visible en touch (`@media
   (hover: none)`).
@@ -84,17 +90,29 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
   Supabase — decisión explícita del cliente: cuando suban catálogo real,
   ese slot debe enlazar a una máquina de vapear de precio medio para
   impulsar su venta, no a los 4 genéricos actuales.)
+- **Selector de variantes en `Product.jsx`** — productos con variantes
+  (sales, longfill, vapers, desechables, resistencia, merchandising)
+  ahora muestran chips seleccionables (sabor/mg/Ω/volumen/color); precio
+  y stock mostrados se recalculan según la variante elegida. `create_order()`
+  se extendió (`supabase/variant-checkout.sql`) para validar y descontar
+  el stock de la **variante**, no del producto base — importante porque
+  el admin oculta precio/stock del producto cuando tiene variantes, así
+  que ese stock solo vive en `product_variants.stock`. El carrito ahora
+  identifica líneas por `productId` + `variantId` (antes solo `productId`,
+  lo que habría colisionado dos variantes distintas en una fila).
+  Limitación conocida: el botón de añadir rápido en `ProductCard.jsx`
+  (catálogo) sigue sin variante — añade "a ciegas" sin elegir una,
+  porque hacerlo bien requeriría cargar variantes por card en el grid.
 
 **Pendiente (por prioridad):**
-1. Selector de variantes visible en `Product.jsx` — el admin ya crea
-   variantes (sabor, mg, Ω, volumen) pero el storefront nunca las
-   muestra ni permite elegirlas.
-2. Motor de sugerencias por familia de producto (ej. longfill → sugerir
+1. Motor de sugerencias por familia de producto (ej. longfill → sugerir
    base + nicokit al añadir al carrito). No existe ningún mecanismo hoy;
    tampoco lo tiene sinhumo.net (competencia) — sería diferenciador real.
-3. Best Sellers conectado a productos reales (`is_featured=true`) en vez
+2. Best Sellers conectado a productos reales (`is_featured=true`) en vez
    del placeholder — pendiente hasta que el cliente suba catálogo real;
    el slot destacado debe apuntar a una máquina de precio medio.
+3. Quick-add de `ProductCard.jsx` sin variante elegida (ver limitación
+   arriba) — evaluar si vale la pena el costo de fetch por card.
 4. Limpieza de imágenes huérfanas en Storage al borrar un producto.
 5. `Products.jsx` (admin) no refleja el stock agregado de variantes,
    solo el del producto base.
