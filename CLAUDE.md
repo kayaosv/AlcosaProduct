@@ -38,6 +38,15 @@ manual, por Instagram.
 - Si `npm run build` falla con `Cannot find native binding` en
   `@tailwindcss/oxide`: es el bug conocido de npm con dependencias
   opcionales (`npm/cli#4828`). Fix: `rm -rf node_modules package-lock.json && npm install`.
+- **Cuidado con `useGSAP({ dependencies })` para toggles de UI** (abrir/
+  cerrar un panel, drawer, modal): revierte las tweens del run anterior
+  en cada cambio de dependencia, lo que puede dejar un elemento animado
+  "atascado" a mitad de camino mientras otro (ej. un backdrop) sí anima
+  bien — muy difícil de notar sin probarlo en vivo. Para toggles usar un
+  `useEffect(() => { gsap.to(...) }, [dep])` plano en su lugar. Bug real
+  encontrado y corregido en `CartDrawer.jsx` — si aparece un síntoma
+  parecido en otro componente (`MenuOverlay` usa el mismo patrón y no se
+  ha auditado), sospechar de esto primero.
 
 ## Estado y hallazgos (auditoría 2026-07)
 
@@ -52,16 +61,29 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
   producción sin documentar (`product_variants`, `axis_config`, `images`,
   `axis_values`).
 - Carrito antes solo accesible abriendo el menú hamburguesa completo —
-  ahora hay un ícono de carrito persistente en el nav.
+  ahora hay un ícono de carrito persistente en el nav, con banner sólido
+  (blur + sombra) que aparece al hacer scroll para que nunca se pierda
+  contra el fondo.
+- El panel lateral del carrito (`CartDrawer`) no se abría — bug real de
+  `useGSAP({ dependencies })` revirtiendo la animación (ver nota arriba).
+  Corregido con `useEffect` plano; confirmado visualmente por el usuario.
 - Catálogo (`ProductCard`) no tenía botón de añadir rápido — ahora lo
   tiene, visible en hover (desktop) y siempre visible en touch (`@media
   (hover: none)`).
 - Ficha de producto: el botón "Agregar al carrito" quedaba fuera de
-  vista sin scroll en tablet/móvil — ahora es una barra fija al fondo
-  por debajo de 1024px.
+  vista sin scroll en tablet/móvil o en ventanas de escritorio anchas —
+  ahora es una barra fija al fondo siempre, sin depender de ningún
+  breakpoint.
 - Grid del catálogo tenía un breakpoint asimétrico (`1fr 1.5fr 1fr`)
   pensado para desktop que se veía sobredimensionado en tablets; ahora
   tiene un breakpoint dedicado (900px / 1180px) con columnas parejas.
+- Best Sellers: el link "Ver en tienda" usaba `?categoria=` pero
+  `Catalog.jsx` lee `?cat=` — ningún card llevaba a su categoría real.
+  Corregido. (Nota: los 4 productos de Best Sellers siguen siendo
+  placeholder hardcodeado en `src/config/bestSellers.js`, no vienen de
+  Supabase — decisión explícita del cliente: cuando suban catálogo real,
+  ese slot debe enlazar a una máquina de vapear de precio medio para
+  impulsar su venta, no a los 4 genéricos actuales.)
 
 **Pendiente (por prioridad):**
 1. Selector de variantes visible en `Product.jsx` — el admin ya crea
@@ -70,8 +92,11 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
 2. Motor de sugerencias por familia de producto (ej. longfill → sugerir
    base + nicokit al añadir al carrito). No existe ningún mecanismo hoy;
    tampoco lo tiene sinhumo.net (competencia) — sería diferenciador real.
-3. Limpieza de imágenes huérfanas en Storage al borrar un producto.
-4. `Products.jsx` (admin) no refleja el stock agregado de variantes,
+3. Best Sellers conectado a productos reales (`is_featured=true`) en vez
+   del placeholder — pendiente hasta que el cliente suba catálogo real;
+   el slot destacado debe apuntar a una máquina de precio medio.
+4. Limpieza de imágenes huérfanas en Storage al borrar un producto.
+5. `Products.jsx` (admin) no refleja el stock agregado de variantes,
    solo el del producto base.
-5. Bucket `product-images` permite listar todos los archivos públicamente
+6. Bucket `product-images` permite listar todos los archivos públicamente
    (advertencia menor del linter de Supabase, no crítico).
