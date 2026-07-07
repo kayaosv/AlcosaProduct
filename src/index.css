@@ -78,6 +78,47 @@ body {
   }
 }
 
+/* Quick-add button on catalog cards — fades in on hover with a mouse,
+   always visible on touch devices since there's no hover to reveal it */
+.quick-add-btn {
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.group:hover .quick-add-btn,
+.group:focus-within .quick-add-btn {
+  opacity: 1;
+  transform: scale(1);
+}
+@media (hover: none) {
+  .quick-add-btn {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Add-to-cart bar on the product page — pinned to the viewport bottom
+   below the desktop breakpoint so it's always reachable without scrolling */
+.add-to-cart-bar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 90;
+  padding: 1rem 1.5rem;
+  background: rgba(255, 248, 240, 0.97);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid rgba(23, 45, 109, 0.12);
+}
+@media (min-width: 1024px) {
+  .add-to-cart-bar {
+    position: static;
+    padding: 0;
+    background: transparent;
+    backdrop-filter: none;
+    border-top: none;
+  }
+}
+
 .section-transition-plane {
   position: fixed;
   inset: 0;

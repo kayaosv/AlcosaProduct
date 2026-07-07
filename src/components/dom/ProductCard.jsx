@@ -2,6 +2,8 @@ import { useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
+import { useCartStore } from '../../stores/useCartStore.js'
+import { useAppStore } from '../../stores/useAppStore.js'
 
 const formatPrice = (n) => `${Number(n).toFixed(2)}€`
 
@@ -27,6 +29,8 @@ export const ProductCard = ({ product, span = 1 }) => {
   const cardRef = useRef(null)
   const imageRef = useRef(null)
   const outOfStock = product.stock === 0
+  const addItem = useCartStore((s) => s.addItem)
+  const setCartOpen = useAppStore((s) => s.setCartOpen)
 
   const { contextSafe } = useGSAP({ scope: cardRef })
 
@@ -39,6 +43,22 @@ export const ProductCard = ({ product, span = 1 }) => {
     gsap.to(cardRef.current, { scale: 1, duration: 0.4, ease: 'power2.out' })
     gsap.to(imageRef.current, { scale: 1, duration: 0.6, ease: 'power2.out' })
   })
+
+  const handleQuickAdd = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (outOfStock) return
+    const price = product.is_on_sale && product.sale_price != null ? product.sale_price : product.price
+    addItem({
+      productId: product.id,
+      name: product.name,
+      brand: product.brand,
+      price: Number(price),
+      image_url: product.image_url,
+      quantity: 1,
+    })
+    setCartOpen(true)
+  }
 
   return (
     <Link
@@ -89,6 +109,29 @@ export const ProductCard = ({ product, span = 1 }) => {
           >
             Oferta
           </span>
+        )}
+
+        {!outOfStock && (
+          <button
+            type="button"
+            onClick={handleQuickAdd}
+            data-cursor="link"
+            aria-label={`Añadir ${product.name} al carrito`}
+            className="quick-add-btn absolute bottom-3 right-3 flex items-center justify-center"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              background: 'var(--color-lime)',
+              color: 'var(--color-navy)',
+              fontWeight: 900,
+              fontSize: 22,
+              lineHeight: 1,
+              boxShadow: '0 2px 10px rgba(23,45,109,0.3)',
+            }}
+          >
+            +
+          </button>
         )}
       </div>
 

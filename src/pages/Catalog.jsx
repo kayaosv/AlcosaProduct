@@ -164,12 +164,18 @@ export const Catalog = () => {
           grid-template-columns: 1fr 1.5fr 1fr;
           gap: 2rem 1.5rem;
         }
+        /* Tablet landscape: even columns, no oversized asymmetric middle */
+        @media (max-width: 1180px) {
+          .cat-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+        /* Tablet portrait: 2 columns, and reset the every-5th wide card here
+           (not just below 540px) so it doesn't stay lopsided against a 2-col grid */
         @media (max-width: 900px) {
-          .cat-grid { grid-template-columns: 1fr 1fr; }
+          .cat-grid { grid-template-columns: 1fr 1fr; gap: 1.5rem 1rem; }
+          .cat-grid > [data-span-wide] { grid-column: auto !important; }
         }
         @media (max-width: 540px) {
           .cat-grid { grid-template-columns: 1fr; }
-          .cat-grid > [data-span-wide] { grid-column: auto !important; }
         }
       `}</style>
 

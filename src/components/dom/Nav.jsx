@@ -267,7 +267,54 @@ const MenuOverlay = ({ open, onClose, onOpenCart, itemsCount }) => {
   )
 }
 
-const MenuToggle = ({ open, onToggle, itemsCount, theme }) => {
+const CartButton = ({ itemsCount, onOpen, theme }) => {
+  const fg = theme === 'dark' ? 'var(--color-cream)' : 'var(--color-navy)'
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      data-cursor="link"
+      aria-label={itemsCount > 0 ? `Abrir carrito, ${itemsCount} artículos` : 'Abrir carrito'}
+      className="relative p-2"
+      style={{ color: fg, transition: 'color 0.4s ease' }}
+    >
+      <svg
+        width="21"
+        height="21"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="9" cy="21" r="1" />
+        <circle cx="20" cy="21" r="1" />
+        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+      </svg>
+      {itemsCount > 0 && (
+        <span
+          className="absolute top-0 right-0 flex items-center justify-center"
+          style={{
+            background: 'var(--color-lime)',
+            color: 'var(--color-navy)',
+            fontWeight: 700,
+            fontSize: '9px',
+            width: 16,
+            height: 16,
+            borderRadius: '50%',
+            lineHeight: 1,
+          }}
+        >
+          {itemsCount > 9 ? '9+' : itemsCount}
+        </span>
+      )}
+    </button>
+  )
+}
+
+const MenuToggle = ({ open, onToggle, theme }) => {
   const labelRef = useRef(null)
   const { contextSafe } = useGSAP({ scope: labelRef })
 
@@ -291,39 +338,25 @@ const MenuToggle = ({ open, onToggle, itemsCount, theme }) => {
   const fg = open || theme === 'dark' ? 'var(--color-cream)' : 'var(--color-navy)'
 
   return (
-    <div className="flex items-center gap-5">
-      {itemsCount > 0 && !open && (
-        <span
-          className="text-[13px]"
-          style={{
-            color: 'var(--color-lime)',
-            fontWeight: 700,
-            letterSpacing: '0.18em',
-          }}
-        >
-          ▸ {itemsCount}
-        </span>
-      )}
-      <button
-        type="button"
-        onClick={handleClick}
-        data-cursor="link"
-        aria-label={open ? 'Cerrar menú' : 'Abrir menú'}
-        aria-expanded={open}
-        className="px-2 py-1"
-        style={{
-          fontWeight: 700,
-          fontSize: '13px',
-          letterSpacing: '0.25em',
-          color: fg,
-          transition: 'color 0.4s ease',
-        }}
-      >
-        <span ref={labelRef} className="inline-block">
-          {open ? 'CERRAR' : 'MENÚ'}
-        </span>
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={handleClick}
+      data-cursor="link"
+      aria-label={open ? 'Cerrar menú' : 'Abrir menú'}
+      aria-expanded={open}
+      className="px-2 py-1"
+      style={{
+        fontWeight: 700,
+        fontSize: '13px',
+        letterSpacing: '0.25em',
+        color: fg,
+        transition: 'color 0.4s ease',
+      }}
+    >
+      <span ref={labelRef} className="inline-block">
+        {open ? 'CERRAR' : 'MENÚ'}
+      </span>
+    </button>
   )
 }
 
@@ -400,7 +433,10 @@ export const Nav = () => {
           >
             VAPERS·ALCOSA
           </Link>
-          <MenuToggle open={open} onToggle={toggleMenu} itemsCount={itemsCount} theme={theme} />
+          <div className="flex items-center gap-1 md:gap-3">
+            <CartButton itemsCount={itemsCount} onOpen={() => setCartOpen(true)} theme={theme} />
+            <MenuToggle open={open} onToggle={toggleMenu} theme={theme} />
+          </div>
         </div>
       </header>
 

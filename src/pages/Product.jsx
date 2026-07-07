@@ -313,22 +313,24 @@ export const Product = () => {
             )}
           </div>
 
-          <button
-            ref={buttonRef}
-            data-anim="text"
-            data-cursor="link"
-            onClick={handleAdd}
-            disabled={out}
-            className="mt-8 w-full md:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 text-[12px] tracking-[0.2em] uppercase transition-opacity"
-            style={{
-              background: out ? 'rgba(23,45,109,0.2)' : 'var(--color-navy)',
-              color: out ? 'rgba(23,45,109,0.5)' : 'var(--color-lime)',
-              fontWeight: 700,
-              cursor: out ? 'not-allowed' : undefined,
-            }}
-          >
-            ▸ {out ? 'No disponible' : 'Agregar al carrito'}
-          </button>
+          <div className="add-to-cart-bar mt-8">
+            <button
+              ref={buttonRef}
+              data-anim="text"
+              data-cursor="link"
+              onClick={handleAdd}
+              disabled={out}
+              className="w-full lg:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 text-[12px] tracking-[0.2em] uppercase transition-opacity"
+              style={{
+                background: out ? 'rgba(23,45,109,0.2)' : 'var(--color-navy)',
+                color: out ? 'rgba(23,45,109,0.5)' : 'var(--color-lime)',
+                fontWeight: 700,
+                cursor: out ? 'not-allowed' : undefined,
+              }}
+            >
+              ▸ {out ? 'No disponible' : 'Agregar al carrito'}
+            </button>
+          </div>
         </div>
       </div>
     </main>
