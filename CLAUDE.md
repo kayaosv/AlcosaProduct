@@ -115,10 +115,15 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
   porque hacerlo bien requeriría cargar variantes por card en el grid.
 
 - **Motor de sugerencias por familia de producto** — `src/config/crossSell.js`
-  mapea categoría → categorías complementarias (p.ej. `longfill`/`minilongfill`
-  → `alquimia`, porque un aroma concentrado necesita base neutra/nicokit para
-  vapearse; `vapers`/`resistencia` se sugieren entre sí, etc. — es el único
-  archivo que hace falta tocar para afinar las reglas de negocio). El hook
+  define "grupos de receta": categorías que se sugieren entre sí
+  (todos-contra-todos), no una relación de una sola vía. Grupo DIY:
+  `longfill`, `minilongfill`, `alquimia` (base neutra + nicokit),
+  `vapers`, `resistencia` — un aroma concentrado sin base+nicotina no es
+  líquido vapeable, y ese líquido sin vaporizador+resistencia no sirve de
+  nada, así que añadir cualquiera de las 5 sugiere las otras 4. Grupo
+  listo-para-vapear: `sales-de-nicotina`, `vapers`, `resistencia` (el
+  líquido de sales ya viene mezclado, no necesita Alquimia). Es el único
+  archivo que hace falta tocar para afinar las reglas de negocio. El hook
   `useSuggestedProducts` calcula, a partir de las categorías ya presentes en
   el carrito, qué categorías complementarias faltan, y trae 1 producto activo
   y con stock real por categoría (excluyendo lo que ya está en el carrito).
