@@ -12,11 +12,17 @@
 --   select vault.create_secret('<chat_id_numerico>', 'telegram_chat_id');
 --
 -- Hasta que esos dos secretos existan, el trigger no hace nada (retorna
--- en silencio) — y si Telegram falla, tiene una excepción vieja de
+-- en silencio) — y si Telegram falla, tiene una excepción por
 -- credenciales inválidas, o cualquier otro problema, TAMPOCO rompe la
 -- creación del pedido: el `exception when others then null` de abajo es
 -- a propósito, para que un fallo de notificación nunca bloquee un
 -- checkout real.
+--
+-- Nota: el mensaje usa chr(10) y texto plano (sin tildes/emoji) en vez de
+-- literales Unicode escapados (`E'\U0001F6D2'`) — Postgres los rechazó
+-- ("invalid Unicode escape") al aplicar esto la primera vez. Si se quiere
+-- un emoji, pegarlo literal en el string (UTF-8 directo) en vez de
+-- escaparlo.
 
 create extension if not exists pg_net;
 
@@ -42,13 +48,16 @@ begin
     end if;
 
     v_text := format(
-      E'\U0001F6D2 Nuevo pedido #%s\nCliente: %s\nTel: %s\nTotal: %s\U20AC%s',
+      'Nuevo pedido #%s' || chr(10) ||
+      'Cliente: %s' || chr(10) ||
+      'Tel: %s' || chr(10) ||
+      'Total: %s EUR%s',
       left(new.id::text, 8),
-      coalesce(new.customer_name, '—'),
-      coalesce(new.customer_phone, '—'),
+      coalesce(new.customer_name, '-'),
+      coalesce(new.customer_phone, '-'),
       new.total,
       case when new.notes is not null and new.notes <> ''
-           then E'\nNota: ' || new.notes
+           then chr(10) || 'Nota: ' || new.notes
            else '' end
     );
 
