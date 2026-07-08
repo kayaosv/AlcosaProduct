@@ -112,6 +112,24 @@ body {
   border-top: 1px solid rgba(23, 45, 109, 0.12);
 }
 
+/* Product page hero image. Side-by-side layout with the info column now
+   kicks in from md (768px, see Product.jsx) instead of lg (1024px), so
+   tablets in portrait no longer get the image full-width and stacked
+   above price/variants/add-to-cart. Below that, keep a shorter ratio
+   than the desktop 4:3 so the image doesn't dominate a phone screen
+   either. Revert: change back to lg:grid-cols-[3fr_2fr] in Product.jsx
+   and drop this rule (falls back to the inline aspectRatio: 4/3 that
+   used to live there).
+*/
+.product-image-frame {
+  aspect-ratio: 4 / 3;
+}
+@media (max-width: 767px) {
+  .product-image-frame {
+    aspect-ratio: 16 / 10;
+  }
+}
+
 .section-transition-plane {
   position: fixed;
   inset: 0;

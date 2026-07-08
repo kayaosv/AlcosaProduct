@@ -240,11 +240,10 @@ export const Product = () => {
         </Link>
       </div>
 
-      <div className="px-6 md:px-10 grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-10 lg:gap-16">
+      <div className="px-6 md:px-10 grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-10 md:gap-16">
         <div
-          className="relative overflow-hidden"
+          className="product-image-frame relative overflow-hidden"
           style={{
-            aspectRatio: '4/3',
             background: product.image_url ? 'transparent' : 'var(--color-navy)',
           }}
         >
