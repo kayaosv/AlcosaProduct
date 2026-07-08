@@ -8,6 +8,7 @@ Aplicar en este orden en el **SQL Editor** del proyecto Supabase de producción:
 4. **`variant-checkout.sql`** — extiende `create_order()` para validar y descontar el stock de la **variante** elegida (`product_variants.stock`), no solo el del producto base. Necesario porque el admin oculta precio/stock del producto cuando tiene variantes — ese stock vive solo en la variante. Añade `order_items.variant_id` / `variant_label`.
 5. **`storage.sql`** — bucket `product-images` + policies de upload (admin) y lectura pública.
 6. **`admin-user.sql`** — NO es ejecutable directo: contiene instrucciones para crear el usuario admin en Auth → Users y luego insertar su `profile` con `role='admin'`.
+7. **`telegram-order-notify.sql`** — trigger que avisa por Telegram al vendedor cuando entra un pedido. Necesita dos secretos en Supabase Vault (`telegram_bot_token`, `telegram_chat_id`) que este archivo NO crea — ver instrucciones dentro del propio archivo. Sin esos secretos el trigger no hace nada; si Telegram falla, tampoco rompe el pedido (excepción atrapada a propósito).
 
 Ver `AUDIT-2026-07.md` para el contexto completo de por qué se hizo este reordenamiento.
 

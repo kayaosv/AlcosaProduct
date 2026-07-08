@@ -177,6 +177,20 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
   habilitar los botones +/-; con variante elegida, el ajuste escribe en
   `product_variants.stock` y el historial de sesión guarda también qué
   variante se movió. Sin variantes, comportamiento idéntico a antes.
+- **Motor de sugerencias sin lógica de "receta" completa** —
+  `crossSell.js` solo mapeaba `longfill`/`minilongfill` → `alquimia`
+  (base+nicokit), nunca hacia el vaporizador. Rediseñado como grupos de
+  receta todos-contra-todos (ver arriba) — cliente lo confirmó
+  explícitamente antes de implementarlo.
+- **Ningún aviso cuando entra un pedido** — el vendedor tenía que entrar
+  a `/admin` sin ningún disparador. `supabase/telegram-order-notify.sql`
+  añade un trigger `AFTER INSERT ON orders` que manda un mensaje de
+  Telegram. Blindado a propósito: si los secretos de Vault
+  (`telegram_bot_token`, `telegram_chat_id`) no existen o Telegram falla,
+  el trigger no hace nada — nunca puede romper un checkout real
+  (`exception when others then null`). La lista de pedidos pendientes en
+  sí ya existía (`Orders.jsx` con pestañas por estado + contador en el
+  sidebar) — lo único que faltaba era el aviso.
 
 **Pendiente (por prioridad):**
 1. Best Sellers conectado a productos reales (`is_featured=true`) en vez
@@ -193,3 +207,6 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
    `alquimia` (ambos nicokits) — no hay "base neutra" cargada todavía en
    el catálogo; cuando el cliente la suba, aparecerá sola (no requiere
    cambio de código).
+7. Trigger de Telegram desplegado pero **inactivo hasta que se carguen
+   los dos secretos de Vault** (`telegram_bot_token`, `telegram_chat_id`)
+   — instrucciones en `supabase/telegram-order-notify.sql`.
