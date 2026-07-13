@@ -5,6 +5,9 @@ import { Catalog } from '../pages/Catalog.jsx'
 import { Product } from '../pages/Product.jsx'
 import { Cart } from '../pages/Cart.jsx'
 import { Checkout } from '../pages/Checkout.jsx'
+import { AvisoLegal } from '../pages/AvisoLegal.jsx'
+import { Privacidad } from '../pages/Privacidad.jsx'
+import { Cookies } from '../pages/Cookies.jsx'
 import { AdminLayout } from '../pages/admin/AdminLayout.jsx'
 import { Login } from '../pages/admin/Login.jsx'
 import { Dashboard } from '../pages/admin/Dashboard.jsx'
@@ -27,6 +30,9 @@ export const router = createBrowserRouter([
       { path: 'product/:id', element: <Product /> },
       { path: 'cart', element: <Cart /> },
       { path: 'checkout', element: <Checkout /> },
+      { path: 'aviso-legal', element: <AvisoLegal /> },
+      { path: 'privacidad', element: <Privacidad /> },
+      { path: 'cookies', element: <Cookies /> },
     ],
   },
   { path: '/admin/login', element: <Login /> },

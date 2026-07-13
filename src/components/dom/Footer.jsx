@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
@@ -168,9 +169,10 @@ export const Footer = () => {
             className="flex gap-4 text-[10px] tracking-[0.25em] uppercase"
             style={{ color: 'rgba(255,248,240,0.4)' }}
           >
-            <a href="#" data-cursor="link">+18</a>
-            <a href="#" data-cursor="link">Aviso legal</a>
-            <a href="#" data-cursor="link">Privacidad</a>
+            <span>+18</span>
+            <Link to="/aviso-legal" data-cursor="link">Aviso legal</Link>
+            <Link to="/privacidad" data-cursor="link">Privacidad</Link>
+            <Link to="/cookies" data-cursor="link">Cookies</Link>
           </div>
         </div>
       </div>

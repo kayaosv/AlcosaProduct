@@ -46,6 +46,19 @@ const Field = ({ label, name, value, onChange, type = 'text', required, textarea
   </label>
 )
 
+const ConsentCheckbox = ({ checked, onChange, children }) => (
+  <label className="flex items-start gap-3 text-[13px] leading-relaxed" style={{ color: 'rgba(23,45,109,0.8)' }}>
+    <input
+      type="checkbox"
+      required
+      checked={checked}
+      onChange={onChange}
+      className="mt-1"
+    />
+    <span>{children}</span>
+  </label>
+)
+
 const SuccessState = ({ orderId, total, onContinue }) => {
   const ref = useRef(null)
 
@@ -159,6 +172,8 @@ export const Checkout = () => {
     address: '',
     notes: '',
   })
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false)
+  const [confirmAge, setConfirmAge] = useState(false)
   const [success, setSuccess] = useState(null)
 
   const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
@@ -345,6 +360,40 @@ export const Checkout = () => {
               onChange={handleChange}
               textarea
             />
+          </div>
+
+          <div>
+            <h2
+              className="text-[11px] tracking-[0.25em] uppercase mb-6"
+              style={{ color: 'var(--color-navy)', fontWeight: 700 }}
+            >
+              03 · Confirmación
+            </h2>
+            <div className="space-y-4">
+              <ConsentCheckbox
+                checked={acceptPrivacy}
+                onChange={(e) => setAcceptPrivacy(e.target.checked)}
+              >
+                He leído y acepto la{' '}
+                <Link
+                  to="/privacidad"
+                  data-cursor="link"
+                  target="_blank"
+                  className="underline underline-offset-4"
+                  style={{ color: 'var(--color-blue)' }}
+                >
+                  Política de Privacidad
+                </Link>
+                . <span style={{ color: 'var(--color-blue)' }}>*</span>
+              </ConsentCheckbox>
+              <ConsentCheckbox
+                checked={confirmAge}
+                onChange={(e) => setConfirmAge(e.target.checked)}
+              >
+                Confirmo que soy mayor de edad (18+).{' '}
+                <span style={{ color: 'var(--color-blue)' }}>*</span>
+              </ConsentCheckbox>
+            </div>
           </div>
 
           {error && (
