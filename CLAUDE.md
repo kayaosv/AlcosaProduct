@@ -210,3 +210,21 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
 7. Trigger de Telegram desplegado pero **inactivo hasta que se carguen
    los dos secretos de Vault** (`telegram_bot_token`, `telegram_chat_id`)
    — instrucciones en `supabase/telegram-order-notify.sql`.
+8. **Cumplimiento legal (2026-07-13)**: añadidas páginas de Aviso Legal,
+   Política de Privacidad y Política de Cookies (`src/pages/AvisoLegal.jsx`,
+   `Privacidad.jsx`, `Cookies.jsx`, rutas `/aviso-legal`, `/privacidad`,
+   `/cookies`), enlazadas desde `Footer.jsx`. Checkout ahora exige aceptar
+   la Política de Privacidad y confirmar mayoría de edad (checkboxes
+   `required`) antes de poder enviar el pedido. Auditado antes de escribir:
+   cero trackers de terceros en el código, único almacenamiento en cliente
+   es el carrito (`localStorage`, clave `vapers-cart`, estrictamente
+   necesario) — por eso no se añadió banner de cookies, no es obligatorio.
+   **Pendiente**: el NIF/CIF y el email de contacto del titular
+   (SUB OHM-TECHNOLOGIES SL) están como `[COMPLETAR]` en las tres páginas
+   — sustituir en cuanto el cliente los facilite (buscar
+   `[COMPLETAR` en `src/pages/`). Los demás datos (razón social, domicilio,
+   teléfono, inscripción en el Registro Mercantil de Sevilla) se tomaron
+   de la web actual en producción (vapersalcosa19.com) — su política de
+   cookies antigua no se reutilizó a propósito porque describe cookies de
+   analítica/publicidad que este sitio no usa y basa el consentimiento en
+   "navegar implica aceptar", un criterio ya desactualizado ante la AEPD.
