@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 
+// El stock de productos con variantes vive en `product_variants.stock`, no
+// en `products.stock` (el admin lo oculta cuando hay variantes — ver
+// CLAUDE.md), por eso se trae el stock de variantes junto al producto y
+// ProductCard.jsx lo agrega en vez de leer `products.stock` directamente.
 const SELECT = `
   id, name, brand, price, sale_price, is_on_sale,
   stock, is_active, is_featured, image_url, details,
-  categories(id, name, slug)
+  categories(id, name, slug),
+  product_variants(stock)
 `
 
 export const useProducts = ({

@@ -251,6 +251,7 @@ export const Product = () => {
             <img
               src={(hasVariants && selectedVariant.image_url) || product.image_url}
               alt={product.name}
+              fetchPriority="high"
               className="w-full h-full object-cover"
             />
           ) : (

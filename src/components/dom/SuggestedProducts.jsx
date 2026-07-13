@@ -35,7 +35,7 @@ export const SuggestedProducts = ({ items }) => {
                 style={{ background: 'var(--color-navy)' }}
               >
                 {p.image_url ? (
-                  <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                  <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" loading="lazy" />
                 ) : (
                   <span style={{ color: 'var(--color-cream)', fontWeight: 900, fontSize: 12 }}>
                     {(p.brand || p.name || 'V').slice(0, 2).toUpperCase()}

@@ -44,7 +44,7 @@ const CartRow = ({ item, onMinus, onPlus, onRemove }) => (
       style={{ background: 'var(--color-navy)', color: 'var(--color-cream)' }}
     >
       {item.image_url ? (
-        <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+        <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
       ) : (
         <span style={{ fontWeight: 900, fontSize: '18px' }}>
           {(item.brand || item.name || 'V').slice(0, 2).toUpperCase()}

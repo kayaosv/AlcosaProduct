@@ -28,7 +28,15 @@ const Placeholder = ({ brand }) => {
 export const ProductCard = ({ product, span = 1 }) => {
   const cardRef = useRef(null)
   const imageRef = useRef(null)
-  const outOfStock = product.stock === 0
+  // El stock de productos con variantes vive en `product_variants.stock`,
+  // no en `products.stock` (queda sin usar en cuanto el producto tiene
+  // variantes) — así que solo se lee `product.stock` directamente cuando
+  // el producto no tiene variantes.
+  const hasVariants = Array.isArray(product.product_variants) && product.product_variants.length > 0
+  const variantStock = hasVariants
+    ? product.product_variants.reduce((sum, v) => sum + (v.stock || 0), 0)
+    : null
+  const outOfStock = hasVariants ? variantStock === 0 : product.stock === 0
   const addItem = useCartStore((s) => s.addItem)
   const setCartOpen = useAppStore((s) => s.setCartOpen)
 

@@ -42,7 +42,7 @@ export const ProductSuggestions = ({ productId, categorySlug }) => {
                 style={{ aspectRatio: '4/5', background: 'var(--color-navy)' }}
               >
                 {p.image_url ? (
-                  <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                  <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" loading="lazy" />
                 ) : (
                   <div
                     className="absolute inset-0 flex items-center justify-center"
