@@ -1,7 +1,4 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { useRef } from 'react'
-import { useGSAP } from '@gsap/react'
-import gsap from 'gsap'
 import { useAuth } from '../../../hooks/useAuth.js'
 import { usePendingOrdersCount } from '../../../hooks/useAdminOrders.js'
 
@@ -72,14 +69,9 @@ const NAV_ITEMS = [
 ]
 
 export const Sidebar = ({ isOpen, onClose }) => {
-  const ref = useRef(null)
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
   const pendingOrders = usePendingOrdersCount()
-
-  useGSAP(() => {
-    gsap.from(ref.current, { x: -20, opacity: 0, duration: 0.5, ease: 'power3.out' })
-  }, { scope: ref })
 
   const handleLogout = async () => {
     await signOut()
@@ -87,7 +79,7 @@ export const Sidebar = ({ isOpen, onClose }) => {
   }
 
   return (
-    <aside ref={ref} className={`admin-sidebar ${isOpen ? 'admin-sidebar--open' : ''}`}>
+    <aside className={`admin-sidebar ${isOpen ? 'admin-sidebar--open' : ''}`}>
       <div className="sidebar-logo">
         <div className="logo-mark">VA</div>
         <div className="logo-text">
