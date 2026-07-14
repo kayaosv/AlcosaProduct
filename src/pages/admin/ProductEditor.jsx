@@ -1,6 +1,4 @@
-import { useRef, useState, useEffect, useMemo, useCallback } from 'react'
-import { useGSAP } from '@gsap/react'
-import gsap from 'gsap'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useCategories } from '../../hooks/useCategories.js'
 import { useUploadImage } from '../../hooks/useUploadImage.js'
@@ -35,7 +33,6 @@ const EMPTY = {
 }
 
 export const ProductEditor = () => {
-  const ref = useRef(null)
   const { id } = useParams()
   const navigate = useNavigate()
   const isNew = id === 'new'
@@ -105,12 +102,6 @@ export const ProductEditor = () => {
       setForm((f) => ({ ...f, category_id: categories[0].id }))
     }
   }, [isNew, categories, form.category_id])
-
-  useGSAP(() => {
-    gsap.from('.editor-section', {
-      y: 20, opacity: 0, duration: 0.4, stagger: 0.08, ease: 'power3.out',
-    })
-  }, { scope: ref, dependencies: [loading] })
 
   const currentSlug = useMemo(
     () => categories.find((c) => c.id === form.category_id)?.slug,
@@ -202,7 +193,7 @@ export const ProductEditor = () => {
       : null
 
   return (
-    <div ref={ref} className="page-content">
+    <div className="page-content">
       <div className="page-header">
         <div>
           <div className="breadcrumb">
