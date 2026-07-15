@@ -5,8 +5,20 @@ const SELECT = `
   id, name, brand, barcode, price, sale_price, is_on_sale, wholesale_price,
   stock, is_active, is_featured, image_url, images, details, category_id,
   created_at, updated_at,
-  categories(id, name, slug)
+  categories(id, name, slug),
+  product_variants(stock)
 `
+
+// Productos con variantes guardan el stock real por variante
+// (product_variants.stock) y dejan products.stock sin usar — mismo motivo
+// que en la ficha pública y el checkout de variantes. El admin necesita el
+// número agregado real para poder ordenar/filtrar/alertar por stock.
+const withEffectiveStock = (p) => ({
+  ...p,
+  effectiveStock: p.product_variants?.length
+    ? p.product_variants.reduce((sum, v) => sum + (v.stock ?? 0), 0)
+    : p.stock,
+})
 
 export const useAdminProducts = () => {
   const [products, setProducts] = useState([])
@@ -24,7 +36,7 @@ export const useAdminProducts = () => {
       setError(err)
       setProducts([])
     } else {
-      setProducts(data ?? [])
+      setProducts((data ?? []).map(withEffectiveStock))
       setError(null)
     }
     setLoading(false)

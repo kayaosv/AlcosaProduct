@@ -5,13 +5,14 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useAdminProducts } from '../../hooks/useAdminProducts.js'
 import { useCategories } from '../../hooks/useCategories.js'
 import { categoryColor, categoryKind } from '../../lib/productSpecs.js'
+import { LOW_STOCK_THRESHOLD } from '../../config/stock.js'
 
 const SORT_FIELDS = {
   name: (a, b) => a.name.localeCompare(b.name),
   price: (a, b) => (a.price ?? 0) - (b.price ?? 0),
   wholesale: (a, b) => (a.wholesale_price ?? 0) - (b.wholesale_price ?? 0),
   margin: (a, b) => margin(a) - margin(b),
-  stock: (a, b) => a.stock - b.stock,
+  stock: (a, b) => a.effectiveStock - b.effectiveStock,
 }
 
 const margin = (p) =>
@@ -33,6 +34,7 @@ export const Products = () => {
 
   const [brand, setBrand] = useState('all')
   const [onlyOutOfStock, setOnlyOutOfStock] = useState(false)
+  const [onlyLowStock, setOnlyLowStock] = useState(false)
   const [priceMin, setPriceMin] = useState('')
   const [priceMax, setPriceMax] = useState('')
   const [sort, setSort] = useState({ field: null, dir: 'asc' })
@@ -43,11 +45,17 @@ export const Products = () => {
     [products],
   )
 
+  const lowStockCount = useMemo(
+    () => products.filter((p) => p.effectiveStock > 0 && p.effectiveStock <= LOW_STOCK_THRESHOLD).length,
+    [products],
+  )
+
   const filtered = useMemo(() => {
     let list = products
     if (categorySlug !== 'all') list = list.filter((p) => p.categories?.slug === categorySlug)
     if (brand !== 'all') list = list.filter((p) => p.brand === brand)
-    if (onlyOutOfStock) list = list.filter((p) => p.stock === 0)
+    if (onlyOutOfStock) list = list.filter((p) => p.effectiveStock === 0)
+    if (onlyLowStock) list = list.filter((p) => p.effectiveStock > 0 && p.effectiveStock <= LOW_STOCK_THRESHOLD)
     if (priceMin !== '') list = list.filter((p) => (p.price ?? 0) >= parseFloat(priceMin))
     if (priceMax !== '') list = list.filter((p) => (p.price ?? 0) <= parseFloat(priceMax))
     if (search.trim()) {
@@ -61,7 +69,7 @@ export const Products = () => {
       if (sort.dir === 'desc') list = list.reverse()
     }
     return list
-  }, [products, categorySlug, brand, onlyOutOfStock, priceMin, priceMax, search, sort])
+  }, [products, categorySlug, brand, onlyOutOfStock, onlyLowStock, priceMin, priceMax, search, sort])
 
   useGSAP(() => {
     gsap.from('.table-row', { opacity: 0, y: 8, duration: 0.3, stagger: 0.02, ease: 'power2.out' })
@@ -79,6 +87,7 @@ export const Products = () => {
     setCategorySlug('all')
     setBrand('all')
     setOnlyOutOfStock(false)
+    setOnlyLowStock(false)
     setPriceMin('')
     setPriceMax('')
   }
@@ -105,7 +114,7 @@ export const Products = () => {
   )
 
   const hasFilters =
-    search || categorySlug !== 'all' || brand !== 'all' || onlyOutOfStock || priceMin || priceMax
+    search || categorySlug !== 'all' || brand !== 'all' || onlyOutOfStock || onlyLowStock || priceMin || priceMax
 
   return (
     <div ref={ref} className="page-content">
@@ -114,6 +123,9 @@ export const Products = () => {
           <h1 className="page-title">Productos</h1>
           <p className="page-subtitle">
             {loading ? 'Cargando…' : `${filtered.length} resultado${filtered.length !== 1 ? 's' : ''}`}
+            {!loading && lowStockCount > 0 && (
+              <span className="page-subtitle-alert"> · {lowStockCount} con stock bajo</span>
+            )}
           </p>
         </div>
         <Link to="/admin/products/new" className="btn-primary">+ Nuevo producto</Link>
@@ -165,6 +177,14 @@ export const Products = () => {
             onChange={(e) => setOnlyOutOfStock(e.target.checked)}
           />
           <span>Solo agotados</span>
+        </label>
+        <label className="filter-toggle">
+          <input
+            type="checkbox"
+            checked={onlyLowStock}
+            onChange={(e) => setOnlyLowStock(e.target.checked)}
+          />
+          <span>Solo stock bajo</span>
         </label>
         {hasFilters && (
           <button className="btn-ghost" onClick={resetFilters}>Limpiar</button>
@@ -228,8 +248,8 @@ export const Products = () => {
                       : <span style={{ color: '#333' }}>—</span>}
                   </td>
                   <td>
-                    <span className={`stock-num ${p.stock === 0 ? 'stock-num--zero' : p.stock <= 10 ? 'stock-num--low' : ''}`}>
-                      {p.stock}
+                    <span className={`stock-num ${p.effectiveStock === 0 ? 'stock-num--zero' : p.effectiveStock <= LOW_STOCK_THRESHOLD ? 'stock-num--low' : ''}`}>
+                      {p.effectiveStock}
                     </span>
                   </td>
                   <td>

@@ -163,6 +163,11 @@
   margin-top: 4px;
 }
 
+.page-subtitle-alert {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
 .breadcrumb {
   display: flex;
   align-items: center;
