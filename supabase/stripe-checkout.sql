@@ -219,3 +219,72 @@ $$;
 
 revoke all on function public.get_order_by_session(text) from public;
 grant execute on function public.get_order_by_session(text) to anon, authenticated;
+
+-- Lectura de precio/stock/disponibilidad para un producto+variante, SIN
+-- bloqueo de filas ni efectos secundarios - solo para que la Edge
+-- Function create-checkout-session arme los line_items de Stripe con
+-- precios reales (nunca confiar en el precio que manda el cliente).
+-- Misma logica de resolucion de precio que create_order()/
+-- create_paid_order() (variante propia -> variante principal -> precio
+-- del producto base). El chequeo autoritativo de verdad sigue
+-- ocurriendo en create_paid_order() con FOR UPDATE en el momento del
+-- pago confirmado - esta funcion es solo para la experiencia previa
+-- (no dejar pagar por algo que ya sabemos que no hay).
+create or replace function public.get_checkout_line(p_product_id uuid, p_variant_id uuid)
+returns table (
+  product_name    text,
+  variant_label   text,
+  unit_price      numeric,
+  available_stock int,
+  is_available    boolean
+)
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+declare
+  v_product record;
+  v_variant record;
+begin
+  select id, name, is_active, stock, price, sale_price, is_on_sale
+    into v_product from products where id = p_product_id;
+
+  if not found then
+    return query select null::text, null::text, null::numeric, 0, false;
+    return;
+  end if;
+
+  if p_variant_id is not null then
+    select stock, is_active, label, coalesce(sale_price, price) as own_price
+      into v_variant from product_variants
+      where id = p_variant_id and product_id = p_product_id;
+
+    if not found then
+      return query select v_product.name, null::text, null::numeric, 0, false;
+      return;
+    end if;
+
+    return query select
+      v_product.name,
+      v_variant.label,
+      coalesce(
+        v_variant.own_price,
+        (select coalesce(sale_price, price) from product_variants where product_id = p_product_id and is_primary = true limit 1),
+        case when v_product.is_on_sale and v_product.sale_price is not null then v_product.sale_price else v_product.price end
+      ),
+      v_variant.stock,
+      v_product.is_active and v_variant.is_active;
+  else
+    return query select
+      v_product.name,
+      null::text,
+      case when v_product.is_on_sale and v_product.sale_price is not null then v_product.sale_price else v_product.price end,
+      v_product.stock,
+      v_product.is_active;
+  end if;
+end;
+$$;
+
+revoke execute on function public.get_checkout_line(uuid, uuid) from public;
+grant execute on function public.get_checkout_line(uuid, uuid) to service_role;
