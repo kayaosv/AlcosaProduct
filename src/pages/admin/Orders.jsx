@@ -4,6 +4,15 @@ import gsap from 'gsap'
 import { Link } from 'react-router-dom'
 import { useAdminOrders, STATUS_META, ORDER_STATUSES } from '../../hooks/useAdminOrders.js'
 
+const PaymentBadge = ({ method, status }) => {
+  if (method === 'stripe') {
+    return status === 'paid'
+      ? <span className="payment-badge payment-badge--paid">Pagado online</span>
+      : <span className="payment-badge payment-badge--refunded">Reembolsado</span>
+  }
+  return <span className="payment-badge payment-badge--pickup">Paga en tienda</span>
+}
+
 const formatDate = (iso) => {
   const d = new Date(iso)
   return d.toLocaleDateString('es-ES', {
@@ -110,6 +119,7 @@ export const Orders = () => {
               <th>Items</th>
               <th>Total</th>
               <th>Estado</th>
+              <th>Pago</th>
               <th>Fecha</th>
               <th></th>
             </tr>
@@ -138,6 +148,9 @@ export const Orders = () => {
                     <span className="status-badge" style={{ '--status-color': meta.color }}>
                       {meta.label}
                     </span>
+                  </td>
+                  <td>
+                    <PaymentBadge method={o.payment_method} status={o.payment_status} />
                   </td>
                   <td style={{ fontSize: 11, color: '#666', whiteSpace: 'nowrap' }}>
                     {formatDate(o.created_at)}

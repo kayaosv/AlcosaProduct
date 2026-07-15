@@ -3,10 +3,13 @@
 E-commerce de vapeo (Sevilla, Parque Alcosa). Vite + React + Three.js
 (catálogo con 3D) + Supabase (Postgres/Auth/Storage) + Vercel.
 
-**Modelo de negocio**: reserva online, pago y recogida en tienda física.
-No hay pasarela de pago — el checkout crea un pedido "pendiente" y el
-cliente lo recoge y paga en local. Confirmación de disponibilidad hoy es
-manual, por Instagram.
+**Modelo de negocio**: recogida en tienda física siempre — la web nunca
+envía nada. Desde 2026-07-15 el cliente elige en el checkout entre dos
+formas de pago: reservar y pagar en tienda al recoger (flujo original,
+`create_order()`), o pagar online con Stripe por adelantado
+(`create_paid_order()`, ver "Pago online con Stripe" más abajo). En
+ambos casos se recoge y confirma disponibilidad por Instagram como
+hasta ahora.
 
 ## Dónde vive cada cosa
 
@@ -234,7 +237,71 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
     `LOW_STOCK_THRESHOLD` del frontend, si se cambia uno hay que cambiar
     el otro a mano).
 
+- **Pago online con Stripe (2026-07-15)**: coexiste con la reserva
+  original, no la reemplaza — decisión explícita del cliente. En
+  `Checkout.jsx` hay dos botones ("Pagar online ahora" / "Reservar y
+  pagar en tienda") que comparten el mismo formulario; cuál se pulsó se
+  distingue via `e.nativeEvent.submitter`. Arquitectura completa en
+  `supabase/stripe-checkout.sql` y `supabase/functions/`:
+  - El stock **solo se descuenta cuando Stripe confirma el pago**, nunca
+    antes — por eso el pedido no se crea al enviar el formulario. La
+    Edge Function `create-checkout-session` revalida precio/stock reales
+    (`get_checkout_line()`, sin bloqueos, nunca confía en lo que manda
+    el navegador), guarda el carrito en `checkout_drafts` (evita los
+    límites de tamaño de `metadata` de Stripe) y crea la Checkout
+    Session. El webhook `stripe-webhook` (`verify_jwt=false`,
+    autenticación propia por firma de Stripe) recién ahí llama a
+    `create_paid_order()` — variante de `create_order()` que además
+    marca `payment_method='stripe'`, `payment_status='paid'` y
+    `stripe_session_id`. `create_order()` original sigue intacta, sin
+    tocar, para el flujo de reserva.
+  - Conflicto de stock al confirmar el pago (venta física simultánea,
+    caso raro): el webhook reembolsa automático vía API de Stripe e
+    inserta un pedido `cancelled`/`refunded` directo (sin pasar por
+    `create_order`) para que el trigger de Telegram existente avise al
+    vendedor.
+  - Idempotencia ante reintentos de webhook de Stripe:
+    `checkout_drafts.consumed_at` + `UNIQUE` en `orders.stripe_session_id`.
+  - `CheckoutSuccess.jsx` (`/checkout/success`) hace polling corto sobre
+    `get_order_by_session()` tras volver de Stripe, porque el webhook
+    procesa async y puede tardar unos segundos en crear el pedido.
+  - **FIX DE SEGURIDAD encontrado durante esta migración**: `revoke ...
+    from public` en Postgres no alcanza a `anon`/`authenticated` en
+    Supabase si la función nunca tuvo su `EXECUTE` implícito de PUBLIC
+    revocado — `create_paid_order()` se protegió bien desde el
+    principio, pero al auditar con `get_advisors()` apareció que
+    `send_daily_summary()` (sección de arriba) y `notify_new_order()`
+    (preexistente, del trigger de pedidos) SÍ eran ejecutables por
+    cualquier visitante anónimo vía `/rest/v1/rpc/`. Ninguna se podía
+    usar para robar nada, pero se corrigieron con
+    `revoke execute ... from public` explícito. **Regla para cualquier
+    función `SECURITY DEFINER` nueva que no deba ser pública: siempre
+    incluir ese revoke en el mismo archivo que la crea**, no asumir que
+    alcanza con no otorgar a `anon`/`authenticated`.
+  - **No probado de punta a punta todavía** — el cliente no tenía cuenta
+    de Stripe al escribir esto (ver pendiente #0 abajo). Todo el código
+    está desplegado y compila, pero `STRIPE_SECRET_KEY`/
+    `STRIPE_WEBHOOK_SECRET` no existen como secretos de las Edge
+    Functions.
+  - **Pregunta legal sin resolver, planteada al cliente pero no
+    verificada**: España/UE tienen restricciones sobre venta a distancia
+    de productos de vapeo con nicotina que podrían no aplicar igual al
+    modelo de reserva-sin-pago pero sí activarse con cobro online real.
+    No confirmar que el pago online es legal para este rubro solo
+    porque el código ya está listo — verificarlo (gestor/abogado) antes
+    de dar de alta la cuenta de Stripe en modo real (modo test no
+    importa).
+
 **Pendiente (por prioridad):**
+0. **Bloqueante para probar el pago online**: el cliente no tiene cuenta
+   de Stripe todavía. Pasos: crear cuenta en stripe.com para SUB
+   OHM-TECHNOLOGIES SL (pide NIF y cuenta bancaria — el NIF sigue sin
+   confirmar, ver ítem 8 más abajo), copiar la clave secreta (modo test
+   primero) y configurarla como secreto `STRIPE_SECRET_KEY` de las Edge
+   Functions, crear un webhook endpoint en el dashboard de Stripe
+   apuntando a la función `stripe-webhook` desplegada y copiar su
+   secreto de firma como `STRIPE_WEBHOOK_SECRET`. Sin esto, los botones
+   de "Pagar online ahora" fallan.
 1. Best Sellers conectado a productos reales (`is_featured=true`) en vez
    del placeholder — pendiente hasta que el cliente suba catálogo real;
    el slot destacado debe apuntar a una máquina de precio medio.

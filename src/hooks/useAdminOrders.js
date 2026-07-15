@@ -13,13 +13,13 @@ export const STATUS_META = {
 
 const LIST_SELECT = `
   id, customer_name, customer_email, customer_phone, customer_address,
-  status, total, notes, created_at,
+  status, total, notes, created_at, payment_method, payment_status,
   order_items(id)
 `
 
 const DETAIL_SELECT = `
   id, customer_name, customer_email, customer_phone, customer_address,
-  status, total, notes, created_at,
+  status, total, notes, created_at, payment_method, payment_status,
   order_items(id, product_id, product_name, product_price, quantity, variant_id, variant_label)
 `
 

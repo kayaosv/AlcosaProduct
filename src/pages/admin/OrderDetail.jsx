@@ -8,6 +8,15 @@ import {
   STATUS_META,
 } from '../../hooks/useAdminOrders.js'
 
+const PaymentBadge = ({ method, status }) => {
+  if (method === 'stripe') {
+    return status === 'paid'
+      ? <span className="payment-badge payment-badge--paid payment-badge--lg">Pagado online</span>
+      : <span className="payment-badge payment-badge--refunded payment-badge--lg">Reembolsado</span>
+  }
+  return <span className="payment-badge payment-badge--pickup payment-badge--lg">Paga en tienda</span>
+}
+
 const formatDate = (iso) => {
   const d = new Date(iso)
   return d.toLocaleString('es-ES', {
@@ -82,6 +91,7 @@ export const OrderDetail = () => {
           <p className="page-subtitle">{formatDate(order.created_at)}</p>
         </div>
         <div className="header-actions">
+          <PaymentBadge method={order.payment_method} status={order.payment_status} />
           <span className="status-badge status-badge--lg" style={{ '--status-color': meta.color }}>
             {meta.label}
           </span>

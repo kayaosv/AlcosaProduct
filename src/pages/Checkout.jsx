@@ -4,6 +4,7 @@ import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { useCartStore } from '../stores/useCartStore.js'
 import { useCreateOrder } from '../hooks/useCreateOrder.js'
+import { useStripeCheckout } from '../hooks/useStripeCheckout.js'
 
 const formatPrice = (n) => `${Number(n).toFixed(2)}€`
 
@@ -164,6 +165,7 @@ export const Checkout = () => {
   const items = useCartStore((s) => s.items)
   const clearCart = useCartStore((s) => s.clearCart)
   const { createOrder, loading, error } = useCreateOrder()
+  const { payOnline, loading: stripeLoading, error: stripeError } = useStripeCheckout()
 
   const [form, setForm] = useState({
     name: '',
@@ -198,8 +200,20 @@ export const Checkout = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (items.length === 0 || loading) return
+    if (items.length === 0) return
 
+    // Dos botones de envio comparten el mismo <form> (mismos datos de
+    // cliente, misma validacion nativa required) - el boton pulsado
+    // decide el flujo via submitter.value.
+    const method = e.nativeEvent.submitter?.value === 'stripe' ? 'stripe' : 'pickup'
+
+    if (method === 'stripe') {
+      if (stripeLoading) return
+      await payOnline({ customer: form, items, notes: form.notes })
+      return
+    }
+
+    if (loading) return
     const result = await createOrder({
       customer: form,
       items,
@@ -292,8 +306,8 @@ export const Checkout = () => {
           CHECKOUT
         </h1>
         <p className="mt-4 text-[14px] max-w-xl" style={{ color: 'rgba(23,45,109,0.7)' }}>
-          Reservamos tu pedido y te avisamos por Instagram cuando esté listo. El pago se
-          hace en tienda al recoger.
+          Paga online ahora, o reserva y paga en tienda al recoger. Te avisamos por
+          Instagram en cuanto tu pedido esté listo.
         </p>
       </div>
 
@@ -396,12 +410,12 @@ export const Checkout = () => {
             </div>
           </div>
 
-          {error && (
+          {(error || stripeError) && (
             <p
               className="text-[12px] tracking-[0.15em] uppercase px-4 py-3"
               style={{ background: 'rgba(229, 62, 62, 0.1)', color: '#b03030' }}
             >
-              ⚠ {error}
+              ⚠ {error || stripeError}
             </p>
           )}
         </div>
@@ -454,25 +468,45 @@ export const Checkout = () => {
 
             <button
               type="submit"
-              disabled={loading}
+              name="paymentMethod"
+              value="stripe"
+              disabled={loading || stripeLoading}
               data-cursor="link"
               className="block w-full text-center mt-8 py-4 text-[12px] tracking-[0.2em] uppercase transition-opacity"
               style={{
                 background: 'var(--color-lime)',
                 color: 'var(--color-navy)',
                 fontWeight: 900,
-                opacity: loading ? 0.6 : 1,
+                opacity: loading || stripeLoading ? 0.6 : 1,
+                cursor: stripeLoading ? 'wait' : undefined,
+              }}
+            >
+              {stripeLoading ? 'Redirigiendo…' : '▸ Pagar online ahora'}
+            </button>
+
+            <button
+              type="submit"
+              name="paymentMethod"
+              value="pickup"
+              disabled={loading || stripeLoading}
+              data-cursor="link"
+              className="block w-full text-center mt-3 py-4 text-[12px] tracking-[0.2em] uppercase transition-opacity"
+              style={{
+                border: '1px solid rgba(255,248,240,0.3)',
+                color: 'var(--color-cream)',
+                fontWeight: 700,
+                opacity: loading || stripeLoading ? 0.6 : 1,
                 cursor: loading ? 'wait' : undefined,
               }}
             >
-              {loading ? 'Procesando…' : '▸ Confirmar pedido'}
+              {loading ? 'Procesando…' : 'Reservar y pagar en tienda'}
             </button>
 
             <p
               className="mt-4 text-[10px] leading-relaxed text-center"
               style={{ color: 'rgba(255,248,240,0.6)' }}
             >
-              Sin pago online. Reservamos las unidades 48h.
+              Pago online seguro con Stripe, o reserva y paga al recoger en tienda.
             </p>
           </div>
         </aside>
