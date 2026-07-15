@@ -259,6 +259,7 @@ export const Products = () => {
                   </td>
                   <td className="td-actions">
                     <Link to={`/admin/products/${p.id}`} className="action-btn">Editar</Link>
+                    <Link to={`/admin/products/${p.id}/label`} className="action-btn">Etiqueta</Link>
                     {confirmDelete === p.id ? (
                       <span className="confirm-delete">
                         <button className="action-btn action-btn--danger" onClick={() => handleDelete(p.id)}>Confirmar</button>

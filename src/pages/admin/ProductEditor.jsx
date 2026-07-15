@@ -205,6 +205,9 @@ export const ProductEditor = () => {
         </div>
         <div className="header-actions">
           <Link to="/admin/products" className="btn-ghost">Cancelar</Link>
+          {!isNew && (
+            <Link to={`/admin/products/${id}/label`} className="btn-ghost">Etiqueta</Link>
+          )}
           <button
             form="product-form"
             type="submit"

@@ -13,6 +13,7 @@ import { Login } from '../pages/admin/Login.jsx'
 import { Dashboard } from '../pages/admin/Dashboard.jsx'
 import { Products } from '../pages/admin/Products.jsx'
 import { ProductEditor } from '../pages/admin/ProductEditor.jsx'
+import { ProductLabel } from '../pages/admin/ProductLabel.jsx'
 import { Orders } from '../pages/admin/Orders.jsx'
 import { OrderDetail } from '../pages/admin/OrderDetail.jsx'
 import { Categories } from '../pages/admin/Categories.jsx'
@@ -43,6 +44,7 @@ export const router = createBrowserRouter([
       { index: true, element: <Dashboard /> },
       { path: 'products', element: <Products /> },
       { path: 'products/:id', element: <ProductEditor /> },
+      { path: 'products/:id/label', element: <ProductLabel /> },
       { path: 'orders', element: <Orders /> },
       { path: 'orders/:id', element: <OrderDetail /> },
       { path: 'categories', element: <Categories /> },
