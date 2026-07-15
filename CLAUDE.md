@@ -192,6 +192,48 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
   sí ya existía (`Orders.jsx` con pestañas por estado + contador en el
   sidebar) — lo único que faltaba era el aviso.
 
+- **Dashboard de stock estilo Catinfog (2026-07-15)**: el cliente evaluó
+  migrar el inventario directamente desde Catinfog (su TPV físico actual,
+  que exporta CSV) pero decidió NO hacerlo — el CSV llega sin slug SEO,
+  sin metadatos y sin asociación al motor de cross-sell (`crossSell.js`),
+  así que habría que reprocesar todo a mano igual. Los productos se
+  siguen cargando uno a uno desde `/admin/products/new` (que ya genera
+  slug/SEO/variantes correctamente). En su lugar se construyó un
+  dashboard de stock propio, con el objetivo explícito de independencia
+  total de Catinfog:
+  - `useAdminProducts.js` trae `product_variants(stock)` y calcula
+    `effectiveStock` (suma de variantes si tiene, si no `products.stock`)
+    — antes `Products.jsx` usaba `products.stock` crudo, que queda en 0/
+    sin uso en productos con variantes (mismo motivo ya documentado en el
+    checkout y la ficha pública). Umbral de stock bajo en
+    `src/config/stock.js` (`LOW_STOCK_THRESHOLD = 5`, constante global a
+    propósito, no columna por producto — decisión explícita del cliente).
+    Nuevo filtro "Solo stock bajo" y contador en el subtítulo de
+    `Products.jsx`.
+  - Impresión de etiquetas con código de barras: `/admin/products/:id/label`
+    (`ProductLabel.jsx`), enlazada desde `Products.jsx` y
+    `ProductEditor.jsx`. Usa `jsbarcode` (nueva dependencia) para
+    renderizar el código en un `<svg>`. Si el producto no tiene
+    `barcode`, se genera un EAN-13 propio válido (`src/lib/barcode.js`,
+    checksum correcto, prefijo `20-29` reservado por GS1 para uso
+    interno de tienda — nunca coincide con un código real de fabricante
+    ni con nada de Catinfog) — decisión explícita del cliente, ya que el
+    objetivo es no depender de Catinfog para nada, ni siquiera para los
+    códigos. Una etiqueta es por producto, no por variante
+    (`product_variants` no tiene columna de barcode propia).
+  - Resumen diario por Telegram: `supabase/telegram-daily-summary.sql`,
+    activa `pg_cron` y agenda `send_daily_summary()` a las 21:00 hora
+    España (`0 19 * * *` UTC — **ajustar a `0 20 * * *` en horario de
+    invierno**, ver comentario en el propio archivo SQL). Reutiliza los
+    mismos secretos de Vault que `telegram-order-notify.sql`
+    (`telegram_bot_token`, `telegram_chat_id`), mismo blindaje
+    (`exception when others then null`). Manda pedidos del día (con
+    fecha calculada en `Europe/Madrid`, con DST) + lista de productos en
+    stock bajo/agotado (mismo criterio de `effectiveStock` que el
+    dashboard, umbral hardcodeado a 5 en la query — no está conectado a
+    `LOW_STOCK_THRESHOLD` del frontend, si se cambia uno hay que cambiar
+    el otro a mano).
+
 **Pendiente (por prioridad):**
 1. Best Sellers conectado a productos reales (`is_featured=true`) en vez
    del placeholder — pendiente hasta que el cliente suba catálogo real;
@@ -199,17 +241,22 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
 2. Quick-add de `ProductCard.jsx` sin variante elegida (ver limitación
    arriba) — evaluar si vale la pena el costo de fetch por card.
 3. Limpieza de imágenes huérfanas en Storage al borrar un producto.
-4. `Products.jsx` (admin) no refleja el stock agregado de variantes,
-   solo el del producto base.
+4. ~~`Products.jsx` (admin) no refleja el stock agregado de variantes~~
+   — **resuelto 2026-07-15**, ver "Dashboard de stock estilo Catinfog"
+   arriba.
 5. Bucket `product-images` permite listar todos los archivos públicamente
    (advertencia menor del linter de Supabase, no crítico).
 6. El motor de sugerencias solo tiene 2 productos reales para ofrecer en
    `alquimia` (ambos nicokits) — no hay "base neutra" cargada todavía en
    el catálogo; cuando el cliente la suba, aparecerá sola (no requiere
    cambio de código).
-7. Trigger de Telegram desplegado pero **inactivo hasta que se carguen
-   los dos secretos de Vault** (`telegram_bot_token`, `telegram_chat_id`)
-   — instrucciones en `supabase/telegram-order-notify.sql`.
+7. Trigger de Telegram (aviso por pedido) Y el resumen diario
+   (`send_daily_summary`, cron 21:00) desplegados pero **inactivos hasta
+   que se carguen los dos secretos de Vault**
+   (`telegram_bot_token`, `telegram_chat_id`) — instrucciones en
+   `supabase/telegram-order-notify.sql`. Recordar ajustar el cron del
+   resumen diario a `0 20 * * *` cuando empiece el horario de invierno
+   (ver `supabase/telegram-daily-summary.sql`).
 8. **Cumplimiento legal (2026-07-13)**: añadidas páginas de Aviso Legal,
    Política de Privacidad y Política de Cookies (`src/pages/AvisoLegal.jsx`,
    `Privacidad.jsx`, `Cookies.jsx`, rutas `/aviso-legal`, `/privacidad`,
