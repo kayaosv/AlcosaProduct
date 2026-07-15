@@ -107,6 +107,16 @@ begin
 end;
 $$;
 
+-- Sin este revoke, Postgres deja EXECUTE abierto a PUBLIC por defecto al
+-- crear la funcion - eso incluye a anon/authenticated via PostgREST
+-- (/rest/v1/rpc/send_daily_summary), y cualquier visitante podria
+-- spamear el Telegram del vendedor llamandola directo. Solo pg_cron
+-- (que corre como el rol que agendo el job, no via PostgREST) debe
+-- poder dispararla. BUG REAL encontrado y corregido en produccion el
+-- 2026-07-15 - esta funcion estuvo publicamente invocable un rato tras
+-- el deploy original de este archivo.
+revoke execute on function public.send_daily_summary() from public;
+
 select cron.unschedule(jobid) from cron.job where jobname = 'daily-summary';
 select cron.schedule(
   'daily-summary',

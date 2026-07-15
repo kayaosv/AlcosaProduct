@@ -74,6 +74,16 @@ begin
 end;
 $$;
 
+-- Postgres deja EXECUTE abierto a PUBLIC por defecto al crear una
+-- funcion, lo que incluye a anon/authenticated via PostgREST
+-- (/rest/v1/rpc/notify_new_order) aunque sea una funcion de trigger.
+-- Postgres ya rechaza ejecutarla fuera de un trigger real (necesita
+-- NEW), pero se revoca igual por defensa en profundidad - mismo bug
+-- encontrado y corregido en send_daily_summary() el 2026-07-15
+-- (supabase/telegram-daily-summary.sql), aplicado aqui tambien porque
+-- este archivo tenia el mismo patron sin el revoke.
+revoke execute on function public.notify_new_order() from public;
+
 drop trigger if exists orders_notify_new on orders;
 create trigger orders_notify_new
   after insert on orders
