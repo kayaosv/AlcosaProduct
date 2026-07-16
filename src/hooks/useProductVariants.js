@@ -58,8 +58,13 @@ export const useProductVariants = (productId) => {
   }
 
   const setPrimary = async (id) => {
-    await supabase.from('product_variants').update({ is_primary: false }).eq('product_id', productId)
+    // Marcar la nueva primero y desmarcar el resto despues: si algo
+    // falla a mitad de camino, el peor caso es quedar con DOS variantes
+    // principales (sin constraint que lo impida), nunca con cero - el
+    // resto del sistema (precio heredado, checkout) ya usa .limit(1) y
+    // tolera esa ambiguedad mejor que un "sin principal".
     await supabase.from('product_variants').update({ is_primary: true }).eq('id', id)
+    await supabase.from('product_variants').update({ is_primary: false }).eq('product_id', productId).neq('id', id)
     setVariants((v) => v.map((item) => ({ ...item, is_primary: item.id === id })))
   }
 
