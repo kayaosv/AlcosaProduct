@@ -492,7 +492,7 @@ export const ProductEditor = () => {
             </section>
           )}
 
-          {(kind === 'accesorios' || kind === 'alquimia') && (
+          {(kind === 'accesorios' || kind === 'alquimia' || kind === 'desechables') && (
             <section className="editor-section">
               <h2 className="editor-section-title">Descripción</h2>
               <div className="field-group">
@@ -655,11 +655,15 @@ export const ProductEditor = () => {
   )
 }
 
-const MAX_COLOR_IMAGES = 4
+// Antes pensado solo para variantes de color de un dispositivo (pocas
+// opciones); las variantes de sabor de un desechable pueden ser
+// muchas más (ej. 10 sabores de una misma línea), así que el tope se
+// subió con margen en vez de dejarlo pensado solo para el caso color.
+const MAX_COLOR_IMAGES = 12
 
 const VARIANT_META = {
   color:  { title: 'Colores y variantes',              placeholder: 'ej. Negro mate, Azul cielo…',  hasColor: true,  hasImage: true  },
-  flavor: { title: 'Sabores y variantes',              placeholder: 'ej. Mango Ice, Fresa Helada…', hasColor: false, hasImage: false },
+  flavor: { title: 'Sabores y variantes',              placeholder: 'ej. Mango Ice, Fresa Helada…', hasColor: false, hasImage: true  },
   ohm:    { title: 'Resistencias (Ω)',                 placeholder: 'ej. 0.3Ω, 0.6Ω, 1.2Ω…',      hasColor: false, hasImage: false },
   nic:    { title: 'Concentraciones de nicotina',      placeholder: 'ej. 5 mg, 10 mg, 20 mg…',     hasColor: false, hasImage: false },
   volume: { title: 'Variantes de volumen',             placeholder: 'ej. 10ml/30ml, 24ml/60ml…',   hasColor: false, hasImage: false },

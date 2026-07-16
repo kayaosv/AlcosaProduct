@@ -425,6 +425,22 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
     los proveedores reales sí lo muestran, pero es información
     secundaria que hoy puede ir en la descripción libre si hace falta.
 
+- **Regresión propia corregida el mismo día**: al arreglar
+  `vapers-desechables` (arriba) se detectó que el cambio de
+  `variantType: 'color'` a `'flavor'` había apagado sin querer la foto
+  por variante — `VARIANT_META.color` tenía `hasImage: true` (por eso
+  antes, aunque mal etiquetado como "color", sí se podía subir una foto
+  distinta por sabor), y `VARIANT_META.flavor` tenía `hasImage: false`.
+  Corregido: `flavor` ahora también tiene `hasImage: true`. De paso se
+  subió `MAX_COLOR_IMAGES` de 4 a 12 — ese tope estaba pensado para
+  pocas variantes de color de un dispositivo, pero un desechable real
+  puede tener 10+ sabores (el único producto cargado en esa categoría
+  ya tiene 10). También se agregó la sección "Descripción del
+  producto" (textarea libre) a `kind === 'desechables'` — antes solo
+  la tenían `accesorios`/`alquimia`; desechables solo tenía el campo
+  corto "Sabor" (pensado para el nombre, no para texto descriptivo
+  largo).
+
 **Pendiente (por prioridad):**
 0. **Bloqueante para probar el pago online**: el cliente no tiene cuenta
    de Stripe todavía. Pasos: crear cuenta en stripe.com para SUB
