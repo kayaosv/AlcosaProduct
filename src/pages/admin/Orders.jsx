@@ -2,7 +2,8 @@ import { useRef, useState, useMemo } from 'react'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { Link } from 'react-router-dom'
-import { useAdminOrders, STATUS_META, ORDER_STATUSES } from '../../hooks/useAdminOrders.js'
+import { useAdminOrders, updateOrderStatus, STATUS_META, ORDER_STATUSES } from '../../hooks/useAdminOrders.js'
+import { OrderStatusSelect } from '../../components/dom/admin/OrderStatusSelect.jsx'
 
 const PaymentBadge = ({ method, status }) => {
   if (method === 'stripe') {
@@ -23,9 +24,29 @@ const formatDate = (iso) => {
 
 export const Orders = () => {
   const ref = useRef(null)
-  const { orders, loading } = useAdminOrders()
+  const { orders, loading, setOrders } = useAdminOrders()
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
+  const [updatingId, setUpdatingId] = useState(null)
+
+  // Update optimista con rollback si falla, igual que OrderDetail.jsx -
+  // 'cancelled' pide confirmacion antes (mismo criterio que ya tenia el
+  // boton "Cancelar pedido" del detalle) porque es la unica opcion del
+  // select con consecuencia dificil de deshacer sin llamar al cliente.
+  const changeStatus = async (order, next) => {
+    if (next === 'cancelled' && !confirm('¿Cancelar este pedido?')) return
+    setUpdatingId(order.id)
+    const prev = orders
+    setOrders((os) => os.map((o) => (o.id === order.id ? { ...o, status: next } : o)))
+    try {
+      await updateOrderStatus(order.id, next)
+    } catch (err) {
+      setOrders(prev)
+      alert(`No se pudo actualizar el pedido: ${err.message}`)
+    } finally {
+      setUpdatingId(null)
+    }
+  }
 
   const counts = useMemo(() => {
     const c = { all: orders.length }
@@ -126,7 +147,6 @@ export const Orders = () => {
           </thead>
           <tbody>
             {filtered.map((o) => {
-              const meta = STATUS_META[o.status] ?? { label: o.status, color: '#666' }
               const shortId = o.id.slice(0, 8)
               return (
                 <tr key={o.id} className="table-row">
@@ -145,9 +165,12 @@ export const Orders = () => {
                   </td>
                   <td className="td-precio">{Number(o.total ?? 0).toFixed(2)} €</td>
                   <td>
-                    <span className="status-badge" style={{ '--status-color': meta.color }}>
-                      {meta.label}
-                    </span>
+                    <OrderStatusSelect
+                      status={o.status}
+                      disabled={updatingId === o.id}
+                      onChange={(next) => changeStatus(o, next)}
+                      size="sm"
+                    />
                   </td>
                   <td>
                     <PaymentBadge method={o.payment_method} status={o.payment_status} />

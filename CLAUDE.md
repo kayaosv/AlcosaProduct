@@ -315,12 +315,49 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
   re-exporta desde el mismo archivo (cero cambios en Analytics.jsx). De
   paso se corrigio un bug menor propio: effectiveStock no filtraba
   variantes inactivas (is_active=false), la funcion centralizada si.
-  Sin tocar todavia (pendientes de la misma auditoria, mas abajo):
-  inputs de categoria solo capturan nombre (color/tipo de variante
-  siguen en codigo, CATEGORY_META en productSpecs.js), sin delete/
-  rename de categorias, y el rediseño del selector de estado de pedido
-  al estilo Perfumito14 — el estado actual ademas se llama "Enviado"
-  para una tienda que no envia nada, solo recoge en local.
+  Color de categoria: **resuelto 2026-07-16**, ver mas abajo. Kind/
+  variantType de categoria siguen en codigo a proposito (decision
+  tomada, ver pendiente #9). Selector de pedidos: **resuelto
+  2026-07-16**, ver mas abajo.
+
+- **Categorias: color/borrar/renombrar + selector de pedidos estilo
+  Perfumito14 (2026-07-16, resto de la auditoria del mismo dia)**:
+  - `categories.color` (columna nueva) — `categoryColor(slug, dbColor)`
+    en `productSpecs.js` prioriza el color de la categoria sobre
+    `CATEGORY_META`, con fallback a gris. `useCategories.js` gana
+    `create`/`update`/`remove` (antes `Categories.jsx` llamaba a
+    `supabase.from(...)` directo y refrescaba con
+    `window.location.reload()`). Renombrar una categoria solo cambia
+    `name`, nunca `slug` — el slug es la clave de `CATEGORY_META` y de
+    las URLs `?cat=slug`, cambiarlo desconectaria la categoria de sus
+    campos especiales en silencio. Borrar categoria bloqueado en la UI
+    si tiene productos asociados (la FK es `ON DELETE SET NULL`, no
+    lo impide sola).
+  - `OrderStatusSelect` (`src/components/dom/admin/`): select nativo
+    disfrazado de pill de color (punto + flecha propia, sin la del
+    navegador), salta directo a cualquier estado en un solo cambio, con
+    update optimista y rollback si falla la escritura — mismo patron
+    que el dashboard de pedidos de Perfumito14
+    (`app/admin/pedidos/page.tsx`). Reemplaza el badge estatico +
+    boton "→ Marcar como X" de `OrderDetail.jsx`, y se agrega tambien
+    inline en cada fila de `Orders.jsx` (antes solo se podia cambiar
+    el estado abriendo el detalle). Elegir "Cancelado" pide
+    confirmacion (`window.confirm`) antes de aplicar, mismo criterio
+    que ya tenia el boton dedicado. El estado `shipped`/"Enviado" se
+    renombro a `ready`/"Listo para recoger" — no tiene sentido para
+    una tienda que no envia nada — **sin migracion de datos** porque
+    no habia pedidos reales en la base en ese momento; si esto se lee
+    despues de que existan pedidos reales con status `shipped`, hace
+    falta un `update orders set status='ready' where status='shipped'`
+    antes de desplegar.
+  - Bug propio encontrado y corregido en el camino: `Dashboard.jsx`
+    (commit `216e6e1`, mismo dia) quedo llamando a una funcion
+    `marginPct(p)` ya borrada y leyendo `p.wholesale_price` crudo en
+    `marginByCategory` — se escapo del build porque Vite no chequea
+    variables indefinidas en JS. Sirve de recordatorio: **correr la
+    app real (o al menos revisar con grep cada función/variable que se
+    borra) después de refactors de este tipo, el build pasando no es
+    suficiente garantía.**
 
 **Pendiente (por prioridad):**
 0. **Bloqueante para probar el pago online**: el cliente no tiene cuenta
@@ -372,37 +409,22 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
    cookies antigua no se reutilizó a propósito porque describe cookies de
    analítica/publicidad que este sitio no usa y basa el consentimiento en
    "navegar implica aceptar", un criterio ya desactualizado ante la AEPD.
-9. **Inputs de categoría incompletos** (hallazgo auditoría 2026-07-16):
-   `Categories.jsx` → "+ Nueva categoría" solo captura el nombre. El
-   color, `kind` (qué campos de `details` usa `ProductEditor.jsx`) y
-   `variantType` (qué tipo de variante acepta: sabor/nicotina/color/Ω)
-   viven hardcodeados en `CATEGORY_META` (`src/lib/productSpecs.js`),
-   no en la base de datos. Una categoría creada desde el admin hoy
-   queda "coja" — sin campos especiales, sin poder agregarle variantes
-   — hasta que alguien la agregue a mano en `CATEGORY_META` y
-   redespliegue. Tampoco hay delete/rename de categorías desde el
-   admin, solo crear y reordenar. Ver propuesta de solución discutida
-   con el cliente el 2026-07-16 (dos caminos: mover `CATEGORY_META` a
-   una columna JSONB en `categories` con un formulario completo en el
-   admin, o mantenerlo en código pero agregar validación/aviso cuando
-   se crea una categoría sin entrada correspondiente).
-10. **Selector de estado de pedido — rediseño pendiente** (hallazgo
-    auditoría 2026-07-16, referencia: dashboard de pedidos de
-    Perfumito14, `app/admin/pedidos/page.tsx`): hoy
-    `OrderDetail.jsx` avanza el estado de a un paso ("→ Marcar como
-    Preparando/Enviado/Entregado") en vez de un selector directo a
-    cualquier estado. Perfumito14 usa un `<select>` nativo disfrazado
-    de pill de color (punto + texto, sin flecha nativa) con semántica
-    de urgencia por color (rojo=requiere acción ya, ámbar=en
-    preparación, azul=en tránsito, verde=completo, gris=fuera de
-    flujo) y update optimista con rollback si falla. Además, el estado
-    `shipped`/"Enviado" no tiene sentido para Alcosa — la tienda no
-    envía nada, solo se recoge en local; renombrar a algo como "Listo
-    para recoger" antes o al mismo tiempo que el rediseño visual.
-11. **`setPrimary` en `useProductVariants.js` no es atómico**: hace dos
-    updates seguidos (desmarcar todas, marcar la nueva) — si el segundo
-    falla a mitad de camino, el producto queda sin variante principal.
-    Riesgo bajo (falla de red muy puntual), no urgente.
+9. **Inputs de categoría — parcialmente resuelto 2026-07-16**: color
+   ✅ (columna `categories.color`, editable desde `Categories.jsx`) y
+   delete/rename ✅. Sigue pendiente a propósito, por decisión
+   consciente (no por olvido): `kind` (qué campos de `details` usa
+   `ProductEditor.jsx`) y `variantType` (qué tipo de variante acepta)
+   siguen hardcodeados en `CATEGORY_META` (`src/lib/productSpecs.js`)
+   — son literalmente pantallas de formulario distintas por categoría,
+   no datos: moverlas a la base de datos implicaría un sistema de
+   formularios dinámicos, proyecto grande para 11 categorías que
+   probablemente ya cubren casi todo. Una categoría creada desde el
+   admin sin entrada en `CATEGORY_META` queda sin campos especiales ni
+   variantes hasta que se agregue a mano en código.
+10. ~~Selector de estado de pedido — rediseño~~ — **resuelto
+    2026-07-16**, ver `OrderStatusSelect` más arriba.
+11. ~~`setPrimary` en `useProductVariants.js` no era atómico~~ —
+    **resuelto 2026-07-16** (se invirtió el orden de los dos updates).
 12. `checkout-policies.sql` es un archivo SQL superado (dice "NO
     aplicar" en su propio comentario) que ya no está activo en la base
     real (verificado 2026-07-16 vía `pg_policies` — `orders`/

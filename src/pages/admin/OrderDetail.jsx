@@ -5,8 +5,8 @@ import { Link, useParams, useNavigate } from 'react-router-dom'
 import {
   fetchOrderById,
   updateOrderStatus,
-  STATUS_META,
 } from '../../hooks/useAdminOrders.js'
+import { OrderStatusSelect } from '../../components/dom/admin/OrderStatusSelect.jsx'
 
 const PaymentBadge = ({ method, status }) => {
   if (method === 'stripe') {
@@ -52,12 +52,15 @@ export const OrderDetail = () => {
   }, { scope: ref, dependencies: [loading] })
 
   const changeStatus = async (next) => {
+    if (next === 'cancelled' && !confirm('¿Cancelar este pedido?')) return
     setUpdating(true)
     setError(null)
+    const prevStatus = order.status
+    setOrder((o) => ({ ...o, status: next }))
     try {
       await updateOrderStatus(id, next)
-      setOrder((o) => ({ ...o, status: next }))
     } catch (err) {
+      setOrder((o) => ({ ...o, status: prevStatus }))
       setError(err.message)
     } finally {
       setUpdating(false)
@@ -72,7 +75,6 @@ export const OrderDetail = () => {
     </div>
   )
 
-  const meta = STATUS_META[order.status] ?? { label: order.status, color: '#666', next: null }
   const shortId = order.id.slice(0, 8)
   const subtotal = (order.order_items ?? []).reduce(
     (a, i) => a + Number(i.product_price) * i.quantity, 0,
@@ -92,9 +94,7 @@ export const OrderDetail = () => {
         </div>
         <div className="header-actions">
           <PaymentBadge method={order.payment_method} status={order.payment_status} />
-          <span className="status-badge status-badge--lg" style={{ '--status-color': meta.color }}>
-            {meta.label}
-          </span>
+          <OrderStatusSelect status={order.status} disabled={updating} onChange={changeStatus} />
         </div>
       </div>
 
@@ -160,41 +160,6 @@ export const OrderDetail = () => {
         </div>
 
         <div className="editor-side">
-          <section className="editor-section">
-            <h2 className="editor-section-title">Cambiar estado</h2>
-            <div className="field-group">
-              {meta.next && (
-                <button
-                  type="button"
-                  className="btn-primary"
-                  style={{ justifyContent: 'center', width: '100%' }}
-                  disabled={updating}
-                  onClick={() => changeStatus(meta.next)}
-                >
-                  {updating ? '…' : `→ Marcar como ${STATUS_META[meta.next].label}`}
-                </button>
-              )}
-              {order.status !== 'cancelled' && order.status !== 'delivered' && (
-                <button
-                  type="button"
-                  className="btn-ghost"
-                  style={{ justifyContent: 'center', width: '100%', borderColor: '#3a1a1a', color: '#ef4444' }}
-                  disabled={updating}
-                  onClick={() => {
-                    if (confirm('¿Cancelar este pedido?')) changeStatus('cancelled')
-                  }}
-                >
-                  Cancelar pedido
-                </button>
-              )}
-              {(order.status === 'delivered' || order.status === 'cancelled') && (
-                <p style={{ fontSize: 12, color: '#444', textAlign: 'center' }}>
-                  Pedido cerrado.
-                </p>
-              )}
-            </div>
-          </section>
-
           <section className="editor-section">
             <h2 className="editor-section-title">Cliente</h2>
             <div className="field-group">

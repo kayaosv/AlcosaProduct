@@ -1,14 +1,20 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase.js'
 
-export const ORDER_STATUSES = ['pending', 'preparing', 'shipped', 'delivered', 'cancelled']
+// 'ready' se llamaba 'shipped'/"Enviado" — no tiene sentido para una
+// tienda que solo recoge en local, nunca envia nada. Renombrado sin
+// migracion porque no habia pedidos reales en la base en ese momento
+// (2026-07-16). Selector de estado ahora salta directo a cualquier
+// valor (OrderStatusSelect) en vez de avanzar de a un paso, asi que ya
+// no hace falta un campo "next".
+export const ORDER_STATUSES = ['pending', 'preparing', 'ready', 'delivered', 'cancelled']
 
 export const STATUS_META = {
-  pending:    { label: 'Pendiente',  color: '#f59e0b', next: 'preparing' },
-  preparing:  { label: 'Preparando', color: '#3b82f6', next: 'shipped' },
-  shipped:    { label: 'Enviado',    color: '#6366f1', next: 'delivered' },
-  delivered:  { label: 'Entregado',  color: '#22c55e', next: null },
-  cancelled:  { label: 'Cancelado',  color: '#ef4444', next: null },
+  pending:    { label: 'Pendiente',        color: '#f59e0b' },
+  preparing:  { label: 'Preparando',       color: '#3b82f6' },
+  ready:      { label: 'Listo para recoger', color: '#06b6d4' },
+  delivered:  { label: 'Entregado',        color: '#22c55e' },
+  cancelled:  { label: 'Cancelado',        color: '#ef4444' },
 }
 
 const LIST_SELECT = `
@@ -49,7 +55,11 @@ export const useAdminOrders = () => {
     fetchAll()
   }, [fetchAll])
 
-  return { orders, loading, error, refetch: fetchAll }
+  // setOrders se expone para permitir updates optimistas (cambiar el
+  // estado de un pedido en la UI al instante, con rollback si falla la
+  // escritura) sin tener que refetchear toda la lista - ver
+  // OrderStatusSelect / Orders.jsx.
+  return { orders, loading, error, refetch: fetchAll, setOrders }
 }
 
 export const fetchOrderById = async (id) => {

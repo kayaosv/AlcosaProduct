@@ -2255,3 +2255,58 @@
     border: none;
   }
 }
+
+/* ── Selector de estado de pedido (pill de color + select nativo) ── */
+.order-status-select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--status-color, #666) 35%, transparent);
+  background: color-mix(in srgb, var(--status-color, #666) 12%, transparent);
+  padding: 8px 28px 8px 14px;
+}
+
+.order-status-select-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-color, #666);
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.order-status-select-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--status-color, #aaa);
+  cursor: pointer;
+  padding-right: 4px;
+}
+
+.order-status-select-input:disabled { cursor: wait; opacity: 0.6; }
+.order-status-select-input option { background: #111; color: #eee; text-transform: none; }
+
+.order-status-select-chevron {
+  position: absolute;
+  right: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 9px;
+  color: var(--status-color, #aaa);
+  pointer-events: none;
+}
+
+.order-status-select--sm {
+  padding: 5px 22px 5px 10px;
+}
+.order-status-select--sm .order-status-select-input { font-size: 10px; }
+.order-status-select--sm .order-status-select-dot { width: 5px; height: 5px; margin-right: 6px; }
+.order-status-select--sm .order-status-select-chevron { right: 8px; font-size: 8px; }
