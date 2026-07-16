@@ -663,6 +663,7 @@ const VARIANT_META = {
   ohm:    { title: 'Resistencias (Ω)',                 placeholder: 'ej. 0.3Ω, 0.6Ω, 1.2Ω…',      hasColor: false, hasImage: false },
   nic:    { title: 'Concentraciones de nicotina',      placeholder: 'ej. 5 mg, 10 mg, 20 mg…',     hasColor: false, hasImage: false },
   volume: { title: 'Variantes de volumen',             placeholder: 'ej. 10ml/30ml, 24ml/60ml…',   hasColor: false, hasImage: false },
+  recipe: { title: 'Composición (bases y nicokits)',   placeholder: '',                             hasColor: false, hasImage: false },
 }
 
 const EMPTY_DRAFT = { label: '', hex: '#6b7280', stock: '', price: '', sale_price: '', wholesale_price: '' }
@@ -906,7 +907,7 @@ const VariantsEditor = ({ variantType, variants, onAdd, onUpdate, onRemove, onSe
                 className="color-picker-hidden" />
             </label>
           )}
-          {variantType === 'flavor' ? (
+          {variantType === 'recipe' ? (
             <AlquimiaComposer
               value={draft.label}
               onChange={(v) => setDraft((d) => ({ ...d, label: v }))}

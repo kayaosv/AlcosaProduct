@@ -7,8 +7,8 @@ export const CATEGORY_META = {
   'longfill':           { color: '#8b5cf6', kind: 'longfill',    variantType: 'volume' },
   'minilongfill':       { color: '#7c3aed', kind: 'longfill',    variantType: 'volume' },
   'vapers':             { color: '#3b82f6', kind: 'vapers',      variantType: 'color'  },
-  'vapers-desechables': { color: '#f59e0b', kind: 'desechables', variantType: 'color'  },
-  'alquimia':           { color: '#10b981', kind: 'alquimia',    variantType: 'flavor' },
+  'vapers-desechables': { color: '#f59e0b', kind: 'desechables', variantType: 'flavor' },
+  'alquimia':           { color: '#10b981', kind: 'alquimia',    variantType: 'recipe' },
   'accesorios':         { color: '#6b7280', kind: 'accesorios',  variantType: null     },
   'cbd':                { color: '#16a34a', kind: 'accesorios',  variantType: null     },
   'resistencia':        { color: '#f97316', kind: 'accesorios',  variantType: 'ohm'   },
@@ -28,6 +28,7 @@ export const VARIANT_LABELS = {
   ohm: 'Resistencia',
   nic: 'Nicotina',
   volume: 'Volumen',
+  recipe: 'Composición',
 }
 
 // dbColor (categories.color, editable desde el admin) gana si existe;

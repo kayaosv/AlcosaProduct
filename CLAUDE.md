@@ -381,6 +381,50 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
   pushear**, no asumir que un build local exitoso implica que Vercel
   también lo hará — son entornos de instalación distintos.
 
+- **Auditoría de atributos/variantes por categoría vs. proveedores reales
+  (2026-07-16)**: a pedido del cliente, se comparó el modelo de
+  categorías/variantes contra sinhumo.net (cadena grande de Sevilla,
+  referencia de competencia directa) y contra los datos ya cargados en
+  la base real (317 productos, 204 variantes) para verificar que cada
+  categoría permite cargar un producto con todas sus variantes en una
+  sola subida, sin duplicar el producto por sabor/ml/ohmio.
+  - **Confirmado que el mecanismo ya funciona bien** en `resistencia`
+    (ohmios como variante, ej. "Vaporesso GTX Coil" con 7 variantes de
+    ohmios — coincide exacto con el patrón de sinhumo.net de vender
+    una caja con varios ohmios seleccionables), `sales-de-nicotina`
+    (mg como variante) y `longfill`/`minilongfill` (ml de botella como
+    variante, cuando aplica — la mayoría de esos 267 productos son de
+    un solo tamaño, lo cual probablemente refleja que así los vende el
+    proveedor, no una carga incompleta).
+  - **Bug real encontrado con evidencia de datos**: `vapers-desechables`
+    tenía `variantType: 'color'`, pero el único producto cargado
+    (10 variantes) usa esos slots para **sabores**
+    (`Mango Slushy`, `Piña Hielo`, etc.) — el admin veía un selector de
+    color para escribir ahí un sabor. Corregido a `variantType: 'flavor'`.
+    Al investigar el fix se encontró un segundo problema: `'flavor'`
+    como `variantType` estaba pisado por `alquimia`, que lo usaba para
+    activar el compositor de ejes (`AlquimiaComposer`, volumen/ratio/
+    nicotina) — cambiar `vapers-desechables` a `'flavor'` sin más
+    habría mostrado por error ese compositor en vez de un campo de
+    texto simple. Se separó: `alquimia` pasa a `variantType: 'recipe'`
+    (nueva entrada en `VARIANT_META` y `VARIANT_LABELS`,
+    `src/lib/productSpecs.js` +
+    `src/pages/admin/ProductEditor.jsx`), dejando `'flavor'` libre y
+    correctamente aislado para sabores simples (desechables, y
+    cualquier categoría futura que solo necesite un nombre de sabor sin
+    compositor ni color).
+  - **Corrección propia sobre la marcha**: se había planteado que
+    "Alquimia" mezclaba aromas + bases + nicokits — el cliente corrigió
+    que no es así: `longfill`/`minilongfill` (los aromas) ya son
+    categorías separadas desde antes, `alquimia` es únicamente para
+    bases neutras/nicokits/similares, para lo cual el compositor de
+    volumen/ratio/nicotina encaja bien tal cual está. No se tocó nada
+    de esa categoría.
+  - Pendiente, no bloqueante: las resistencias no capturan el rango de
+    potencia recomendado (W) como campo estructurado, solo el ohmio —
+    los proveedores reales sí lo muestran, pero es información
+    secundaria que hoy puede ir en la descripción libre si hace falta.
+
 **Pendiente (por prioridad):**
 0. **Bloqueante para probar el pago online**: el cliente no tiene cuenta
    de Stripe todavía. Pasos: crear cuenta en stripe.com para SUB
