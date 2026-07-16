@@ -7,8 +7,6 @@ import { useAdminProducts } from '../../hooks/useAdminProducts.js'
 import { useCategories } from '../../hooks/useCategories.js'
 import { categoryColor } from '../../lib/productSpecs.js'
 
-const effectivePrice = (p) => Number((p.is_on_sale && p.sale_price) ? p.sale_price : p.price ?? 0)
-
 const slugify = (str) =>
   str.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-')
 
@@ -31,8 +29,8 @@ export const Categories = () => {
     () =>
       list.map((c) => {
         const prods = products.filter((p) => p.category_id === c.id)
-        const outOfStock = prods.filter((p) => p.stock === 0).length
-        const totalValue = prods.reduce((a, p) => a + effectivePrice(p) * p.stock, 0)
+        const outOfStock = prods.filter((p) => p.effectiveStock === 0).length
+        const totalValue = prods.reduce((a, p) => a + p.effectivePrice * p.effectiveStock, 0)
         return { ...c, total: prods.length, outOfStock, totalValue }
       }),
     [list, products],

@@ -4,8 +4,7 @@ import gsap from 'gsap'
 import { useAdminProducts } from '../../hooks/useAdminProducts.js'
 import { useCategories } from '../../hooks/useCategories.js'
 import { categoryColor, categoryKind } from '../../lib/productSpecs.js'
-
-const effectivePrice = (p) => Number((p.is_on_sale && p.sale_price) ? p.sale_price : p.price ?? 0)
+import { LOW_STOCK_THRESHOLD } from '../../config/stock.js'
 
 export const Wholesale = () => {
   const ref = useRef(null)
@@ -21,9 +20,9 @@ export const Wholesale = () => {
 
   const totals = useMemo(() => {
     const wholesale = filtered.reduce(
-      (a, p) => a + (Number(p.wholesale_price) || 0) * minUnits, 0,
+      (a, p) => a + (p.effectiveWholesalePrice ?? 0) * minUnits, 0,
     )
-    const publicEquiv = filtered.reduce((a, p) => a + effectivePrice(p) * minUnits, 0)
+    const publicEquiv = filtered.reduce((a, p) => a + p.effectivePrice * minUnits, 0)
     const savings = publicEquiv - wholesale
     return { wholesale, publicEquiv, savings }
   }, [filtered, minUnits])
@@ -117,8 +116,8 @@ export const Wholesale = () => {
           <tbody>
             {filtered.map((p) => {
               const slug = p.categories?.slug
-              const pvp = effectivePrice(p)
-              const w = p.wholesale_price ? Number(p.wholesale_price) : null
+              const pvp = p.effectivePrice
+              const w = p.effectiveWholesalePrice
               const margin = w ? (((pvp - w) / pvp) * 100).toFixed(1) : null
               const equiv = w ? (pvp / w).toFixed(2) : null
               const savings = w ? ((pvp - w) * minUnits).toFixed(2) : null
@@ -159,8 +158,8 @@ export const Wholesale = () => {
                   </td>
                   <td className="td-precio td-precio--ahorro">{savings ? `${savings} €` : '—'}</td>
                   <td>
-                    <span className={`stock-num ${p.stock === 0 ? 'stock-num--zero' : p.stock <= 10 ? 'stock-num--low' : ''}`}>
-                      {p.stock}
+                    <span className={`stock-num ${p.effectiveStock === 0 ? 'stock-num--zero' : p.effectiveStock <= LOW_STOCK_THRESHOLD ? 'stock-num--low' : ''}`}>
+                      {p.effectiveStock}
                     </span>
                   </td>
                 </tr>

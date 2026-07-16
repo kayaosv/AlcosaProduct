@@ -1,7 +1,7 @@
 import { useRef, useMemo, useState } from 'react'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
-import { useAnalyticsData, getStock, getEffectivePrice, getMarginPct, hasWholesale } from '../../hooks/useAnalyticsData.js'
+import { useAnalyticsData, getStock, getEffectivePrice, getWholesalePrice, getMarginPct, hasWholesale } from '../../hooks/useAnalyticsData.js'
 import { useCategories } from '../../hooks/useCategories.js'
 import { categoryColor, categoryKind } from '../../lib/productSpecs.js'
 
@@ -160,10 +160,7 @@ export const Analytics = () => {
       id: p.id, name: p.name, brand: p.brand || '—',
       catName: p.categories?.name || '—', catSlug: p.categories?.slug,
       pvp: getEffectivePrice(p),
-      wholesale: (() => {
-        const vv = (p.product_variants ?? []).filter((v) => v.is_active !== false && v.wholesale_price)
-        return vv.length ? vv.reduce((s, v) => s + v.wholesale_price, 0) / vv.length : p.wholesale_price ?? 0
-      })(),
+      wholesale: getWholesalePrice(p) ?? 0,
       margin: parseFloat(getMarginPct(p).toFixed(1)),
       stock: getStock(p),
       capital: parseFloat((getEffectivePrice(p) * getStock(p)).toFixed(2)),

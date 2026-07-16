@@ -1,23 +1,28 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase.js'
+import { getStock, getEffectivePrice, getWholesalePrice, getMarginPct, hasWholesale } from '../lib/stockPricing.js'
 
 const SELECT = `
   id, name, brand, barcode, price, sale_price, is_on_sale, wholesale_price,
   stock, is_active, is_featured, image_url, images, details, category_id,
   created_at, updated_at,
   categories(id, name, slug),
-  product_variants(stock)
+  product_variants(id, price, sale_price, wholesale_price, stock, is_primary, is_active)
 `
 
-// Productos con variantes guardan el stock real por variante
-// (product_variants.stock) y dejan products.stock sin usar — mismo motivo
-// que en la ficha pública y el checkout de variantes. El admin necesita el
-// número agregado real para poder ordenar/filtrar/alertar por stock.
-const withEffectiveStock = (p) => ({
+// Productos con variantes guardan el stock/precio/mayorista real por
+// variante (product_variants) y dejan los campos del producto base sin
+// usar — mismo motivo que en la ficha pública y el checkout de
+// variantes. Todas las páginas de admin necesitan estos valores
+// "efectivos" para no mostrar stock/margen mal en la mitad del
+// catálogo (ver src/lib/stockPricing.js).
+const withComputed = (p) => ({
   ...p,
-  effectiveStock: p.product_variants?.length
-    ? p.product_variants.reduce((sum, v) => sum + (v.stock ?? 0), 0)
-    : p.stock,
+  effectiveStock: getStock(p),
+  effectivePrice: getEffectivePrice(p),
+  effectiveWholesalePrice: getWholesalePrice(p),
+  marginPct: getMarginPct(p),
+  hasWholesale: hasWholesale(p),
 })
 
 export const useAdminProducts = () => {
@@ -36,7 +41,7 @@ export const useAdminProducts = () => {
       setError(err)
       setProducts([])
     } else {
-      setProducts((data ?? []).map(withEffectiveStock))
+      setProducts((data ?? []).map(withComputed))
       setError(null)
     }
     setLoading(false)

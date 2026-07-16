@@ -292,6 +292,36 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
     de dar de alta la cuenta de Stripe en modo real (modo test no
     importa).
 
+- **Stock/precio/margen variant-aware centralizado (2026-07-16)**: una
+  auditoria completa del admin encontro que el bug de "stock crudo en
+  vez de agregado" arreglado en Products.jsx el dia anterior seguia
+  vivo en Dashboard.jsx, Categories.jsx y Wholesale.jsx — las tres
+  leian products.stock/price/wholesale_price directos, que quedan en
+  0/null en cuanto un producto tiene variantes (la mayoria del
+  catalogo). Efecto real: Dashboard sobre-contaba "sin stock" y
+  sub-contaba "valor inventario", Categorias mostraba mal "agotados"/
+  "valor en stock" por categoria, y Mayorista mostraba columnas de
+  margen/equivalencia/ahorro vacias para casi todo el catalogo.
+  Products.jsx ademas tenia el mismo bug sin arreglar en Precio y
+  Mayorista (solo se habia corregido Stock antes). Analytics.jsx era la
+  unica pagina que ya lo hacia bien, con su propio hook
+  useAnalyticsData.js.
+  Fix: nuevo src/lib/stockPricing.js (getStock, getEffectivePrice,
+  getWholesalePrice, getMarginPct, hasWholesale) como unica fuente.
+  useAdminProducts.js lo usa para adjuntar effectiveStock/
+  effectivePrice/effectiveWholesalePrice/marginPct/hasWholesale a cada
+  producto (SELECT ampliado con product_variants(price, sale_price,
+  wholesale_price, is_primary, is_active)); useAnalyticsData.js
+  re-exporta desde el mismo archivo (cero cambios en Analytics.jsx). De
+  paso se corrigio un bug menor propio: effectiveStock no filtraba
+  variantes inactivas (is_active=false), la funcion centralizada si.
+  Sin tocar todavia (pendientes de la misma auditoria, mas abajo):
+  inputs de categoria solo capturan nombre (color/tipo de variante
+  siguen en codigo, CATEGORY_META en productSpecs.js), sin delete/
+  rename de categorias, y el rediseño del selector de estado de pedido
+  al estilo Perfumito14 — el estado actual ademas se llama "Enviado"
+  para una tienda que no envia nada, solo recoge en local.
+
 **Pendiente (por prioridad):**
 0. **Bloqueante para probar el pago online**: el cliente no tiene cuenta
    de Stripe todavía. Pasos: crear cuenta en stripe.com para SUB
@@ -342,3 +372,39 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
    cookies antigua no se reutilizó a propósito porque describe cookies de
    analítica/publicidad que este sitio no usa y basa el consentimiento en
    "navegar implica aceptar", un criterio ya desactualizado ante la AEPD.
+9. **Inputs de categoría incompletos** (hallazgo auditoría 2026-07-16):
+   `Categories.jsx` → "+ Nueva categoría" solo captura el nombre. El
+   color, `kind` (qué campos de `details` usa `ProductEditor.jsx`) y
+   `variantType` (qué tipo de variante acepta: sabor/nicotina/color/Ω)
+   viven hardcodeados en `CATEGORY_META` (`src/lib/productSpecs.js`),
+   no en la base de datos. Una categoría creada desde el admin hoy
+   queda "coja" — sin campos especiales, sin poder agregarle variantes
+   — hasta que alguien la agregue a mano en `CATEGORY_META` y
+   redespliegue. Tampoco hay delete/rename de categorías desde el
+   admin, solo crear y reordenar. Ver propuesta de solución discutida
+   con el cliente el 2026-07-16 (dos caminos: mover `CATEGORY_META` a
+   una columna JSONB en `categories` con un formulario completo en el
+   admin, o mantenerlo en código pero agregar validación/aviso cuando
+   se crea una categoría sin entrada correspondiente).
+10. **Selector de estado de pedido — rediseño pendiente** (hallazgo
+    auditoría 2026-07-16, referencia: dashboard de pedidos de
+    Perfumito14, `app/admin/pedidos/page.tsx`): hoy
+    `OrderDetail.jsx` avanza el estado de a un paso ("→ Marcar como
+    Preparando/Enviado/Entregado") en vez de un selector directo a
+    cualquier estado. Perfumito14 usa un `<select>` nativo disfrazado
+    de pill de color (punto + texto, sin flecha nativa) con semántica
+    de urgencia por color (rojo=requiere acción ya, ámbar=en
+    preparación, azul=en tránsito, verde=completo, gris=fuera de
+    flujo) y update optimista con rollback si falla. Además, el estado
+    `shipped`/"Enviado" no tiene sentido para Alcosa — la tienda no
+    envía nada, solo se recoge en local; renombrar a algo como "Listo
+    para recoger" antes o al mismo tiempo que el rediseño visual.
+11. **`setPrimary` en `useProductVariants.js` no es atómico**: hace dos
+    updates seguidos (desmarcar todas, marcar la nueva) — si el segundo
+    falla a mitad de camino, el producto queda sin variante principal.
+    Riesgo bajo (falla de red muy puntual), no urgente.
+12. `checkout-policies.sql` es un archivo SQL superado (dice "NO
+    aplicar" en su propio comentario) que ya no está activo en la base
+    real (verificado 2026-07-16 vía `pg_policies` — `orders`/
+    `order_items` solo tienen políticas `is_admin()`) — candidato a
+    archivar o borrar del repo para no confundir a futuro.

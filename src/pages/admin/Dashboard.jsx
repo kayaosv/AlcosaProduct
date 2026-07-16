@@ -6,10 +6,6 @@ import { useAdminProducts } from '../../hooks/useAdminProducts.js'
 import { useCategories } from '../../hooks/useCategories.js'
 import { categoryColor, categoryKind } from '../../lib/productSpecs.js'
 
-const effectivePrice = (p) => Number((p.is_on_sale && p.sale_price) ? p.sale_price : p.price ?? 0)
-const marginPct = (p) =>
-  p.wholesale_price && p.price ? ((p.price - p.wholesale_price) / p.price) * 100 : 0
-
 export const Dashboard = () => {
   const ref = useRef(null)
   const { products, loading } = useAdminProducts()
@@ -17,12 +13,12 @@ export const Dashboard = () => {
 
   const stats = useMemo(() => {
     const total = products.length
-    const outOfStock = products.filter((p) => p.stock === 0).length
+    const outOfStock = products.filter((p) => p.effectiveStock === 0).length
     const featured = products.filter((p) => p.is_featured).length
-    const inventoryValue = products.reduce((a, p) => a + effectivePrice(p) * p.stock, 0)
-    const withMargin = products.filter((p) => p.wholesale_price)
+    const inventoryValue = products.reduce((a, p) => a + p.effectivePrice * p.effectiveStock, 0)
+    const withMargin = products.filter((p) => p.hasWholesale)
     const avgMargin = withMargin.length
-      ? withMargin.reduce((a, p) => a + marginPct(p), 0) / withMargin.length
+      ? withMargin.reduce((a, p) => a + p.marginPct, 0) / withMargin.length
       : 0
     return { total, outOfStock, featured, inventoryValue, avgMargin }
   }, [products])
@@ -56,15 +52,15 @@ export const Dashboard = () => {
     products.forEach((p) => {
       const key = p.brand || 'Sin marca'
       if (!map[key]) map[key] = { brand: key, value: 0, units: 0, count: 0 }
-      map[key].value += effectivePrice(p) * p.stock
-      map[key].units += p.stock
+      map[key].value += p.effectivePrice * p.effectiveStock
+      map[key].units += p.effectiveStock
       map[key].count += 1
     })
     return Object.values(map).sort((a, b) => b.value - a.value).slice(0, 8)
   }, [products])
 
   const lowStock = useMemo(
-    () => products.filter((p) => p.stock <= 10).sort((a, b) => a.stock - b.stock).slice(0, 6),
+    () => products.filter((p) => p.effectiveStock <= 10).sort((a, b) => a.effectiveStock - b.effectiveStock).slice(0, 6),
     [products],
   )
 
@@ -224,8 +220,8 @@ export const Dashboard = () => {
                   <span className="alert-name">{p.name}</span>
                   <span className="alert-marca">{p.brand || '—'}</span>
                 </div>
-                <span className={`stock-badge ${p.stock === 0 ? 'stock-badge--empty' : 'stock-badge--low'}`}>
-                  {p.stock === 0 ? 'AGOTADO' : `${p.stock} u.`}
+                <span className={`stock-badge ${p.effectiveStock === 0 ? 'stock-badge--empty' : 'stock-badge--low'}`}>
+                  {p.effectiveStock === 0 ? 'AGOTADO' : `${p.effectiveStock} u.`}
                 </span>
               </Link>
             ))}

@@ -9,14 +9,11 @@ import { LOW_STOCK_THRESHOLD } from '../../config/stock.js'
 
 const SORT_FIELDS = {
   name: (a, b) => a.name.localeCompare(b.name),
-  price: (a, b) => (a.price ?? 0) - (b.price ?? 0),
-  wholesale: (a, b) => (a.wholesale_price ?? 0) - (b.wholesale_price ?? 0),
-  margin: (a, b) => margin(a) - margin(b),
+  price: (a, b) => (a.effectivePrice ?? 0) - (b.effectivePrice ?? 0),
+  wholesale: (a, b) => (a.effectiveWholesalePrice ?? 0) - (b.effectiveWholesalePrice ?? 0),
+  margin: (a, b) => a.marginPct - b.marginPct,
   stock: (a, b) => a.effectiveStock - b.effectiveStock,
 }
-
-const margin = (p) =>
-  p.wholesale_price && p.price ? ((p.price - p.wholesale_price) / p.price) * 100 : 0
 
 export const Products = () => {
   const ref = useRef(null)
@@ -56,8 +53,8 @@ export const Products = () => {
     if (brand !== 'all') list = list.filter((p) => p.brand === brand)
     if (onlyOutOfStock) list = list.filter((p) => p.effectiveStock === 0)
     if (onlyLowStock) list = list.filter((p) => p.effectiveStock > 0 && p.effectiveStock <= LOW_STOCK_THRESHOLD)
-    if (priceMin !== '') list = list.filter((p) => (p.price ?? 0) >= parseFloat(priceMin))
-    if (priceMax !== '') list = list.filter((p) => (p.price ?? 0) <= parseFloat(priceMax))
+    if (priceMin !== '') list = list.filter((p) => (p.effectivePrice ?? 0) >= parseFloat(priceMin))
+    if (priceMax !== '') list = list.filter((p) => (p.effectivePrice ?? 0) <= parseFloat(priceMax))
     if (search.trim()) {
       const q = search.toLowerCase()
       list = list.filter(
@@ -209,7 +206,7 @@ export const Products = () => {
           <tbody>
             {filtered.map((p) => {
               const slug = p.categories?.slug
-              const m = margin(p)
+              const hasVariants = (p.product_variants?.length ?? 0) > 0
               return (
                 <tr key={p.id} className="table-row">
                   <td className="td-producto">
@@ -232,19 +229,19 @@ export const Products = () => {
                   </td>
                   <td className="td-detalles"><ProductDetails slug={slug} details={p.details} /></td>
                   <td className="td-precio">
-                    {p.is_on_sale && p.sale_price && (
+                    {!hasVariants && p.is_on_sale && p.sale_price && (
                       <span className="precio-original">{Number(p.price).toFixed(2)} €</span>
                     )}
                     <span className={p.is_on_sale ? 'precio-oferta' : ''}>
-                      {Number(p.is_on_sale && p.sale_price ? p.sale_price : p.price).toFixed(2)} €
+                      {p.effectivePrice.toFixed(2)} €
                     </span>
                   </td>
                   <td className="td-precio">
-                    {p.wholesale_price != null ? `${Number(p.wholesale_price).toFixed(2)} €` : '—'}
+                    {p.effectiveWholesalePrice != null ? `${p.effectiveWholesalePrice.toFixed(2)} €` : '—'}
                   </td>
                   <td>
-                    {m > 0
-                      ? <span className="margen-pill">{m.toFixed(1)}%</span>
+                    {p.marginPct > 0
+                      ? <span className="margen-pill">{p.marginPct.toFixed(1)}%</span>
                       : <span style={{ color: '#333' }}>—</span>}
                   </td>
                   <td>
