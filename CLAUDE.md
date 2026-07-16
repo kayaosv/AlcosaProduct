@@ -359,6 +359,28 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
     borra) después de refactors de este tipo, el build pasando no es
     suficiente garantía.**
 
+- **Deploy de Vercel roto durante varios commits sin detectarlo
+  (2026-07-16)**: el repo tenía DOS lockfiles — `package-lock.json`
+  (activo, el que usa `npm run build` local) y `pnpm-lock.yaml`
+  (commiteado una única vez en el commit inicial de mayo, nunca más
+  tocado). Vercel prioriza `pnpm-lock.yaml` cuando existe y corre
+  `pnpm install --frozen-lockfile`, que falla apenas ese lockfile
+  queda desactualizado respecto a `package.json`. Eso pasó en cuanto
+  se agregó la primera dependencia nueva de esta sesión (`jsbarcode`,
+  commit `868ed17`, impresión de etiquetas) — **el deploy de Vercel
+  quedó roto desde ese commit hasta `600660c` sin que se detectara**,
+  porque la verificación de cada paso era `npm run build` local (que
+  ni siquiera toca `pnpm-lock.yaml`), nunca el estado real del deploy
+  (`gh api repos/.../commits/<sha>/status`). Fix: se borraron
+  `pnpm-lock.yaml` y `pnpm-workspace.yaml` (este último tampoco se
+  usaba de verdad — ni define `packages:`, solo una config de
+  `allowBuilds` — no es un monorepo real). **Regla para instalar
+  cualquier dependencia nueva de aquí en adelante: además de
+  `npm run build` local, chequear
+  `gh api repos/kayaosv/AlcosaProduct/commits/<sha>/status` después de
+  pushear**, no asumir que un build local exitoso implica que Vercel
+  también lo hará — son entornos de instalación distintos.
+
 **Pendiente (por prioridad):**
 0. **Bloqueante para probar el pago online**: el cliente no tiene cuenta
    de Stripe todavía. Pasos: crear cuenta en stripe.com para SUB
