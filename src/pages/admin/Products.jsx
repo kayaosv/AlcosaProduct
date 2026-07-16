@@ -222,7 +222,7 @@ export const Products = () => {
                   </td>
                   <td>
                     {slug && (
-                      <span className="cat-pill" style={{ '--pill-color': categoryColor(slug) }}>
+                      <span className="cat-pill" style={{ '--pill-color': categoryColor(slug, p.categories?.color) }}>
                         {p.categories.name}
                       </span>
                     )}

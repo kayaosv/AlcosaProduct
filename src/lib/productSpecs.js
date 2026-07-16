@@ -30,6 +30,8 @@ export const VARIANT_LABELS = {
   volume: 'Volumen',
 }
 
-export const categoryColor = (slug) => CATEGORY_META[slug]?.color ?? '#6b7280'
+// dbColor (categories.color, editable desde el admin) gana si existe;
+// si no, cae al color hardcodeado por categoria y despues a gris.
+export const categoryColor = (slug, dbColor) => dbColor || CATEGORY_META[slug]?.color || '#6b7280'
 export const categoryKind = (slug) => CATEGORY_META[slug]?.kind ?? 'accesorios'
 export const categoryVariantType = (slug) => CATEGORY_META[slug]?.variantType ?? null

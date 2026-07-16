@@ -36,9 +36,9 @@ export const Dashboard = () => {
     () =>
       categories
         .map((c) => {
-          const prods = products.filter((p) => p.category_id === c.id && p.wholesale_price)
+          const prods = products.filter((p) => p.category_id === c.id && p.hasWholesale)
           const avg = prods.length
-            ? prods.reduce((a, p) => a + marginPct(p), 0) / prods.length
+            ? prods.reduce((a, p) => a + p.marginPct, 0) / prods.length
             : 0
           return { ...c, margin: parseFloat(avg.toFixed(1)), count: prods.length }
         })
@@ -157,7 +157,7 @@ export const Dashboard = () => {
                     className="cat-bar-fill"
                     style={{
                       width: `${stats.total ? (c.count / stats.total) * 100 : 0}%`,
-                      background: categoryColor(c.slug),
+                      background: categoryColor(c.slug, c.color),
                     }}
                   />
                 </div>
@@ -179,7 +179,7 @@ export const Dashboard = () => {
                 <div className="cat-bar-track">
                   <div
                     className="cat-bar-fill"
-                    style={{ width: `${c.margin}%`, background: categoryColor(c.slug) }}
+                    style={{ width: `${c.margin}%`, background: categoryColor(c.slug, c.color) }}
                   />
                 </div>
                 <span className="cat-bar-count cat-bar-count--margen">{c.margin}%</span>

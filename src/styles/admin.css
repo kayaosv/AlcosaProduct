@@ -968,6 +968,18 @@
 
 .cat-card-nombre { font-size: 14px; font-weight: 600; color: #ddd; flex: 1; }
 
+.cat-card-rename-input {
+  font-size: 14px;
+  font-weight: 600;
+  color: #ddd;
+  flex: 1;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 2px 6px;
+  min-width: 0;
+}
+
 .cat-card-total {
   font-size: 11px;
   color: #444;

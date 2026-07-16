@@ -6,7 +6,7 @@ const SELECT = `
   id, name, brand, barcode, price, sale_price, is_on_sale, wholesale_price,
   stock, is_active, is_featured, image_url, images, details, category_id,
   created_at, updated_at,
-  categories(id, name, slug),
+  categories(id, name, slug, color),
   product_variants(id, price, sale_price, wholesale_price, stock, is_primary, is_active)
 `
 

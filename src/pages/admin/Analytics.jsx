@@ -10,6 +10,14 @@ export const Analytics = () => {
   const { products, loading } = useAnalyticsData()
   const { categories } = useCategories()
 
+  // Color editable desde el admin (Categories.jsx) - un solo mapa
+  // slug->color evita tener que hacer pasar el color por cada objeto
+  // derivado (scatterAll, tableRows, catsInScatter).
+  const colorBySlug = useMemo(
+    () => Object.fromEntries(categories.map((c) => [c.slug, c.color])),
+    [categories],
+  )
+
   // ── Margen bruto por categoría ──────────────────────────────────────────
   const marginByCategory = useMemo(
     () =>
@@ -226,7 +234,7 @@ export const Analytics = () => {
                   </div>
                   <div className="analytics-bar-track">
                     <div className="analytics-bar-fill"
-                      style={{ width: `${(c.margin / maxMargin) * 100}%`, background: categoryColor(c.slug) }} />
+                      style={{ width: `${(c.margin / maxMargin) * 100}%`, background: categoryColor(c.slug, colorBySlug[c.slug]) }} />
                   </div>
                   <span className="analytics-bar-sub">{c.count} refs con precio mayorista</span>
                 </div>
@@ -329,7 +337,7 @@ export const Analytics = () => {
                     style={{ opacity: active ? 1 : 0.3, transition: 'opacity 0.2s', cursor: 'pointer' }}
                     onClick={() => setScatterCat(scatterCat === c.slug ? null : c.slug)}
                   >
-                    <div className="scatter-legend-dot" style={{ background: categoryColor(c.slug) }} />
+                    <div className="scatter-legend-dot" style={{ background: categoryColor(c.slug, colorBySlug[c.slug]) }} />
                     <span>{c.name}</span>
                   </div>
                 )
@@ -359,7 +367,7 @@ export const Analytics = () => {
                       style={{
                         left: `${sx(d.price)}%`,
                         top:  `${sy(d.margin)}%`,
-                        background: categoryColor(d.slug),
+                        background: categoryColor(d.slug, colorBySlug[d.slug]),
                         width:   active && scatterCat ? 12 : 9,
                         height:  active && scatterCat ? 12 : 9,
                         opacity: active ? 1 : 0.08,
@@ -405,7 +413,7 @@ export const Analytics = () => {
             <button
               key={c.id}
               className={`profit-filter-btn ${filterCat === c.slug ? 'profit-filter-btn--active' : ''}`}
-              style={filterCat === c.slug ? { borderColor: categoryColor(c.slug), color: categoryColor(c.slug) } : {}}
+              style={filterCat === c.slug ? { borderColor: categoryColor(c.slug, colorBySlug[c.slug]), color: categoryColor(c.slug, colorBySlug[c.slug]) } : {}}
               onClick={() => setFilterCat(filterCat === c.slug ? null : c.slug)}
             >
               {c.name}
@@ -439,7 +447,7 @@ export const Analytics = () => {
                     </td>
                     <td>{r.brand}</td>
                     <td>
-                      <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: categoryColor(r.catSlug), marginRight: 5, verticalAlign: 'middle' }} />
+                      <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: categoryColor(r.catSlug, colorBySlug[r.catSlug]), marginRight: 5, verticalAlign: 'middle' }} />
                       {r.catName}
                     </td>
                     <td className="num-cell">{r.pvp.toFixed(2)}</td>

@@ -2,10 +2,11 @@ import { useRef, useMemo, useState } from 'react'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { Link } from 'react-router-dom'
-import { supabase } from '../../lib/supabase.js'
 import { useAdminProducts } from '../../hooks/useAdminProducts.js'
 import { useCategories } from '../../hooks/useCategories.js'
 import { categoryColor } from '../../lib/productSpecs.js'
+
+const DEFAULT_COLOR = '#6b7280'
 
 const slugify = (str) =>
   str.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-')
@@ -13,12 +14,17 @@ const slugify = (str) =>
 export const Categories = () => {
   const ref = useRef(null)
   const { products, loading: pLoading } = useAdminProducts()
-  const { categories, loading: cLoading } = useCategories()
+  const { categories, loading: cLoading, create, update, remove } = useCategories()
   const [order, setOrder] = useState(null)
   const [saving, setSaving] = useState(false)
   const [showNewForm, setShowNewForm] = useState(false)
   const [newName, setNewName] = useState('')
+  const [newColor, setNewColor] = useState(DEFAULT_COLOR)
   const [creating, setCreating] = useState(false)
+  const [renaming, setRenaming] = useState(null) // id de la categoria en edicion de nombre
+  const [renameValue, setRenameValue] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   const list = useMemo(() => {
     if (order) return order
@@ -57,15 +63,10 @@ export const Categories = () => {
     try {
       const slug = slugify(newName)
       const maxOrder = list.length ? Math.max(...list.map((c) => c.sort_order)) : 0
-      const { error } = await supabase.from('categories').insert({
-        name: newName.trim(),
-        slug,
-        sort_order: maxOrder + 10,
-      })
-      if (error) throw error
+      await create({ name: newName.trim(), slug, sort_order: maxOrder + 10, color: newColor })
       setNewName('')
+      setNewColor(DEFAULT_COLOR)
       setShowNewForm(false)
-      window.location.reload()
     } catch (err) {
       alert(`Error creando categoría: ${err.message}`)
     } finally {
@@ -78,17 +79,49 @@ export const Categories = () => {
     setSaving(true)
     try {
       await Promise.all(
-        order.map((c, i) =>
-          supabase.from('categories').update({ sort_order: (i + 1) * 10 }).eq('id', c.id),
-        ),
+        order.map((c, i) => update(c.id, { sort_order: (i + 1) * 10 })),
       )
       setOrder(null)
-      // forzar refetch sencillo
-      window.location.reload()
     } catch (err) {
       alert(`Error guardando orden: ${err.message}`)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const startRename = (c) => {
+    setRenaming(c.id)
+    setRenameValue(c.name)
+  }
+
+  const saveRename = async (id) => {
+    const name = renameValue.trim()
+    setRenaming(null)
+    if (!name) return
+    try {
+      await update(id, { name })
+    } catch (err) {
+      alert(`Error renombrando: ${err.message}`)
+    }
+  }
+
+  const changeColor = async (id, color) => {
+    try {
+      await update(id, { color })
+    } catch (err) {
+      alert(`Error cambiando color: ${err.message}`)
+    }
+  }
+
+  const deleteCategory = async (c) => {
+    setDeleting(true)
+    try {
+      await remove(c.id)
+      setConfirmDelete(null)
+    } catch (err) {
+      alert(`Error borrando categoría: ${err.message}`)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -106,7 +139,7 @@ export const Categories = () => {
         <div className="header-actions">
           <button
             className="btn-ghost"
-            onClick={() => { setShowNewForm((v) => !v); setNewName('') }}
+            onClick={() => { setShowNewForm((v) => !v); setNewName(''); setNewColor(DEFAULT_COLOR) }}
           >
             {showNewForm ? 'Cancelar' : '+ Nueva categoría'}
           </button>
@@ -126,13 +159,26 @@ export const Categories = () => {
       {showNewForm && (
         <div className="editor-section" style={{ marginBottom: 24, padding: '20px 24px', background: '#111', borderRadius: 10, border: '1px solid #1e1e1e' }}>
           <h2 className="editor-section-title" style={{ marginBottom: 16 }}>Nueva categoría</h2>
+          <p style={{ fontSize: 12, color: '#666', marginBottom: 16 }}>
+            El color se puede elegir acá. Los campos especiales (sabor, nicotina, Ω…) y qué tipo de
+            variantes acepta siguen definidos en código — si esta categoría los necesita, pedime que
+            los agregue después de crearla.
+          </p>
           <div className="field-row" style={{ alignItems: 'flex-end', gap: 12 }}>
+            <label className="color-swatch-label" title="Elegir color">
+              <span className="color-swatch" style={{ background: newColor }} />
+              <input
+                type="color" value={newColor}
+                onChange={(e) => setNewColor(e.target.value)}
+                className="color-picker-hidden"
+              />
+            </label>
             <div className="field" style={{ flex: 1 }}>
               <label>Nombre</label>
               <input
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                placeholder="ej. Minilongfill"
+                placeholder="ej. Pods"
                 onKeyDown={(e) => e.key === 'Enter' && createCategory()}
                 autoFocus
               />
@@ -155,10 +201,39 @@ export const Categories = () => {
 
       <div className="cat-cards-grid">
         {cards.map((c, idx) => (
-          <div key={c.id} className="cat-card" style={{ '--cat-color': categoryColor(c.slug) }}>
+          <div key={c.id} className="cat-card" style={{ '--cat-color': categoryColor(c.slug, c.color) }}>
             <div className="cat-card-header">
-              <div className="cat-card-dot" />
-              <span className="cat-card-nombre">{c.name}</span>
+              <label className="color-swatch-label" title="Cambiar color">
+                <span className="color-swatch cat-card-dot" style={{ background: categoryColor(c.slug, c.color) }} />
+                <input
+                  type="color" value={c.color || categoryColor(c.slug)}
+                  onChange={(e) => changeColor(c.id, e.target.value)}
+                  className="color-picker-hidden"
+                />
+              </label>
+
+              {renaming === c.id ? (
+                <input
+                  className="cat-card-rename-input"
+                  value={renameValue}
+                  autoFocus
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onBlur={() => saveRename(c.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); saveRename(c.id) }
+                    if (e.key === 'Escape') setRenaming(null)
+                  }}
+                />
+              ) : (
+                <span
+                  className="cat-card-nombre"
+                  title="Clic para renombrar"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => startRename(c)}
+                >
+                  {c.name}
+                </span>
+              )}
               <span className="cat-card-total">{c.total} productos</span>
             </div>
 
@@ -199,7 +274,32 @@ export const Categories = () => {
               <Link to={`/admin/products?cat=${c.slug}`} className="cat-card-link">
                 Ver productos →
               </Link>
+              {confirmDelete === c.id ? (
+                <span className="confirm-delete">
+                  <button
+                    type="button"
+                    className="action-btn action-btn--danger"
+                    disabled={deleting || c.total > 0}
+                    onClick={() => deleteCategory(c)}
+                  >
+                    {deleting ? '…' : 'Confirmar'}
+                  </button>
+                  <button type="button" className="action-btn" onClick={() => setConfirmDelete(null)}>Cancelar</button>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="action-btn action-btn--ghost"
+                  onClick={() => setConfirmDelete(c.id)}
+                  aria-label="Borrar categoría"
+                >✕</button>
+              )}
             </div>
+            {confirmDelete === c.id && c.total > 0 && (
+              <p style={{ fontSize: 11, color: '#ef4444', marginTop: 6 }}>
+                Tiene {c.total} producto{c.total !== 1 ? 's' : ''} — muévelos a otra categoría antes de borrarla.
+              </p>
+            )}
           </div>
         ))}
       </div>
