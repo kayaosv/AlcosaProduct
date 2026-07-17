@@ -43,15 +43,12 @@ export const AvisoLegal = () => (
             Información y de Comercio Electrónico (LSSI-CE), se informa de los siguientes datos:
           </p>
           <p>
-            <strong>Titular:</strong> SUB OHM-TECHNOLOGIES SL (nombre comercial &quot;Vapers
-            Alcosa&quot;)
+            <strong>Titular:</strong> Vapers Alcosa
             <br />
-            <strong>NIF:</strong> [COMPLETAR]
+            <strong>NIF:</strong> 30269335R
             <br />
             <strong>Domicilio:</strong> Avd. de Ildefonso Marañón Lavín, Nº 9, Local 2, 41019
             Sevilla
-            <br />
-            <strong>Inscripción registral:</strong> Registro Mercantil de Sevilla
             <br />
             <strong>Contacto:</strong> 682 72 57 80 · [COMPLETAR: email] ·{' '}
             <a
@@ -69,9 +66,11 @@ export const AvisoLegal = () => (
 
         <Section title="02 · Objeto y actividad">
           <p>
-            A través de este sitio web, SUB OHM-TECHNOLOGIES SL ofrece información sobre su
-            catálogo de productos de vapeo y permite realizar una reserva de pedido para su pago
-            y recogida en la tienda física. No se procesan pagos online a través del sitio web.
+            A través de este sitio web, Vapers Alcosa ofrece información sobre su catálogo de
+            productos de vapeo, y permite tanto reservar un pedido para pagarlo y recogerlo en la
+            tienda física como pagarlo online por adelantado (a través de Stripe) para su
+            recogida posterior en la tienda física. Este sitio web no realiza envíos a domicilio
+            de forma automatizada.
           </p>
           <p>
             La venta de estos productos está restringida exclusivamente a personas mayores de
@@ -83,9 +82,9 @@ export const AvisoLegal = () => (
         <Section title="03 · Propiedad intelectual">
           <p>
             Los contenidos de este sitio web (textos, imágenes, diseño, marcas y logotipos) son
-            titularidad de SUB OHM-TECHNOLOGIES SL o de terceros que han autorizado su uso, y
-            están protegidos por la normativa de propiedad intelectual e industrial. Queda
-            prohibida su reproducción total o parcial sin autorización expresa.
+            titularidad de Vapers Alcosa o de terceros que han autorizado su uso, y están
+            protegidos por la normativa de propiedad intelectual e industrial. Queda prohibida su
+            reproducción total o parcial sin autorización expresa.
           </p>
         </Section>
 

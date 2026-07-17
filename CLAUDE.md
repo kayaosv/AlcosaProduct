@@ -481,27 +481,29 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
    en el dashboard de Stripe apuntando a la función `stripe-webhook`
    desplegada y copiar su secreto de firma como `STRIPE_WEBHOOK_SECRET`.
    Sin esto, los botones de "Pagar online ahora" fallan.
-0.5. **Figura legal real: autónomo, no SL — pendiente corregir Aviso
-   Legal/Privacidad** (investigado 2026-07-16, texto literal del BOE):
-   el cliente confirmó que toda la facturación pasa por un autónomo,
-   no por SUB OHM-TECHNOLOGIES SL. Confirmado con el Art. 19 del Código
-   de Comercio (BOE) que la inscripción en el Registro Mercantil es
-   *potestativa* para autónomos (salvo naviero) — así que la línea
-   actual "Inscripción registral: Registro Mercantil de Sevilla" en
-   `AvisoLegal.jsx`/`Privacidad.jsx` probablemente hay que sacarla,
-   salvo que el cliente confirme que ese autónomo se inscribió
-   voluntariamente. El Art. 10.e de la LSSI-CE (BOE) exige el NIF
-   **siempre**, sin depender de inscripción registral — para un
-   autónomo ese NIF es su DNI/NIE personal. **Sigue faltando**: nombre
-   completo del autónomo y su NIF/NIE real (no inventar, pendiente de
-   que el cliente lo confirme con su gestoría). También encontrado en
-   la misma revisión: `AvisoLegal.jsx` dice textualmente "No se
-   procesan pagos online a través del sitio web" — **ya no es cierto**
-   desde que se agregó Stripe, hay que actualizar ese texto. Y
-   `Privacidad.jsx` sección 04 tiene un `[COMPLETAR: confirmar
-   transferencia internacional de datos]` sin resolver — ahora sí
-   aplica de verdad, porque Stripe es una empresa de EEUU y procesará
-   datos de pago en cuanto se active.
+0.5. ~~Figura legal real: autónomo, no SL~~ — **resuelto 2026-07-16**.
+   `AvisoLegal.jsx`/`Privacidad.jsx` ya no dicen "SUB OHM-TECHNOLOGIES
+   SL" ni "Inscripción registral: Registro Mercantil de Sevilla"
+   (confirmado con el Art. 19 del Código de Comercio, BOE, que la
+   inscripción es *potestativa* para autónomos salvo naviero — no
+   aplica aquí). Titular: **"Vapers Alcosa"** (el cliente decidió
+   explícitamente no publicar el nombre personal del autónomo, solo
+   la marca) — **ojo**: el Art. 10.a LSSI-CE (BOE) pide "nombre o
+   denominación social" del titular, y para una persona física eso es
+   en principio su nombre real, no solo una marca comercial; puede que
+   esto no cubra el 100% del requisito formal, señalado al cliente,
+   decisión suya mantenerlo así — revisar con gestoría si se cuestiona.
+   NIF: **30269335R** (checksum de DNI verificado correcto: 30269335
+   mod 23 = 1 → letra R). Sigue faltando: email de contacto
+   (`[COMPLETAR: email]` en ambas páginas). También corregido en el
+   mismo commit: el texto de `AvisoLegal.jsx` que decía "No se procesan
+   pagos online" (ya no era cierto desde que existe Stripe) ahora
+   menciona ambas modalidades de pago y aclara que no hay envío a
+   domicilio automatizado (coherente con el flujo manual por WhatsApp).
+   **Sigue sin resolver**: `Privacidad.jsx` sección 04, el
+   `[COMPLETAR: confirmar transferencia internacional de datos]` —
+   ahora aplica de verdad porque Stripe es una empresa de EEUU y
+   procesará datos de pago en cuanto se active la cuenta.
 1. Best Sellers conectado a productos reales (`is_featured=true`) en vez
    del placeholder — pendiente hasta que el cliente suba catálogo real;
    el slot destacado debe apuntar a una máquina de precio medio.

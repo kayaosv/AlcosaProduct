@@ -39,10 +39,9 @@ export const Privacidad = () => (
 
         <Section title="01 · Responsable del tratamiento">
           <p>
-            <strong>SUB OHM-TECHNOLOGIES SL</strong> (&quot;Vapers Alcosa&quot;), con domicilio
-            en Avd. de Ildefonso Marañón Lavín, Nº 9, Local 2, 41019 Sevilla, NIF [COMPLETAR],
-            es la responsable del tratamiento de los datos personales que nos facilitas a
-            través de este sitio web.
+            <strong>Vapers Alcosa</strong>, con domicilio en Avd. de Ildefonso Marañón Lavín,
+            Nº 9, Local 2, 41019 Sevilla, NIF 30269335R, es la responsable del tratamiento de los
+            datos personales que nos facilitas a través de este sitio web.
           </p>
         </Section>
 
