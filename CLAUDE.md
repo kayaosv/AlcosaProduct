@@ -441,16 +441,67 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
   corto "Sabor" (pensado para el nombre, no para texto descriptivo
   largo).
 
+- **Envío manual vía WhatsApp para pedidos pagados online (2026-07-16)**:
+  tras investigar verificación de edad (decálogo AEPD, ver más abajo) y
+  confirmar que un transportista externo (Correos/SEUR/MRW) no
+  verifica edad al entregar — y que hay señales mixtas sobre si
+  aceptan siquiera productos de vapeo — se decidió que el envío, por
+  ahora, se organiza **a mano por el dueño con su propio repartidor**
+  (no un transportista externo), justamente porque así puede verificar
+  el DNI en persona al entregar, igual que en el mostrador. No hay
+  infraestructura de envío automatizada (sin cálculo de zonas/costes,
+  sin integración de transportista) — es deliberado, no una limitación
+  a resolver todavía.
+  En `CheckoutSuccess.jsx` (solo pedidos pagados online, no reserva-en-
+  tienda) hay un botón "Quiero envío — avisar por WhatsApp" que arma un
+  mensaje con `wa.me` (sin API de WhatsApp Business, solo el deep link
+  público) hacia el +34682725780, con número de pedido, cliente,
+  teléfono, productos, total y las notas del checkout (donde el
+  cliente puede escribir su dirección si quiere). `get_order_by_session()`
+  se amplió (drop + recreate, cambia el tipo de retorno) para incluir
+  `customer_phone`, `notes` y `items` (agregado vía `jsonb_agg` desde
+  `order_items`) — antes solo devolvía id/total/nombre/fecha.
+  **Investigación de verificación de edad (mismo día)**: el decálogo de
+  la AEPD (Diciembre 2023, documento oficial) dice textualmente que los
+  sistemas basados en autodeclaración del propio usuario "solo han
+  servido para dar garantías jurídicas puramente formales" — ni un
+  checkbox ni pedir que el cliente escriba su DNI/NIE cuentan como
+  "verificación cierta" (Principio 5). Pedir foto de DNI o usar un
+  servicio externo de verificación va además en contra del principio
+  de minimización de datos del mismo decálogo. Conclusión aplicada:
+  la única verificación real sigue siendo el DNI físico revisado en
+  persona (mostrador o repartidor propio) — no vale la pena invertir en
+  verificación online más "seria", no mejora la cobertura legal.
+
 **Pendiente (por prioridad):**
-0. **Bloqueante para probar el pago online**: el cliente no tiene cuenta
-   de Stripe todavía. Pasos: crear cuenta en stripe.com para SUB
-   OHM-TECHNOLOGIES SL (pide NIF y cuenta bancaria — el NIF sigue sin
-   confirmar, ver ítem 8 más abajo), copiar la clave secreta (modo test
-   primero) y configurarla como secreto `STRIPE_SECRET_KEY` de las Edge
-   Functions, crear un webhook endpoint en el dashboard de Stripe
-   apuntando a la función `stripe-webhook` desplegada y copiar su
-   secreto de firma como `STRIPE_WEBHOOK_SECRET`. Sin esto, los botones
-   de "Pagar online ahora" fallan.
+0. **Bloqueante para probar el pago online**: el cliente está creando la
+   cuenta de Stripe (en curso, 2026-07-16). Pasos: copiar la clave
+   secreta (modo test primero) y configurarla como secreto
+   `STRIPE_SECRET_KEY` de las Edge Functions, crear un webhook endpoint
+   en el dashboard de Stripe apuntando a la función `stripe-webhook`
+   desplegada y copiar su secreto de firma como `STRIPE_WEBHOOK_SECRET`.
+   Sin esto, los botones de "Pagar online ahora" fallan.
+0.5. **Figura legal real: autónomo, no SL — pendiente corregir Aviso
+   Legal/Privacidad** (investigado 2026-07-16, texto literal del BOE):
+   el cliente confirmó que toda la facturación pasa por un autónomo,
+   no por SUB OHM-TECHNOLOGIES SL. Confirmado con el Art. 19 del Código
+   de Comercio (BOE) que la inscripción en el Registro Mercantil es
+   *potestativa* para autónomos (salvo naviero) — así que la línea
+   actual "Inscripción registral: Registro Mercantil de Sevilla" en
+   `AvisoLegal.jsx`/`Privacidad.jsx` probablemente hay que sacarla,
+   salvo que el cliente confirme que ese autónomo se inscribió
+   voluntariamente. El Art. 10.e de la LSSI-CE (BOE) exige el NIF
+   **siempre**, sin depender de inscripción registral — para un
+   autónomo ese NIF es su DNI/NIE personal. **Sigue faltando**: nombre
+   completo del autónomo y su NIF/NIE real (no inventar, pendiente de
+   que el cliente lo confirme con su gestoría). También encontrado en
+   la misma revisión: `AvisoLegal.jsx` dice textualmente "No se
+   procesan pagos online a través del sitio web" — **ya no es cierto**
+   desde que se agregó Stripe, hay que actualizar ese texto. Y
+   `Privacidad.jsx` sección 04 tiene un `[COMPLETAR: confirmar
+   transferencia internacional de datos]` sin resolver — ahora sí
+   aplica de verdad, porque Stripe es una empresa de EEUU y procesará
+   datos de pago en cuanto se active.
 1. Best Sellers conectado a productos reales (`is_featured=true`) en vez
    del placeholder — pendiente hasta que el cliente suba catálogo real;
    el slot destacado debe apuntar a una máquina de precio medio.

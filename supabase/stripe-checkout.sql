@@ -205,16 +205,43 @@ revoke all on function public.create_paid_order(text, text, text, text, text, js
 -- Stripe: el session_id de Stripe funciona como token no adivinable
 -- (es un valor largo y aleatorio), asi que exponer estos campos solo
 -- cuando se conoce el session_id exacto es seguro sin necesitar login.
+-- Incluye telefono/notas/items para poder armar el mensaje de
+-- "enviar mi pedido por WhatsApp" (boton en CheckoutSuccess.jsx, solo
+-- para pedidos pagados online - los de reserva no lo ofrecen).
 create or replace function public.get_order_by_session(p_session_id text)
-returns table (order_id uuid, total numeric, customer_name text, created_at timestamptz)
+returns table (
+  order_id uuid,
+  total numeric,
+  customer_name text,
+  customer_phone text,
+  notes text,
+  created_at timestamptz,
+  items jsonb
+)
 language sql
 security definer
 set search_path = public
 stable
 as $$
-  select id, total, customer_name, created_at
-  from orders
-  where stripe_session_id = p_session_id;
+  select
+    o.id,
+    o.total,
+    o.customer_name,
+    o.customer_phone,
+    o.notes,
+    o.created_at,
+    coalesce(
+      (select jsonb_agg(jsonb_build_object(
+          'name', oi.product_name,
+          'variant', oi.variant_label,
+          'quantity', oi.quantity,
+          'price', oi.product_price
+        ) order by oi.id)
+       from order_items oi where oi.order_id = o.id),
+      '[]'::jsonb
+    ) as items
+  from orders o
+  where o.stripe_session_id = p_session_id;
 $$;
 
 revoke all on function public.get_order_by_session(text) from public;

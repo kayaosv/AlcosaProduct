@@ -9,6 +9,38 @@ const formatPrice = (n) => `${Number(n).toFixed(2)}€`
 const MAX_POLL_ATTEMPTS = 8
 const POLL_DELAY_MS = 1500
 
+// Sin infraestructura de envio propia todavia (sin calculo de zonas/costes,
+// sin repartidor integrado) - el envio real se organiza a mano por el
+// dueño con su propio repartidor (no un transportista externo, para no
+// depender de si aceptan o no productos de vapeo, y porque asi puede
+// verificar la edad en persona al entregar). Este boton solo arma el
+// mensaje con los datos del pedido ya pagado; la direccion se confirma
+// en la propia conversacion de WhatsApp si el cliente no la escribio en
+// las notas del checkout.
+const WHATSAPP_NUMBER = '34682725780'
+
+const buildWhatsAppMessage = (order) => {
+  const lines = [
+    `Pedido #${order.order_id.slice(0, 8).toUpperCase()} — pagado online`,
+    `Cliente: ${order.customer_name || '—'}`,
+    order.customer_phone ? `Tel: ${order.customer_phone}` : null,
+    '',
+    'Productos:',
+    ...(order.items ?? []).map(
+      (it) => `- ${it.name}${it.variant ? ` (${it.variant})` : ''} x${it.quantity} — ${formatPrice(Number(it.price) * it.quantity)}`,
+    ),
+    '',
+    `Total pagado: ${formatPrice(order.total)}`,
+    order.notes ? `Nota/dirección: ${order.notes}` : null,
+    '',
+    'Quiero que me lo envíen — ¿me confirmáis dirección y coste de envío? 🙏',
+  ].filter((l) => l !== null)
+  return lines.join('\n')
+}
+
+const whatsappHref = (order) =>
+  `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(buildWhatsAppMessage(order))}`
+
 // El webhook de Stripe procesa el pago (crea el pedido, descuenta
 // stock) de forma asincrona respecto a la redireccion del navegador -
 // esta pagina puede cargar unos segundos antes de que el pedido exista
@@ -144,7 +176,28 @@ export const CheckoutSuccess = () => {
           </div>
         </div>
 
-        <div data-anim="success" className="mt-10 flex flex-wrap gap-4">
+        <div
+          data-anim="success"
+          className="mt-6 p-6"
+          style={{ border: '1px solid rgba(23,45,109,0.2)' }}
+        >
+          <p className="text-[13px] leading-relaxed" style={{ color: 'rgba(23,45,109,0.75)' }}>
+            ¿Preferís que te lo enviemos en vez de pasar a recogerlo? Escribinos por WhatsApp con
+            los datos de tu pedido ya cargados y coordinamos la entrega y el coste del envío.
+          </p>
+          <a
+            href={whatsappHref(order)}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-cursor="link"
+            className="inline-flex items-center gap-3 mt-4 px-6 py-3 text-[12px] tracking-[0.2em] uppercase"
+            style={{ background: '#25D366', color: '#0b3d24', fontWeight: 700 }}
+          >
+            ▸ Quiero envío — avisar por WhatsApp
+          </a>
+        </div>
+
+        <div data-anim="success" className="mt-6 flex flex-wrap gap-4">
           <Link
             to="/catalog"
             data-cursor="link"
