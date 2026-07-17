@@ -535,14 +535,15 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
    cero trackers de terceros en el código, único almacenamiento en cliente
    es el carrito (`localStorage`, clave `vapers-cart`, estrictamente
    necesario) — por eso no se añadió banner de cookies, no es obligatorio.
-   **Pendiente**: el NIF/CIF y el email de contacto del titular
-   (SUB OHM-TECHNOLOGIES SL) están como `[COMPLETAR]` en las tres páginas
-   — sustituir en cuanto el cliente los facilite (buscar
-   `[COMPLETAR` en `src/pages/`). Los demás datos (razón social, domicilio,
-   teléfono, inscripción en el Registro Mercantil de Sevilla) se tomaron
-   de la web actual en producción (vapersalcosa19.com) — su política de
-   cookies antigua no se reutilizó a propósito porque describe cookies de
-   analítica/publicidad que este sitio no usa y basa el consentimiento en
+   **Actualización 2026-07-16**: el titular real es un autónomo (no
+   SUB OHM-TECHNOLOGIES SL) — ver ítem 0.5 más arriba para el detalle
+   completo y las fuentes citadas (BOE). NIF ya cargado
+   (`30269335R`). Solo sigue pendiente el email de contacto
+   (`[COMPLETAR: email]` en `AvisoLegal.jsx`/`Privacidad.jsx`). Los
+   demás datos (domicilio, teléfono) se tomaron de la web actual en
+   producción (vapersalcosa19.com) — su política de cookies antigua no
+   se reutilizó a propósito porque describe cookies de analítica/
+   publicidad que este sitio no usa y basa el consentimiento en
    "navegar implica aceptar", un criterio ya desactualizado ante la AEPD.
 9. **Inputs de categoría — parcialmente resuelto 2026-07-16**: color
    ✅ (columna `categories.color`, editable desde `Categories.jsx`) y
@@ -565,3 +566,31 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
     real (verificado 2026-07-16 vía `pg_policies` — `orders`/
     `order_items` solo tienen políticas `is_admin()`) — candidato a
     archivar o borrar del repo para no confundir a futuro.
+13. **"Accesorios" mezcla al menos 3 tipos de producto distintos**
+    (hallazgo auditoría 2026-07-16, revisión completa del catálogo real
+    — `vapers`, con datos reales, ya está bien: modelo/mAh/W coinciden
+    con sinhumo.net):
+    - **Baterías sueltas** (ej. "Lost Vape INR 14500 Battery") — mAh,
+      voltaje y descarga de corriente hoy están escritos a mano dentro
+      de la descripción libre, en vez de ser campos propios como los
+      que ya tiene `vapers` (modelo/batería/potencia).
+    - **Atomizadores reparables / RDA** (ej. "Hellvape Dead Rabbit 4
+      RDA") — producto para usuario avanzado, con atributos propios
+      (tipo de coil, compatibilidad) que hoy se pierden en texto libre.
+    - **Piezas de repuesto genéricas** (adaptadores, botes vacíos) —
+      estas sí encajan bien como "accesorio simple" tal cual está hoy.
+    No es un bug, es una decisión de catálogo pendiente: si vale la
+    pena crear categorías "Baterías" y "Atomizadores/RDA" separadas
+    depende de cuánto se venda de cada tipo — decisión del cliente, no
+    urgente.
+    Además: el "LANYARD VAPERS ALCOSA -019-" está cargado en
+    "Accesorios" pero por su naturaleza (merchandising de marca)
+    probablemente debería estar en "Merchandising" (0 productos
+    cargados ahí hoy) — el cliente lo va a mover a mano desde el admin
+    cuando pueda, no requiere cambio de código.
+    **Limpieza aplicada en la misma revisión**: se encontraron y
+    borraron 2 productos de prueba visibles en el catálogo real
+    (`is_active=true`) — "Producto_Test_new_cat" (categoría CBD, 4€) y
+    "test-2 ejemplo - sales" (0€, con 3 variantes de prueba tipo "10
+    (test)"). Ninguno tenía pedidos asociados. Aplicado directo vía SQL
+    (no es un cambio de esquema/código, no requiere commit al repo).
