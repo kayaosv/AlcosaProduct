@@ -594,3 +594,37 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
     "test-2 ejemplo - sales" (0€, con 3 variantes de prueba tipo "10
     (test)"). Ninguno tenía pedidos asociados. Aplicado directo vía SQL
     (no es un cambio de esquema/código, no requiere commit al repo).
+14. **Precio 0€ y selector de variantes tapado — resuelto 2026-07-17**
+    (reportado por el cliente en "VAPORESSO Xros 6 - Pod Kit", stock real
+    de 1 unidad en la variante "Scorching Cloud"). Dos bugs distintos:
+    - **Selector tapado solo en PC/desktop**: el wrapper del canvas 3D en
+      `Product.jsx` usa `position: absolute` sin `z-index` explícito, lo
+      que lo pinta por encima de todo el contenido `position: static`
+      (imagen + selector de variantes) sin importar el orden en el DOM —
+      regla de CSS, no bug de lógica. Solo se veía en `lg+` porque el
+      canvas está oculto (`hidden lg:block`) por debajo de ese breakpoint
+      (por eso en tablet no pasaba). Fix: `zIndex: -1` en ese wrapper.
+    - **Precio 0€ en catálogo/sugerencias para cualquier producto con
+      variantes**: `ProductCard.jsx` (tarjeta de catálogo),
+      `SuggestedProducts.jsx` (carrito) y `ProductSuggestions.jsx` (ficha
+      de producto) leían `products.price`/`sale_price` directo, que
+      queda en 0/null en cuanto el producto tiene variantes (el precio
+      real vive en `product_variants` — mismo patrón que ya se había
+      arreglado del lado admin, ver ítem sobre `stockPricing.js`). Los
+      hooks que alimentan estos componentes (`useProducts.js`,
+      `useSuggestedProducts.js`) tampoco traían los campos de precio de
+      `product_variants` en su SELECT (uno no traía variantes en
+      absoluto, el otro solo `stock`). Fix: se extendieron ambos SELECT y
+      los 3 componentes ahora usan `getStock`/`getEffectivePrice` de
+      `src/lib/stockPricing.js` — los mismos helpers centralizados del
+      admin, ahora reutilizados en el storefront público.
+    - Bonus fix en `ProductCard.jsx`: el botón de quick-add (+) agregaba
+      productos con variantes SIN `variantId` al carrito, lo que rompía
+      el checkout más adelante (`create_order`/`create_paid_order`
+      validan `products.stock`, que da 0 en cuanto hay variantes). Ahora
+      agrega la variante principal (`is_primary`). Limitación conocida:
+      el quick-add desde la tarjeta solo permite elegir la variante
+      principal, no otra — para elegir otra variante hay que entrar a la
+      ficha del producto.
+    - Verificado: build limpio, push a `preview/alcosa`
+      (`49beac9`), deploy Vercel exitoso.
