@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useCartStore } from '../../stores/useCartStore.js'
 import { useAppStore } from '../../stores/useAppStore.js'
 import { useSuggestedProducts } from '../../hooks/useSuggestedProducts.js'
+import { getEffectivePrice } from '../../lib/stockPricing.js'
 
 const formatPrice = (n) => `${Number(n).toFixed(2)}€`
 
@@ -28,7 +29,7 @@ export const ProductSuggestions = ({ productId, categorySlug }) => {
       </span>
       <div className="flex gap-4 overflow-x-auto pb-2" style={{ scrollSnapType: 'x proximity' }}>
         {suggestions.map((p) => {
-          const price = p.is_on_sale && p.sale_price != null ? p.sale_price : p.price
+          const price = getEffectivePrice(p)
           return (
             <div
               key={p.id}

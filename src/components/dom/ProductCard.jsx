@@ -4,6 +4,7 @@ import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { useCartStore } from '../../stores/useCartStore.js'
 import { useAppStore } from '../../stores/useAppStore.js'
+import { getStock, getEffectivePrice } from '../../lib/stockPricing.js'
 
 const formatPrice = (n) => `${Number(n).toFixed(2)}€`
 
@@ -28,15 +29,17 @@ const Placeholder = ({ brand }) => {
 export const ProductCard = ({ product, span = 1 }) => {
   const cardRef = useRef(null)
   const imageRef = useRef(null)
-  // El stock de productos con variantes vive en `product_variants.stock`,
-  // no en `products.stock` (queda sin usar en cuanto el producto tiene
-  // variantes) — así que solo se lee `product.stock` directamente cuando
-  // el producto no tiene variantes.
+  // El stock Y el precio de productos con variantes viven en
+  // `product_variants` (stock/price/sale_price), no en `products.stock`/
+  // `price` (queda sin usar en cuanto el producto tiene variantes) — por
+  // eso se usan los helpers centralizados (src/lib/stockPricing.js, los
+  // mismos que usa el admin) en vez de leer los campos base directo.
   const hasVariants = Array.isArray(product.product_variants) && product.product_variants.length > 0
-  const variantStock = hasVariants
-    ? product.product_variants.reduce((sum, v) => sum + (v.stock || 0), 0)
+  const primaryVariant = hasVariants
+    ? (product.product_variants.find((v) => v.is_primary) ?? product.product_variants[0])
     : null
-  const outOfStock = hasVariants ? variantStock === 0 : product.stock === 0
+  const outOfStock = getStock(product) === 0
+  const effectivePrice = getEffectivePrice(product)
   const addItem = useCartStore((s) => s.addItem)
   const setCartOpen = useAppStore((s) => s.setCartOpen)
 
@@ -56,14 +59,21 @@ export const ProductCard = ({ product, span = 1 }) => {
     e.preventDefault()
     e.stopPropagation()
     if (outOfStock) return
-    const price = product.is_on_sale && product.sale_price != null ? product.sale_price : product.price
+    // Si el producto tiene variantes, agregar sin variantId rompía el
+    // checkout despues (create_order/create_paid_order validan
+    // products.stock, que da 0 en cuanto hay variantes) — se agrega la
+    // variante principal en su lugar. Limitación conocida: no deja
+    // elegir OTRA variante desde la tarjeta, solo la principal — para
+    // elegir otra hay que entrar a la ficha del producto.
     addItem({
       productId: product.id,
       categorySlug: product.categories?.slug ?? null,
+      variantId: hasVariants ? primaryVariant.id : null,
+      variantLabel: hasVariants ? primaryVariant.label : null,
       name: product.name,
       brand: product.brand,
-      price: Number(price),
-      image_url: product.image_url,
+      price: Number(effectivePrice),
+      image_url: (hasVariants && primaryVariant.image_url) || product.image_url,
       quantity: 1,
     })
     setCartOpen(true)
@@ -167,7 +177,7 @@ export const ProductCard = ({ product, span = 1 }) => {
           )}
         </div>
         <div className="text-right shrink-0">
-          {product.is_on_sale && product.sale_price != null ? (
+          {!hasVariants && product.is_on_sale && product.sale_price != null ? (
             <>
               <span
                 className="text-[11px] block line-through"
@@ -184,7 +194,7 @@ export const ProductCard = ({ product, span = 1 }) => {
             </>
           ) : (
             <span className="text-[15px]" style={{ fontWeight: 700 }}>
-              {formatPrice(product.price)}
+              {formatPrice(effectivePrice)}
             </span>
           )}
         </div>

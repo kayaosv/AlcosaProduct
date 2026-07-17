@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useCartStore } from '../../stores/useCartStore.js'
 import { useSuggestedProducts } from '../../hooks/useSuggestedProducts.js'
+import { getEffectivePrice } from '../../lib/stockPricing.js'
 
 const formatPrice = (n) => `${Number(n).toFixed(2)}€`
 
@@ -25,7 +26,7 @@ export const SuggestedProducts = ({ items }) => {
       </span>
       <ul className="space-y-3">
         {suggestions.map((p) => {
-          const price = p.is_on_sale && p.sale_price != null ? p.sale_price : p.price
+          const price = getEffectivePrice(p)
           return (
             <li key={p.id} className="flex items-center gap-3">
               <Link

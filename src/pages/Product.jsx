@@ -224,7 +224,17 @@ export const Product = () => {
   return (
     <main className="min-h-screen pt-32 pb-24 relative overflow-hidden">
       {showCanvas && (
-        <div className="hidden lg:block absolute top-32 right-0 w-[40%] h-[80vh] opacity-30 pointer-events-none">
+        // z-index negativo a proposito: sin esto, un elemento
+        // position:absolute (aunque tenga z-index:auto) se pinta por
+        // encima de todo el contenido position:static del grid de
+        // abajo (imagen + selector de variantes), sin importar el
+        // orden en el DOM - eso tapaba visualmente los botones de
+        // variante en pantallas lg+ (PC), donde este canvas decorativo
+        // se muestra (en tablet, bajo el breakpoint lg, ni aparece).
+        <div
+          className="hidden lg:block absolute top-32 right-0 w-[40%] h-[80vh] opacity-30 pointer-events-none"
+          style={{ zIndex: -1 }}
+        >
           <ProductCanvas />
         </div>
       )}
