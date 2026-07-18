@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useAppStore } from '../../stores/useAppStore.js'
 import { useCartStore } from '../../stores/useCartStore.js'
 import { useSuggestedProducts } from '../../hooks/useSuggestedProducts.js'
 import { getEffectivePrice } from '../../lib/stockPricing.js'
@@ -12,6 +13,7 @@ const formatPrice = (n) => `${Number(n).toFixed(2)}€`
 // que el quick-add del catálogo (ver limitación conocida en CLAUDE.md).
 export const SuggestedProducts = ({ items }) => {
   const addItem = useCartStore((s) => s.addItem)
+  const setCartOpen = useAppStore((s) => s.setCartOpen)
   const { suggestions, loading } = useSuggestedProducts(items)
 
   if (loading || suggestions.length === 0) return null
@@ -31,6 +33,7 @@ export const SuggestedProducts = ({ items }) => {
             <li key={p.id} className="flex items-center gap-3">
               <Link
                 to={`/product/${p.id}`}
+                onClick={() => setCartOpen(false)}
                 data-cursor="link"
                 className="w-12 h-14 shrink-0 flex items-center justify-center overflow-hidden"
                 style={{ background: 'var(--color-navy)' }}
@@ -46,6 +49,7 @@ export const SuggestedProducts = ({ items }) => {
               <div className="flex-1 min-w-0">
                 <Link
                   to={`/product/${p.id}`}
+                  onClick={() => setCartOpen(false)}
                   data-cursor="link"
                   className="block text-[12px] leading-tight truncate"
                   style={{ fontWeight: 700, color: 'var(--color-navy)' }}
@@ -59,6 +63,7 @@ export const SuggestedProducts = ({ items }) => {
               {p.hasVariants ? (
                 <Link
                   to={`/product/${p.id}`}
+                  onClick={() => setCartOpen(false)}
                   data-cursor="link"
                   className="text-[10px] tracking-[0.15em] uppercase shrink-0"
                   style={{ color: 'var(--color-blue)', fontWeight: 700 }}
