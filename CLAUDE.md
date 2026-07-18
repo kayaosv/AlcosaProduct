@@ -628,3 +628,61 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
       ficha del producto.
     - Verificado: build limpio, push a `preview/alcosa`
       (`49beac9`), deploy Vercel exitoso.
+
+15. **Favicon, año de apertura, contacto, mapa, timing de scroll — resuelto 2026-07-18**
+    (a partir de una auditoría externa generada con opencode +
+    Supabase MCP + Vercel CLI, guardada en el chat como referencia y
+    re-verificada contra código/datos reales antes de aplicar nada —
+    ver nota de discrepancia más abajo).
+    - **Favicon**: `index.html` apuntaba a `/vite.svg`, que no existe
+      en `public/` (404, pestaña sin logo). Se creó
+      `public/va-favicon.svg` (SVG con "VA", navy/lime) y se actualizó
+      el link.
+    - **AboutSection**: "Desde 2019" → "Desde 2024" (año real de
+      apertura, confirmado por el cliente).
+    - **Footer**: se agregó email de contacto
+      (`vapersalcosa019@gmail.com`, confirmado real por el cliente, no
+      inventado), el bloque de dirección ahora enlaza a Google Maps, y
+      se reemplazó el texto "Solo tienda física" (desactualizado — el
+      checkout ya ofrece reserva-y-pago-en-tienda y pago online vía
+      Stripe) por un texto neutral que no promete envío a domicilio
+      hasta que ese flujo esté confirmado en `Checkout.jsx`.
+    - **`AvisoLegal.jsx` / `Privacidad.jsx`**: se completó el
+      `[COMPLETAR: email]` con el mismo email. El `[COMPLETAR]` sobre
+      transferencia internacional de datos en `Privacidad.jsx` sección
+      04 sigue pendiente, fuera de alcance de este fix (ver ítem 2 de
+      "Pendiente").
+    - **`SectionTransitions.jsx`**: se redujo el scrub de la
+      transición `double-plane` (1 → 0.6) y se reescribió la
+      transición `circle` (gobierna Oxva→BestSellers) con el mismo
+      patrón de 3 etapas + rango corto (`bottom 85%`→`bottom 20%`) +
+      scrub 0.4 que ya funcionaba bien en `flash` — el cliente reportó
+      que la bola de esa transición "no se ajusta bien" al hacer
+      scroll.
+    - **`AboutSection`/`OxvaSection`/`ProductsOverview`/`BestSellersSection`**:
+      se adelantó el trigger de entrada del contenido de `top 65%` a
+      `top 50%`, y el de las product-cards en `ProductsOverview` de
+      `top 85%` a `top 60%`, para que el contenido no empiece a
+      animarse mientras la transición de la sección anterior todavía
+      se está resolviendo (ajuste de sensación visual, no verificable
+      sin navegador — pendiente de confirmación visual del cliente en
+      dispositivo real).
+    - **Discrepancia encontrada en la auditoría externa**: proponía
+      agregar `data-transition-type="none"` a `AboutSection` para
+      arreglar el corte brusco BestSellers→About. Diagnóstico
+      incorrecto — `AboutSection` es la última sección con
+      `[data-section]` (Footer no tiene ese atributo), así que el loop
+      de `SectionTransitions.jsx` la descarta por `if (!next) return`
+      antes de leer su tipo; el fix propuesto no habría tenido ningún
+      efecto. El corte real lo gobierna `data-transition-type="none"`
+      explícito en `BestSellersSection.jsx` — se dejó como está
+      (posible decisión de diseño previa, no un bug).
+    - **`is_on_sale` sin `sale_price` en variante** (2 productos: "THE
+      ORDER Salts – Tarta de Santiago", "OXVA Xlim 3 Ultra") —
+      detectado por la misma auditoría, verificado con SQL contra
+      producción. Confirmado que **no** es un bug: `stockPricing.js`
+      (`getEffectivePrice`) ya muestra el precio de oferta en cuanto
+      la variante tiene `sale_price` — el cliente todavía no cargó
+      esos precios reales para esos 2 productos. No se tocaron datos.
+    - Verificado: build limpio, push a `preview/alcosa` (`61d1694`),
+      deploy Vercel exitoso.
