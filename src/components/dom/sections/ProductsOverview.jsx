@@ -157,7 +157,7 @@ export const ProductsOverview = () => {
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: rootRef.current,
-          start: 'top 65%',
+          start: 'top 50%',
           once: true,
         },
       })
@@ -195,7 +195,7 @@ export const ProductsOverview = () => {
           ease: 'power4.out',
           scrollTrigger: {
             trigger: card,
-            start: 'top 85%',
+            start: 'top 60%',
             once: true,
           },
         })

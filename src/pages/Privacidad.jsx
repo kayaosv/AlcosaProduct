@@ -88,7 +88,7 @@ export const Privacidad = () => (
         <Section title="06 · Tus derechos">
           <p>
             Puedes ejercer tus derechos de acceso, rectificación, supresión, oposición,
-            limitación y portabilidad escribiendo a [COMPLETAR: email] o llamando al 682 72 57
+            limitación y portabilidad escribiendo a vapersalcosa019@gmail.com o llamando al 682 72 57
             80. También tienes derecho a presentar una reclamación ante la Agencia Española de
             Protección de Datos (
             <a

@@ -65,14 +65,25 @@ export const Footer = () => {
             >
               ↳ Dirección
             </span>
-            <p className="text-[15px] leading-relaxed" style={{ fontWeight: 700 }}>
-              Av. Ildefonso Marañón Lavín
-              <br />
-              Nº 9 — Local 2
-            </p>
-            <p className="text-[13px] mt-2" style={{ color: 'rgba(255,248,240,0.6)' }}>
-              41019 Sevilla · Parque Alcosa
-            </p>
+            <a
+              href="https://maps.google.com/?q=Av.+Ildefonso+Marañón+Lavín+9+Sevilla"
+              target="_blank"
+              rel="noopener noreferrer"
+              data-cursor="link"
+              className="block group"
+            >
+              <p className="text-[15px] leading-relaxed" style={{ fontWeight: 700 }}>
+                Av. Ildefonso Marañón Lavín
+                <br />
+                Nº 9 — Local 2
+              </p>
+              <p
+                className="text-[13px] mt-2 inline-flex items-center gap-2 underline underline-offset-4"
+                style={{ color: 'rgba(255,248,240,0.6)' }}
+              >
+                <span aria-hidden>↗</span> 41019 Sevilla · Parque Alcosa
+              </p>
+            </a>
           </div>
 
           <div data-anim="footer-block" className="col-span-6 md:col-span-4">
@@ -114,11 +125,18 @@ export const Footer = () => {
               682 72 57 80
             </a>
             <a
+              href="mailto:vapersalcosa019@gmail.com"
+              data-cursor="link"
+              className="block text-[13px] mt-3 underline underline-offset-4"
+            >
+              vapersalcosa019@gmail.com
+            </a>
+            <a
               href="https://instagram.com/vapers.alcosa"
               target="_blank"
               rel="noopener noreferrer"
               data-cursor="link"
-              className="block text-[13px] mt-3 underline underline-offset-4"
+              className="block text-[13px] mt-1 underline underline-offset-4"
             >
               @vapers.alcosa
             </a>
@@ -140,7 +158,7 @@ export const Footer = () => {
               className="text-[12px] tracking-[0.15em] uppercase leading-relaxed"
               style={{ color: 'rgba(255,248,240,0.5)' }}
             >
-              Solo tienda física. Para consultas{' '}
+              Recogida en tienda · Pago online o al recoger{' · '}
               <a
                 href="https://instagram.com/vapers.alcosa"
                 target="_blank"
@@ -148,9 +166,8 @@ export const Footer = () => {
                 data-cursor="link"
                 style={{ color: 'var(--color-lime)' }}
               >
-                escríbenos en Instagram
+                @vapers.alcosa
               </a>
-              .
             </p>
           </div>
         </div>

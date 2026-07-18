@@ -24,7 +24,7 @@ export const BestSellersSection = () => {
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: rootRef.current,
-          start: 'top 65%',
+          start: 'top 50%',
           once: true,
         },
       })
