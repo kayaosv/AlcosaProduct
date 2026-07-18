@@ -686,3 +686,76 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
       esos precios reales para esos 2 productos. No se tocaron datos.
     - Verificado: build limpio, push a `preview/alcosa` (`61d1694`),
       deploy Vercel exitoso.
+
+16. **Admin — fotos por variante, molde de categoría editable, código de
+    barras por variante (resuelto 2026-07-18)**. Tres pedidos del
+    cliente, encarados juntos por relacionados:
+    - **Fotos por variante en Sales de Nicotina, Longfill/Minilongfill
+      y Resistencia**: `VARIANT_META` en `ProductEditor.jsx` tenía
+      `hasImage: false` para los tipos `nic`/`volume`/`ohm` mientras
+      `color` (vapers) y `flavor` (desechables) ya lo tenían en `true`.
+      El mecanismo (`product_variants.image_url`, mismo uploader) ya
+      existía — solo estaba apagado para esas categorías. Flip de un
+      valor por tipo, sin tocar schema. La concentración de sales de
+      nicotina se mantiene como input de texto libre en la variante (no
+      se agregó ningún `<select>` de niveles fijos ahí, a pedido
+      explícito del cliente — cuidado si alguien lo "arregla" pensando
+      que es un descuido).
+    - **Molde de categoría editable desde `/admin/categories`**: antes
+      `kind`/`variantType` (qué bloque de "Especificaciones" se muestra
+      y qué tipo de variante acepta una categoría) vivían hardcodeados
+      en `CATEGORY_META` (`src/lib/productSpecs.js`) — `Categories.jsx`
+      ya tenía un aviso propio admitiendo que crear una categoría nueva
+      requería pedir un cambio de código para tener specs/variantes.
+      Ahora `categories.kind`/`categories.variant_type` viven en la DB
+      (migración `supabase/add-variant-barcode-and-category-template.sql`,
+      con backfill de las 12 categorías existentes a los mismos valores
+      que ya tenían hardcodeados, sin cambiar nada de su comportamiento
+      actual) y `Categories.jsx` tiene un selector "Tipo de producto
+      (molde)" — al crear una categoría y para cambiarle el molde
+      después — con los moldes ya construidos en código (Sales,
+      Longfill, Vapers, Desechables, Resistencia, Alquimia, Accesorio
+      simple, Color/modelo simple sin ficha especial).
+      `categoryKind()`/`categoryVariantType()` en `productSpecs.js`
+      ahora priorizan la fila real de la categoría (`category.kind`) y
+      solo caen al mapa hardcodeado por slug como red de seguridad para
+      filas que no tengan `kind` seteado. **Límite real**: esto permite
+      asignar categorías nuevas a un molde *ya existente* sin pedir
+      código — un molde genuinamente nuevo (una ficha de
+      especificaciones nunca vista) sigue necesitando un cambio de
+      código, ya que cada `kind` sigue siendo JSX escrito a mano en
+      `ProductEditor.jsx`.
+    - **Código de barras por variante**: antes `barcode` vivía solo en
+      `products` (único), así que escanear un producto con variantes
+      nunca identificaba *cuál* variante tenés en la mano —
+      `StockScanner.jsx` obligaba a elegir a mano de una lista después
+      de cada escaneo, y `ProductLabel.jsx` solo imprimía una etiqueta
+      para todo el producto. Agregada `product_variants.barcode`
+      (único, nullable — no rompe nada, no obliga a re-etiquetar las
+      208 variantes existentes de una). `VariantsEditor` (dentro de
+      `ProductEditor.jsx`) ahora tiene input + botón "Generar" por fila
+      de variante, reutilizando el generador EAN-13 interno (rango GS1
+      20-29) — el retry-ante-colisión se extrajo a
+      `generateUniqueBarcode()` en `src/lib/barcode.js`, reutilizado
+      también por el flujo a nivel producto en `ProductLabel.jsx`.
+      `StockScanner.jsx.lookup()` ahora busca primero por
+      `product_variants.barcode`: si hay match, resuelve el producto
+      padre y auto-selecciona esa variante exacta (sin el paso manual
+      de "elige variante"); si no hay match, cae al comportamiento
+      actual por `products.barcode`. `ProductLabel.jsx` ahora imprime
+      un bloque de etiqueta por variante (con su propio precio,
+      heredando el del producto si la variante no tiene el suyo) en vez
+      de una sola etiqueta para todo el producto cuando este tiene
+      variantes; `admin.css` ganó `.label-print-grid` para el layout
+      (pantalla y print) de varias etiquetas a la vez.
+    - **Deliberadamente fuera de esta tanda**: motor de SEO (título/meta
+      description dinámicos, JSON-LD `Product`, sitemap.xml) — no existe
+      nada de esto en el proyecto hoy (confirmado por búsqueda, cero
+      `react-helmet`/JSON-LD/sitemap), no es un ajuste chico sino
+      infraestructura nueva. Cuando se encare, el `gtin13` del JSON-LD
+      mapea directo al `barcode` ya armado acá, y los campos por
+      categoría (`flavor`, `nicotine_mg`, `concentrate_ml`, `puffs`…)
+      son los que alimentarían el título/meta description dinámico.
+    - Verificado: build limpio, migración aplicada a producción vía
+      Supabase MCP (`get_advisors` sin hallazgos nuevos), push a
+      `preview/alcosa` (`9dbd49d`), deploy Vercel confirmado.
