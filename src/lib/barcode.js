@@ -16,3 +16,23 @@ export const generateInternalEAN13 = () => {
   const digits12 = prefix + body
   return digits12 + eanChecksum(digits12)
 }
+
+// Reintenta con otro codigo si `save` choca con un UNIQUE existente
+// (products.barcode o product_variants.barcode) — colision es muy
+// improbable con 10 digitos al azar, pero el rango es finito, asi que
+// no dejamos el reintento al azar. `save(code)` debe lanzar en error;
+// Postgrest menciona "barcode"/"duplicate" en el mensaje de un choque
+// de unicidad.
+export const generateUniqueBarcode = async (save) => {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = generateInternalEAN13()
+    try {
+      await save(code)
+      return code
+    } catch (err) {
+      const isUniqueClash = /barcode/i.test(err.message) || /duplicate/i.test(err.message)
+      if (!isUniqueClash) throw err
+    }
+  }
+  throw new Error('No se pudo generar un código único tras varios intentos, prueba otra vez.')
+}

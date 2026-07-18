@@ -2245,14 +2245,36 @@
 .label-brand { font-size: 11px; color: #555; margin: 0; }
 .label-price { font-size: 18px; font-weight: 700; margin: 4px 0 0; color: #111; }
 
+/* Producto con variantes: una etiqueta por variante en vez de una sola
+   para todo el producto -- cada variante es una unidad fisica distinta
+   con su propio codigo. */
+.label-print-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
 @media print {
   body * { visibility: hidden; }
-  .label-print, .label-print * { visibility: visible; }
+  .label-print, .label-print *,
+  .label-print-grid, .label-print-grid * { visibility: visible; }
   .label-print {
     position: fixed;
     top: 24px;
     left: 24px;
     border: none;
+  }
+  .label-print-grid {
+    position: fixed;
+    top: 24px;
+    left: 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .label-print-grid .label-print {
+    position: static;
+    page-break-inside: avoid;
   }
 }
 

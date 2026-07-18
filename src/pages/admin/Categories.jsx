@@ -4,12 +4,16 @@ import gsap from 'gsap'
 import { Link } from 'react-router-dom'
 import { useAdminProducts } from '../../hooks/useAdminProducts.js'
 import { useCategories } from '../../hooks/useCategories.js'
-import { categoryColor } from '../../lib/productSpecs.js'
+import { categoryColor, CATEGORY_TEMPLATES } from '../../lib/productSpecs.js'
 
 const DEFAULT_COLOR = '#6b7280'
+const DEFAULT_TEMPLATE = 'accesorios'
 
 const slugify = (str) =>
   str.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-')
+
+const templateFor = (c) =>
+  CATEGORY_TEMPLATES.find((t) => t.kind === c.kind && t.variantType === (c.variant_type ?? null))
 
 export const Categories = () => {
   const ref = useRef(null)
@@ -20,9 +24,11 @@ export const Categories = () => {
   const [showNewForm, setShowNewForm] = useState(false)
   const [newName, setNewName] = useState('')
   const [newColor, setNewColor] = useState(DEFAULT_COLOR)
+  const [newTemplate, setNewTemplate] = useState(DEFAULT_TEMPLATE)
   const [creating, setCreating] = useState(false)
   const [renaming, setRenaming] = useState(null) // id de la categoria en edicion de nombre
   const [renameValue, setRenameValue] = useState('')
+  const [editingTemplate, setEditingTemplate] = useState(null) // id de la categoria en edicion de molde
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
 
@@ -63,9 +69,18 @@ export const Categories = () => {
     try {
       const slug = slugify(newName)
       const maxOrder = list.length ? Math.max(...list.map((c) => c.sort_order)) : 0
-      await create({ name: newName.trim(), slug, sort_order: maxOrder + 10, color: newColor })
+      const tpl = CATEGORY_TEMPLATES.find((t) => t.value === newTemplate) ?? CATEGORY_TEMPLATES[0]
+      await create({
+        name: newName.trim(),
+        slug,
+        sort_order: maxOrder + 10,
+        color: newColor,
+        kind: tpl.kind,
+        variant_type: tpl.variantType,
+      })
       setNewName('')
       setNewColor(DEFAULT_COLOR)
+      setNewTemplate(DEFAULT_TEMPLATE)
       setShowNewForm(false)
     } catch (err) {
       alert(`Error creando categoría: ${err.message}`)
@@ -113,6 +128,17 @@ export const Categories = () => {
     }
   }
 
+  const changeTemplate = async (id, templateValue) => {
+    const tpl = CATEGORY_TEMPLATES.find((t) => t.value === templateValue)
+    if (!tpl) return
+    try {
+      await update(id, { kind: tpl.kind, variant_type: tpl.variantType })
+      setEditingTemplate(null)
+    } catch (err) {
+      alert(`Error cambiando molde: ${err.message}`)
+    }
+  }
+
   const deleteCategory = async (c) => {
     setDeleting(true)
     try {
@@ -139,7 +165,7 @@ export const Categories = () => {
         <div className="header-actions">
           <button
             className="btn-ghost"
-            onClick={() => { setShowNewForm((v) => !v); setNewName(''); setNewColor(DEFAULT_COLOR) }}
+            onClick={() => { setShowNewForm((v) => !v); setNewName(''); setNewColor(DEFAULT_COLOR); setNewTemplate(DEFAULT_TEMPLATE) }}
           >
             {showNewForm ? 'Cancelar' : '+ Nueva categoría'}
           </button>
@@ -160,11 +186,12 @@ export const Categories = () => {
         <div className="editor-section" style={{ marginBottom: 24, padding: '20px 24px', background: '#111', borderRadius: 10, border: '1px solid #1e1e1e' }}>
           <h2 className="editor-section-title" style={{ marginBottom: 16 }}>Nueva categoría</h2>
           <p style={{ fontSize: 12, color: '#666', marginBottom: 16 }}>
-            El color se puede elegir acá. Los campos especiales (sabor, nicotina, Ω…) y qué tipo de
-            variantes acepta siguen definidos en código — si esta categoría los necesita, pedime que
-            los agregue después de crearla.
+            Elegí el molde que más se parezca a lo que vas a vender — ya trae armadas las
+            especificaciones y el tipo de variante (con foto, si corresponde) de esa familia de
+            producto. Si más adelante necesitás un molde realmente nuevo (una ficha que no se
+            parezca a ninguna de estas), pedime que lo agregue.
           </p>
-          <div className="field-row" style={{ alignItems: 'flex-end', gap: 12 }}>
+          <div className="field-row" style={{ alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
             <label className="color-swatch-label" title="Elegir color">
               <span className="color-swatch" style={{ background: newColor }} />
               <input
@@ -173,7 +200,7 @@ export const Categories = () => {
                 className="color-picker-hidden"
               />
             </label>
-            <div className="field" style={{ flex: 1 }}>
+            <div className="field" style={{ flex: 1, minWidth: 180 }}>
               <label>Nombre</label>
               <input
                 value={newName}
@@ -185,6 +212,14 @@ export const Categories = () => {
               {newName.trim() && (
                 <span className="field-hint">Slug: {slugify(newName)}</span>
               )}
+            </div>
+            <div className="field" style={{ flex: 2, minWidth: 240 }}>
+              <label>Tipo de producto (molde)</label>
+              <select value={newTemplate} onChange={(e) => setNewTemplate(e.target.value)}>
+                {CATEGORY_TEMPLATES.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
             </div>
             <button
               type="button"
@@ -200,7 +235,9 @@ export const Categories = () => {
       )}
 
       <div className="cat-cards-grid">
-        {cards.map((c, idx) => (
+        {cards.map((c, idx) => {
+          const tpl = templateFor(c)
+          return (
           <div key={c.id} className="cat-card" style={{ '--cat-color': categoryColor(c.slug, c.color) }}>
             <div className="cat-card-header">
               <label className="color-swatch-label" title="Cambiar color">
@@ -254,6 +291,30 @@ export const Categories = () => {
               </div>
             </div>
 
+            <div style={{ marginTop: 4 }}>
+              {editingTemplate === c.id ? (
+                <select
+                  autoFocus
+                  defaultValue={tpl?.value ?? DEFAULT_TEMPLATE}
+                  onChange={(e) => changeTemplate(c.id, e.target.value)}
+                  onBlur={() => setEditingTemplate(null)}
+                  style={{ fontSize: 11, width: '100%' }}
+                >
+                  {CATEGORY_TEMPLATES.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </select>
+              ) : (
+                <span
+                  title="Clic para cambiar el molde"
+                  style={{ cursor: 'pointer', fontSize: 11, color: 'rgba(255,255,255,0.4)' }}
+                  onClick={() => setEditingTemplate(c.id)}
+                >
+                  Molde: {tpl?.label ?? 'personalizado'}
+                </span>
+              )}
+            </div>
+
             <div className="cat-card-actions">
               <div className="cat-card-order">
                 <button
@@ -301,7 +362,8 @@ export const Categories = () => {
               </p>
             )}
           </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
