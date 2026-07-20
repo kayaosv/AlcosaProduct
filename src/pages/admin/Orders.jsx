@@ -11,7 +11,25 @@ const PaymentBadge = ({ method, status }) => {
       ? <span className="payment-badge payment-badge--paid">Pagado online</span>
       : <span className="payment-badge payment-badge--refunded">Reembolsado</span>
   }
+  if (method === 'pos_efectivo') {
+    return <span className="payment-badge payment-badge--paid">Mostrador · Efectivo</span>
+  }
+  if (method === 'pos_tarjeta') {
+    return <span className="payment-badge payment-badge--paid">Mostrador · Tarjeta</span>
+  }
   return <span className="payment-badge payment-badge--pickup">Paga en tienda</span>
+}
+
+// Solo aplica a ventas del TPV (payment_method 'pos_*') — un pedido
+// online/pickup no tiene nada que sincronizar con Odoo.
+const OdooSyncBadge = ({ status }) => {
+  if (status === 'synced') {
+    return <span className="odoo-badge odoo-badge--synced" title="Factura creada en Odoo">✓ Odoo</span>
+  }
+  if (status === 'error') {
+    return <span className="odoo-badge odoo-badge--error" title="Falló la sincronización con Odoo">⚠ Odoo</span>
+  }
+  return null
 }
 
 const formatDate = (iso) => {
@@ -174,6 +192,7 @@ export const Orders = () => {
                   </td>
                   <td>
                     <PaymentBadge method={o.payment_method} status={o.payment_status} />
+                    {o.payment_method?.startsWith('pos_') && <OdooSyncBadge status={o.odoo_sync_status} />}
                   </td>
                   <td style={{ fontSize: 11, color: '#666', whiteSpace: 'nowrap' }}>
                     {formatDate(o.created_at)}
