@@ -474,13 +474,16 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
   verificación online más "seria", no mejora la cobertura legal.
 
 **Pendiente (por prioridad):**
-0. **Bloqueante para probar el pago online**: el cliente está creando la
-   cuenta de Stripe (en curso, 2026-07-16). Pasos: copiar la clave
-   secreta (modo test primero) y configurarla como secreto
-   `STRIPE_SECRET_KEY` de las Edge Functions, crear un webhook endpoint
-   en el dashboard de Stripe apuntando a la función `stripe-webhook`
-   desplegada y copiar su secreto de firma como `STRIPE_WEBHOOK_SECRET`.
-   Sin esto, los botones de "Pagar online ahora" fallan.
+0. ~~Bloqueante para probar el pago online~~ — **resuelto en modo test,
+   2026-07-19**. `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` (modo test)
+   configurados en Supabase, verificado end-to-end (sesión de checkout
+   real creada, evento `checkout.session.completed` firmado simulado
+   contra el webhook real → pedido creado, stock descontado,
+   `checkout_drafts` consumido). Ver item 17. **Pendiente real**: pasar
+   a modo live cuando el cliente termine de activar su cuenta de Stripe
+   (verificación de negocio) y configure el IBAN de cobro — mismo
+   procedimiento con las keys `sk_live_`/`whsec_` del webhook creado en
+   modo live.
 0.5. ~~Figura legal real: autónomo, no SL~~ — **resuelto 2026-07-16**.
    `AvisoLegal.jsx`/`Privacidad.jsx` ya no dicen "SUB OHM-TECHNOLOGIES
    SL" ni "Inscripción registral: Registro Mercantil de Sevilla"
@@ -756,6 +759,124 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
       mapea directo al `barcode` ya armado acá, y los campos por
       categoría (`flavor`, `nicotine_mg`, `concentrate_ml`, `puffs`…)
       son los que alimentarían el título/meta description dinámico.
+
+17. **Stripe modo test activado + TPV físico en admin + integración
+    Odoo (stub) + fix de restock al cancelar (2026-07-19)**. Sesión
+    larga, cuatro piezas relacionadas:
+    - **Stripe modo test**: el cliente activó su cuenta y configuró
+      `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` (test) en Supabase.
+      Primer intento falló con 500 genérico — diagnosticado por
+      eliminación (RPC de validación de stock OK, insert en
+      `checkout_drafts` OK, la `sk_test_` válida contra la API real de
+      Stripe) hasta aislar que el problema era el secret en sí: el
+      cliente había pegado sin querer una `sk_live_` primero. Una vez
+      corregido a `sk_test_`, verificado el flujo completo simulando un
+      evento `checkout.session.completed` firmado con el `whsec_` real
+      contra el webhook desplegado → pedido creado, stock descontado,
+      `checkout_drafts` consumido. Datos de prueba limpiados después.
+      **Pendiente real para pasar a producción**: modo live (ver item
+      0) + IBAN de cobro configurado en Stripe + `Privacidad.jsx`
+      sección 04 (transferencia internacional de datos, ya aplica de
+      verdad con Stripe activo).
+    - **TPV en `/admin/tpv`** (nueva sección, arquitectura decidida
+      explícitamente para que el stock siga viviendo 100% acá, no en
+      Odoo — Odoo solo procesa la factura legal por detrás): escaneo de
+      código de barras (mismo patrón que `StockScanner.jsx` — pistola
+      vía captura de teclado, cámara vía `BarcodeDetector` nativo),
+      carrito, cobro en efectivo/tarjeta, ticket imprimible a 80mm
+      (`PosTicket.jsx`, `window.print()` + `@page { size: 80mm auto }`
+      — impresora física es una POS80 Unika, se asume configurada como
+      impresora del sistema en el equipo del mostrador, no probado con
+      hardware real desde acá). Nueva función `create_pos_sale()`
+      (`supabase/pos-sale.sql`) — mismo patrón atómico `FOR UPDATE` que
+      `create_order()`/`create_paid_order()`, guard de rol admin
+      server-side (`auth.uid()` + `profiles.role='admin'`), pedido
+      nace `status='delivered'`/`payment_status='paid'` (la entrega es
+      inmediata, sin estado intermedio). **Pago con tarjeta es
+      100% manual**: el TPV no habla con el datáfono físico (uno BBVA
+      clásico) — el cajero cobra en el datáfono aparte y solo toca
+      "Tarjeta" en el TPV para dejarlo registrado. Una integración real
+      (mandar el monto al datáfono automáticamente) solo sería viable
+      si el cliente tuviera el TPV Android/Smart Business de BBVA
+      (soporta apps de terceros) — no evaluado en profundidad, no es
+      bloqueante.
+    - **Integración Odoo (stub, sin activar)**: nueva Edge Function
+      `supabase/functions/odoo-sync/index.ts` — recibe un `order_id`,
+      intenta login JSON-RPC contra Odoo y crear un `account.move`,
+      actualiza `orders.odoo_sync_status`/`odoo_invoice_id`/
+      `odoo_sync_error`. Se llama fire-and-forget tanto desde el TPV
+      (`Tpv.jsx`, tras `create_pos_sale`) como desde `stripe-webhook`
+      (tras `create_paid_order`) — toda venta, física u online, intenta
+      sincronizar. Sin credenciales de Odoo todavía
+      (`ODOO_URL`/`ODOO_DB`/`ODOO_API_USER`/`ODOO_API_KEY`), así que
+      hoy siempre falla de forma controlada y marca
+      `odoo_sync_status='error'` sin afectar la venta — visible como
+      badge "⚠ Odoo" en `/admin/orders`. **Decisión pendiente, marcada
+      con TODO en el código**: al conectar contra el Odoo real, definir
+      si conviene crear un `pos.order` (pasa por el circuito Verifactu
+      que certifica el módulo POS de Odoo, más correcto) o seguir con
+      `account.move` (más simple, pero puede no pasar por el mismo
+      camino certificado) — no se puede decidir sin probar contra la
+      instancia real. El cliente ya tiene el trial de Odoo activo
+      (apps Punto de Venta, Facturación, Inventario, Contabilidad) pero
+      **todavía sin certificado AEAT cargado** — sin eso no puede
+      facturar de verdad en modo Veri*Factu (ver conversación,
+      distinción entre modo Veri*Factu con envío en tiempo real vs.
+      modo SIF sin envío automático, este último no requeriría el
+      certificado pero sí que el módulo esté bien activado — a
+      confirmar con su gestor antes de facturar ventas reales).
+    - **Fix: cancelar un pedido no reponía stock** (bug preexistente,
+      no introducido hoy, pero encontrado al notar que una venta del
+      TPV cancelada no devolvía el producto) — `updateOrderStatus()` en
+      `useAdminOrders.js` era un `UPDATE orders SET status=...` sin
+      ningún efecto sobre inventario, afectaba a cualquier pedido
+      (TPV, online o pickup). Nueva función `cancel_order()`
+      (`supabase/cancel-order.sql`) — guard admin, idempotente (cancelar
+      dos veces no duplica la reposición), repone stock de cada línea
+      antes de marcar cancelado. `updateOrderStatus()` la usa
+      automáticamente cuando el nuevo estado es `'cancelled'`, sin
+      tocar los call sites en `Orders.jsx`/`OrderDetail.jsx`.
+    - **Gotcha de Supabase encontrado dos veces en esta sesión**: en
+      este proyecto, `revoke all on function ... from public` **no**
+      le saca el `EXECUTE` a `anon` — hay default privileges que se lo
+      otorgan directo (no vía el rol `public`) a cualquier función
+      nueva del schema `public`. Hace falta un
+      `revoke execute on function ... from anon;` explícito además del
+      `revoke ... from public`. Confirmado con
+      `information_schema.role_routine_grants` en ambos casos
+      (`create_pos_sale`, `cancel_order`) — el guard interno
+      (`auth.uid()`+`role='admin'`) ya bloqueaba el abuso en la
+      práctica, pero el grant no reflejaba la intención real hasta
+      corregirlo. **Revisar si `create_order`/`create_paid_order`/
+      `get_checkout_line`/`get_order_by_session`/`is_admin` (todas
+      preexistentes, aparecen en `get_advisors` con la misma alerta)
+      tienen el mismo problema real o son falsos positivos** — no
+      confirmado, `create_paid_order` específicamente sí se ve limpio
+      en `role_routine_grants` así que no todas las funciones lo
+      sufren; pendiente de auditar una por una si se quiere cerrar del
+      todo.
+    - Verificado: build limpio, todas las funciones probadas contra la
+      base real (RPC directo con `request.jwt.claims` simulado para
+      `create_pos_sale`/`cancel_order`, webhook con evento firmado
+      simulado para `stripe-webhook`+`odoo-sync`), datos de prueba
+      limpiados después. Push a `preview/alcosa` (`08fb44b` TPV,
+      `0cd6e5b` fix restock + Odoo online), deploy Vercel confirmado
+      ambos vía `commit-status` API.
+
+**Pendiente (nuevo, agregado 2026-07-19):**
+18. Credenciales de Odoo (`ODOO_URL`, `ODOO_DB`, `ODOO_API_USER`,
+    `ODOO_API_KEY`) + certificado AEAT — bloquea activar de verdad
+    `odoo-sync` (item 17). Sin esto, todo pedido (TPV u online) queda
+    con `odoo_sync_status='error'` indefinidamente — no es un bug, es
+    el estado esperado hasta que se configure.
+19. Auditar una por una las funciones RPC preexistentes marcadas por
+    `get_advisors` como ejecutables por `anon` (`create_order` es
+    intencional, pero `get_checkout_line`/`get_order_by_session`/
+    `is_admin` no está confirmado si son falsos positivos del linter o
+    el mismo gotcha de default privileges que se encontró y corrigió en
+    `create_pos_sale`/`cancel_order` — ver item 17) — no urgente, el
+    guard/contexto de cada una probablemente ya la protege en la
+    práctica, pero vale la pena cerrarlo.
     - Verificado: build limpio, migración aplicada a producción vía
       Supabase MCP (`get_advisors` sin hallazgos nuevos), push a
       `preview/alcosa` (`9dbd49d`), deploy Vercel confirmado.
