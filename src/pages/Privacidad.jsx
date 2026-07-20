@@ -68,12 +68,25 @@ export const Privacidad = () => (
 
         <Section title="04 · Destinatarios y encargados de tratamiento">
           <p>
-            No cedemos tus datos a terceros con fines comerciales. Tus datos se almacenan en la
-            infraestructura de nuestros proveedores tecnológicos de alojamiento web y base de
-            datos, que actúan como encargados de tratamiento conforme al art. 28 RGPD bajo
-            contrato con nosotros. [COMPLETAR: confirmar si estos proveedores implican una
-            transferencia internacional de datos fuera del Espacio Económico Europeo y, en tal
-            caso, las garantías aplicadas].
+            No cedemos tus datos a terceros con fines comerciales. Para poder prestar el servicio
+            recurrimos a los siguientes proveedores, que actúan como encargados de tratamiento
+            conforme al art. 28 RGPD bajo contrato con nosotros:
+          </p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>Supabase Inc., para el alojamiento de la base de datos y la gestión de pedidos.</li>
+            <li>Vercel Inc., para el alojamiento del sitio web.</li>
+            <li>
+              Stripe, para el procesamiento del pago cuando eliges pagarlo online por adelantado
+              (ver Aviso Legal). Los datos de tu tarjeta se introducen directamente en la pasarela
+              de Stripe y en ningún momento pasan por nuestros servidores.
+            </li>
+          </ul>
+          <p>
+            Estos proveedores tienen sede o infraestructura en Estados Unidos, por lo que su uso
+            puede implicar una transferencia internacional de datos fuera del Espacio Económico
+            Europeo. Dicha transferencia está amparada por las Cláusulas Contractuales Tipo
+            aprobadas por la Comisión Europea, incorporadas en los acuerdos de tratamiento de
+            datos (DPA) que cada proveedor tiene publicados.
           </p>
         </Section>
 
