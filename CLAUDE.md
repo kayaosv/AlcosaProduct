@@ -869,14 +869,44 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
     `odoo-sync` (item 17). Sin esto, todo pedido (TPV u online) queda
     con `odoo_sync_status='error'` indefinidamente — no es un bug, es
     el estado esperado hasta que se configure.
-19. Auditar una por una las funciones RPC preexistentes marcadas por
-    `get_advisors` como ejecutables por `anon` (`create_order` es
-    intencional, pero `get_checkout_line`/`get_order_by_session`/
-    `is_admin` no está confirmado si son falsos positivos del linter o
-    el mismo gotcha de default privileges que se encontró y corrigió en
-    `create_pos_sale`/`cancel_order` — ver item 17) — no urgente, el
-    guard/contexto de cada una probablemente ya la protege en la
-    práctica, pero vale la pena cerrarlo.
+19. ~~Auditar una por una las funciones RPC preexistentes marcadas por
+    `get_advisors` como ejecutables por `anon`~~ — **resuelto 2026-07-20,
+    ninguna es una exposición real** (`create_order` es intencional,
+    pero `get_checkout_line`/`get_order_by_session`/`is_admin` no
+    estaba confirmado si eran falsos positivos del linter o el mismo
+    gotcha de default privileges que se encontró y corrigió en
+    `create_pos_sale`/`cancel_order` — ver item 17).
     - Verificado: build limpio, migración aplicada a producción vía
       Supabase MCP (`get_advisors` sin hallazgos nuevos), push a
       `preview/alcosa` (`9dbd49d`), deploy Vercel confirmado.
+    - **Auditoría 2026-07-20** — leídas las definiciones completas de
+      las 6 funciones vía `pg_get_functiondef` contra la base real, no
+      solo el resumen de `get_advisors`:
+      - `create_order` / `get_checkout_line`: públicas a propósito, son
+        el checkout anónimo y la validación de precio/stock previa a
+        pagar — mismos datos que ya son visibles en el catálogo
+        público. `get_checkout_line` es `STABLE`, solo lectura.
+      - `get_order_by_session(p_session_id)`: pública por diseño, la
+        usa `CheckoutSuccess.jsx` para mostrar la confirmación al
+        volver de Stripe sin sesión de usuario. El único "secreto" es
+        el `stripe_session_id`, que Stripe genera con entropía
+        criptográfica (no enumerable/adivinable) — actúa como token de
+        acceso implícito, mismo patrón que un link de confirmación de
+        pedido.
+      - `is_admin()`: anon-callable pero inofensiva — con `auth.uid()`
+        nulo (anon) la comparación `id = auth.uid()` nunca es cierta,
+        siempre devuelve `false`, no filtra ningún dato.
+      - `cancel_order` / `create_pos_sale` (el flag real de
+        `get_advisors` era `authenticated`, no `anon`): sí tienen el
+        guard interno correcto (`if not exists (select 1 from profiles
+        where id = auth.uid() and role = 'admin') then raise
+        exception`). Confirmado además que en producción solo existe
+        **1 perfil, `admin`** — no hay cuentas de cliente autenticadas
+        en este proyecto, así que "authenticated" en la práctica
+        siempre es admin.
+      - **Conclusión: el gotcha real de default privileges de `anon`
+        (el que sí afectaba el grant crudo de `create_pos_sale`/
+        `cancel_order` antes del fix del item 17) no se repite en estas
+        4 funciones preexistentes — están bien tal como están, no hace
+        falta revocar nada.** Solo lectura/confirmación contra la base
+        real, ningún grant ni código tocado.
