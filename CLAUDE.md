@@ -864,11 +864,34 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
       ambos vía `commit-status` API.
 
 **Pendiente (nuevo, agregado 2026-07-19):**
-18. Credenciales de Odoo (`ODOO_URL`, `ODOO_DB`, `ODOO_API_USER`,
-    `ODOO_API_KEY`) + certificado AEAT — bloquea activar de verdad
-    `odoo-sync` (item 17). Sin esto, todo pedido (TPV u online) queda
-    con `odoo_sync_status='error'` indefinidamente — no es un bug, es
-    el estado esperado hasta que se configure.
+18. ~~Credenciales de Odoo~~ — **conexión confirmada 2026-07-21**,
+    `odoo-sync` ya funciona end-to-end: `ODOO_URL`/`ODOO_DB`/
+    `ODOO_API_USER`/`ODOO_API_KEY` configurados en Supabase (usuario
+    dedicado, no el admin del cliente — rol "Usuario" + acceso
+    "Facturación" en Contabilidad, scope de la API key en "RPC"),
+    probado con un pedido de prueba insertado directamente en `orders`/
+    `order_items` (payment_method `pos_efectivo`, luego borrado) e
+    invocando la función manualmente vía curl — resultado
+    `{"synced":true,"odoo_invoice_id":2}`, confirmado también en
+    `orders.odoo_sync_status='synced'`. Dos gotchas encontrados en el
+    camino, documentados por si se repiten: (a) `ODOO_URL` no es la URL
+    de la interfaz visual (`https://x.odoo.com/odoo`) sino la raíz del
+    dominio (`https://x.odoo.com`) — el `/odoo` rompe el endpoint
+    `/jsonrpc`; (b) el desplegable "Cuenta y seguridad"/API Keys de un
+    usuario **solo aparece en tu propio perfil** (la sesión con la que
+    estás logueado), no se puede generar una key para otro usuario
+    abriendo su ficha como admin — hay que loguearse como ese usuario
+    (contraseña temporal fijada por el admin) para verla. También
+    confirmado en la práctica: el TODO sobre falta de `partner_id` al
+    crear el `account.move` **no bloqueó nada** — Odoo lo acepta igual
+    en borrador sin cliente asociado, así que no hace falta tocar el
+    código por eso (al menos no todavía, revisar si molesta una vez que
+    se decida `pos.order` vs `account.move` en serio).
+    - **Sigue pendiente, deliberadamente fuera de esta sesión**:
+      certificado AEAT — sin él las facturas se quedan en borrador, no
+      se timbran ante la AEAT, no son válidas fiscalmente todavía. No
+      bloquea seguir probando el pipe, sí bloquea depender de esto para
+      facturación real.
 19. ~~Auditar una por una las funciones RPC preexistentes marcadas por
     `get_advisors` como ejecutables por `anon`~~ — **resuelto 2026-07-20,
     ninguna es una exposición real** (`create_order` es intencional,
