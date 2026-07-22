@@ -4,6 +4,7 @@ import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { useCartStore } from '../../stores/useCartStore.js'
 import { useAppStore } from '../../stores/useAppStore.js'
+import { useShopSettings } from '../../hooks/useShopSettings.js'
 
 const LINKS = [
   { to: '/catalog', label: 'Tienda' },
@@ -364,6 +365,7 @@ const SCROLL_SOLIDIFY_THRESHOLD = 24
 
 export const Nav = () => {
   const navRef = useRef(null)
+  const { settings: shopSettings } = useShopSettings()
   const itemsCount = useCartStore((s) => s.items.length)
   const isLoaded = useAppStore((s) => s.isLoaded)
   const setCartOpen = useAppStore((s) => s.setCartOpen)
@@ -441,6 +443,16 @@ export const Nav = () => {
           transition: 'background 0.35s ease, box-shadow 0.35s ease',
         }}
       >
+        {shopSettings?.free_shipping_enabled && shopSettings?.free_shipping_threshold != null && (
+          <div
+            className="flex items-center justify-center text-center px-4 py-1.5"
+            style={{ background: 'var(--color-lime)', color: 'var(--color-navy)' }}
+          >
+            <span style={{ fontWeight: 700, fontSize: 11, letterSpacing: '0.12em' }}>
+              Envío gratis a partir de {Number(shopSettings.free_shipping_threshold).toFixed(0)} €
+            </span>
+          </div>
+        )}
         <div className="flex items-center justify-between px-6 md:px-10 py-6">
           <Link
             to="/"

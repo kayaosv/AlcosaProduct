@@ -479,6 +479,54 @@ export const ProductEditor = () => {
             </section>
           )}
 
+          {kind === 'alquimia' && (
+            <section className="editor-section">
+              <h2 className="editor-section-title">Especificaciones — Bases</h2>
+              <div className="field-group">
+                <div className="field-row">
+                  <div className="field">
+                    <label>%VG</label>
+                    <input
+                      type="text"
+                      value={form.details.vg_pct ?? ''}
+                      onChange={(e) => setDetail('vg_pct', e.target.value)}
+                      placeholder="ej. 70"
+                    />
+                  </div>
+                  <div className="field">
+                    <label>%PG</label>
+                    <input
+                      type="text"
+                      value={form.details.pg_pct ?? ''}
+                      onChange={(e) => setDetail('pg_pct', e.target.value)}
+                      placeholder="ej. 30"
+                    />
+                  </div>
+                </div>
+                <div className="field-row">
+                  <div className="field">
+                    <label>Volumen del producto (ml)</label>
+                    <input
+                      type="text"
+                      value={form.details.base_vol_ml ?? ''}
+                      onChange={(e) => setDetail('base_vol_ml', e.target.value)}
+                      placeholder="ej. 30"
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Volumen final sugerido de preparación (ml)</label>
+                    <input
+                      type="text"
+                      value={form.details.suggested_prep_vol_ml ?? ''}
+                      onChange={(e) => setDetail('suggested_prep_vol_ml', e.target.value)}
+                      placeholder="ej. 100"
+                    />
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
           {variantType && (
             <section className="editor-section">
               <VariantsEditor
@@ -671,7 +719,7 @@ const VARIANT_META = {
   ohm:    { title: 'Resistencias (Ω)',                 placeholder: 'ej. 0.3Ω, 0.6Ω, 1.2Ω…',      hasColor: false, hasImage: true  },
   nic:    { title: 'Concentraciones de nicotina',      placeholder: 'ej. 5 mg, 10 mg, 20 mg…',     hasColor: false, hasImage: true  },
   volume: { title: 'Variantes de volumen',             placeholder: 'ej. 10ml/30ml, 24ml/60ml…',   hasColor: false, hasImage: true  },
-  recipe: { title: 'Composición (bases y nicokits)',   placeholder: '',                             hasColor: false, hasImage: false },
+  recipe: { title: 'Composición (bases y nicokits)',   placeholder: '',                             hasColor: false, hasImage: true  },
 }
 
 const EMPTY_DRAFT = { label: '', hex: '#6b7280', stock: '', price: '', sale_price: '', wholesale_price: '', barcode: '' }

@@ -66,23 +66,37 @@ export const Footer = () => {
               ↳ Dirección
             </span>
             <a
-              href="https://maps.google.com/?q=Av.+Ildefonso+Marañón+Lavín+9+Sevilla"
+              href="https://maps.app.goo.gl/ee7sybptEd9WUYzLA?g_st=ac"
               target="_blank"
               rel="noopener noreferrer"
               data-cursor="link"
-              className="block group"
+              className="flex items-start gap-4 group"
             >
-              <p className="text-[15px] leading-relaxed" style={{ fontWeight: 700 }}>
-                Av. Ildefonso Marañón Lavín
-                <br />
-                Nº 9 — Local 2
-              </p>
-              <p
-                className="text-[13px] mt-2 inline-flex items-center gap-2 underline underline-offset-4"
-                style={{ color: 'rgba(255,248,240,0.6)' }}
+              <span
+                className="shrink-0 overflow-hidden"
+                style={{ width: 64, height: 64, border: '1px solid rgba(255,248,240,0.15)' }}
               >
-                <span aria-hidden>↗</span> 41019 Sevilla · Parque Alcosa
-              </p>
+                <img
+                  src="/va-map-thumb.svg"
+                  alt="Ubicación de Vapers Alcosa en el mapa"
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                  style={{ transition: 'transform 0.4s ease' }}
+                />
+              </span>
+              <div>
+                <p className="text-[15px] leading-relaxed" style={{ fontWeight: 700 }}>
+                  Av. Ildefonso Marañón Lavín
+                  <br />
+                  Nº 9 — Local 2
+                </p>
+                <p
+                  className="text-[13px] mt-2 inline-flex items-center gap-2 underline underline-offset-4"
+                  style={{ color: 'rgba(255,248,240,0.6)' }}
+                >
+                  <span aria-hidden>↗</span> 41019 Sevilla · Parque Alcosa
+                </p>
+              </div>
             </a>
           </div>
 
