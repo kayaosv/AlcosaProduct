@@ -15,6 +15,7 @@ import {
   categoryKind, categoryVariantType,
 } from '../../lib/productSpecs.js'
 import { generateInternalEAN13, generateUniqueBarcode } from '../../lib/barcode.js'
+import { PromoTiersEditor } from '../../components/dom/admin/PromoTiersEditor.jsx'
 
 const EMPTY = {
   name: '',
@@ -38,7 +39,7 @@ export const ProductEditor = () => {
   const navigate = useNavigate()
   const isNew = id === 'new'
 
-  const { categories } = useCategories()
+  const { categories, update: updateCategory } = useCategories()
   const { upload, uploading } = useUploadImage()
   const { variants, add: addVariant, update: updateVariant, remove: removeVariant, setPrimary: setPrimaryVariant } = useProductVariants(isNew ? null : id)
 
@@ -476,6 +477,17 @@ export const ProductEditor = () => {
                   </div>
                 </div>
               </div>
+            </section>
+          )}
+
+          {kind === 'desechables' && currentCategory && (
+            <section className="editor-section">
+              <h2 className="editor-section-title">Promociones por volumen</h2>
+              <PromoTiersEditor
+                category={currentCategory}
+                onSave={(tiers) => updateCategory(currentCategory.id, { promo_tiers: tiers })}
+                alwaysOpen
+              />
             </section>
           )}
 
