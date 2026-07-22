@@ -170,6 +170,7 @@ export const Analytics = () => {
       pvp: getEffectivePrice(p),
       wholesale: getWholesalePrice(p) ?? 0,
       margin: parseFloat(getMarginPct(p).toFixed(1)),
+      profitEur: parseFloat((getEffectivePrice(p) - (getWholesalePrice(p) ?? 0)).toFixed(2)),
       stock: getStock(p),
       capital: parseFloat((getEffectivePrice(p) * getStock(p)).toFixed(2)),
       hasVariants: (p.product_variants ?? []).length > 0,
@@ -433,7 +434,7 @@ export const Analytics = () => {
                   <th>Categoría</th>
                   <th className={`num-cell ${sortField === 'pvp' ? 'sorted' : ''}`} onClick={() => toggleSort('pvp')}>PVP €{arrow('pvp')}</th>
                   <th className={`num-cell ${sortField === 'wholesale' ? 'sorted' : ''}`} onClick={() => toggleSort('wholesale')}>Mayor. €{arrow('wholesale')}</th>
-                  <th className={`num-cell ${sortField === 'margin' ? 'sorted' : ''}`} onClick={() => toggleSort('margin')}>Margen{arrow('margin')}</th>
+                  <th className={`num-cell ${sortField === 'margin' ? 'sorted' : ''}`} onClick={() => toggleSort('margin')}>Margen €/%{arrow('margin')}</th>
                   <th className={`num-cell ${sortField === 'stock' ? 'sorted' : ''}`} onClick={() => toggleSort('stock')}>Stock{arrow('stock')}</th>
                   <th className={`num-cell ${sortField === 'capital' ? 'sorted' : ''}`} onClick={() => toggleSort('capital')}>Capital €{arrow('capital')}</th>
                 </tr>
@@ -452,7 +453,7 @@ export const Analytics = () => {
                     </td>
                     <td className="num-cell">{r.pvp.toFixed(2)}</td>
                     <td className="num-cell">{r.wholesale.toFixed(2)}</td>
-                    <td className="num-cell"><span className={marginBadge(r.margin)}>{r.margin}%</span></td>
+                    <td className="num-cell"><span className={marginBadge(r.margin)}>{r.profitEur.toFixed(2)} € <small style={{ opacity: 0.7 }}>({r.margin}%)</small></span></td>
                     <td className="num-cell">{r.stock}</td>
                     <td className="num-cell">{r.capital.toFixed(0)}</td>
                   </tr>

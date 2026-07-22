@@ -933,3 +933,73 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
         4 funciones preexistentes — están bien tal como están, no hace
         falta revocar nada.** Solo lectura/confirmación contra la base
         real, ningún grant ni código tocado.
+
+20. **Fase 1 de un pedido grande de frontend (9 puntos) — 5 resueltos
+    2026-07-22, 4 más eran no-ops (ya estaban hechos), 1 queda como
+    Fase 2 aparte.** El pedido completo tenía 9 puntos; antes de tocar
+    código se hizo un análisis contra el código real de cada uno
+    (footer, `crossSell.js`, `Analytics.jsx`, `ProductEditor.jsx`,
+    schema) — 4 de los 9 ya estaban resueltos de sesiones anteriores
+    (fecha del banner "Desde 2024" ya correcta, fotos por variante ya
+    activas en casi todas las categorías, código de barras por
+    variante + producto ya completo, nombre/marca/categoría ya en el
+    formulario). Confirmado por grep contra el repo real, no por
+    memoria. Shipeado en esta sesión:
+    - **Footer — miniatura de mapa**: el link de dirección ahora apunta
+      al lugar real (`maps.app.goo.gl/ee7sybptEd9WUYzLA`) y suma una
+      miniatura clicable (`public/va-map-thumb.svg`, gráfico propio
+      estilo pin/mapa con los colores de marca — decisión explícita del
+      cliente: imagen estática sin API key de Google Maps, no embed
+      interactivo).
+    - **Bases (Alquimia) — specs + fotos de variante**: nueva sección
+      "Especificaciones — Bases" en `ProductEditor.jsx` (%VG, %PG,
+      volumen del producto, volumen final sugerido de preparación,
+      todos campos libres en `details`, sin validar que sumen 100) +
+      `VARIANT_META.recipe.hasImage` pasado a `true` (antes era el
+      único tipo de variante sin fotos). El nombre de la categoría se
+      queda como "Alquimia" — confirmado explícitamente por el cliente,
+      es la misma categoría a la que se refería como "Bases", no una
+      nueva.
+    - **Analytics — margen en €**: la tabla de rentabilidad ahora
+      muestra `X,XX € (Y%)` en vez de solo `Y%` (`tableRows` suma
+      `profitEur = pvp - wholesale`). El scatter PVP-vs-margen se dejó
+      en % a propósito (en € no es comparable entre productos de precio
+      muy distinto).
+    - **Banner de envío gratis editable**: tabla nueva `shop_settings`
+      (fila única, RLS: lectura pública / escritura solo admin,
+      aplicada vía Supabase MCP, `get_advisors` sin hallazgos nuevos),
+      hook `useShopSettings.js`, página nueva `/admin/settings`
+      (enlace + ícono en `Sidebar.jsx`), y el banner en sí insertado
+      **dentro del propio `<header>` fijo de `Nav.jsx`** (como fila
+      superior del mismo bloque, no como elemento fixed aparte) — el
+      sitio no reserva `padding-top` en ningún lado para el nav
+      (flota transparente sobre los heroes a pantalla completa a
+      propósito), así que un banner fixed independiente habría pisado
+      contenido; metido dentro del mismo bloque fijo evita tocar esa
+      arquitectura y no afecta ningún `ScrollTrigger`.
+    - **Cross-sell — grupo de desechables**: `crossSell.js` ya tenía
+      una lógica de "grupos de receta" bien pensada (longfill/
+      minilongfill/alquimia/vapers/resistencia se sugieren entre sí;
+      sales-de-nicotina/vapers/resistencia aparte, porque las sales ya
+      vienen mezcladas y no necesitan Alquimia) — coincide con la
+      lógica real de vapeo. Lo único que faltaba: `vapers-desechables`
+      no estaba en ningún grupo, así que un carrito solo con
+      desechables no sugería nada. Agregado un grupo
+      `['vapers-desechables', 'accesorios']` (autocontenidos, no usan
+      piezas DIY — solo accesorios genéricos aplican).
+    - Verificado: build limpio (`npm run build`), push a
+      `preview/alcosa` (`4cb497f`), deploy Vercel confirmado vía
+      commit-status API.
+    - **Pendiente — Fase 2, deliberadamente aparte**: las 3
+      promociones por volumen configurables en Vapers Desechables
+      (punto 8 del pedido original). El cliente confirmó que quiere
+      **aplicación automática en el total**, no solo informativa — eso
+      obliga a calcular el tramo de precio en 4 lugares que hoy no se
+      hablan entre sí (`useCartStore` online, `create-checkout-session`
+      + webhook de Stripe, `create_paid_order`, `create_pos_sale` del
+      TPV), y no puede resolverse solo en el cliente porque son RPCs
+      públicas que fijan el precio final — el cálculo del tramo tiene
+      que vivir también en SQL. Diseño aún sin arrancar: probablemente
+      un campo `promo_tiers jsonb` en `categories` (editable solo
+      cuando `kind = 'desechables'`), con hasta 3 tramos
+      `{unidades_min, precio_unidad}`.

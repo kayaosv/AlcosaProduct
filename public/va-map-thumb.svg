@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Ubicación en el mapa">
+  <rect width="120" height="120" fill="#172D6D"/>
+  <g stroke="#FFF8F0" stroke-opacity="0.22" stroke-width="2" fill="none">
+    <path d="M0 30 H120"/>
+    <path d="M0 78 H120"/>
+    <path d="M34 0 V120"/>
+    <path d="M92 0 V120"/>
+  </g>
+  <g stroke="#FFF8F0" stroke-opacity="0.35" stroke-width="3" fill="none">
+    <path d="M0 96 H120"/>
+  </g>
+  <g transform="translate(60,54)">
+    <path d="M0 34C0 34 -18 16 -18 0C-18 -9.9 -9.9 -18 0 -18C9.9 -18 18 -9.9 18 0C18 16 0 34 0 34Z" fill="#C6F91F"/>
+    <circle cx="0" cy="0" r="7" fill="#172D6D"/>
+  </g>
+</svg>

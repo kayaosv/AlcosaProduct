@@ -11,6 +11,9 @@ const RECIPE_GROUPS = [
   ['longfill', 'minilongfill', 'alquimia', 'vapers', 'resistencia'],
   // Listo para vapear: sales de nicotina ya vienen mezcladas, no necesitan Alquimia
   ['sales-de-nicotina', 'vapers', 'resistencia'],
+  // Desechables no usan piezas DIY (son autocontenidos) — solo se
+  // sugieren accesorios genéricos compatibles con cualquier dispositivo.
+  ['vapers-desechables', 'accesorios'],
 ]
 
 export const crossSellCategoriesFor = (categorySlug) => {
