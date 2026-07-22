@@ -8,7 +8,7 @@ const STATS = [
   { value: 6, suffix: '+', label: 'Categorías de producto' },
   { value: 3, suffix: '', label: 'Marcas premium' },
   { value: 61, suffix: '', prefix: '#0', label: 'Distribuidor oficial OXVA' },
-  { value: 2019, suffix: '', prefix: 'Desde ', label: 'Año de apertura', plain: true },
+  { value: 2024, suffix: '', prefix: 'Desde ', label: 'Año de apertura', plain: true },
 ]
 
 const Stat = ({ stat, index }) => {
@@ -78,7 +78,7 @@ export const AboutSection = () => {
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: rootRef.current,
-          start: 'top 65%',
+          start: 'top 50%',
           once: true,
         },
       })

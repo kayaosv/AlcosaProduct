@@ -20,12 +20,14 @@ export const STATUS_META = {
 const LIST_SELECT = `
   id, customer_name, customer_email, customer_phone, customer_address,
   status, total, notes, created_at, payment_method, payment_status,
+  odoo_sync_status,
   order_items(id)
 `
 
 const DETAIL_SELECT = `
   id, customer_name, customer_email, customer_phone, customer_address,
   status, total, notes, created_at, payment_method, payment_status,
+  odoo_sync_status, odoo_invoice_id, odoo_sync_error,
   order_items(id, product_id, product_name, product_price, quantity, variant_id, variant_label)
 `
 
@@ -73,6 +75,13 @@ export const fetchOrderById = async (id) => {
 }
 
 export const updateOrderStatus = async (id, status) => {
+  // Cancelar repone stock (ver supabase/cancel-order.sql) — cualquier
+  // otro cambio de estado es un simple update, no toca inventario.
+  if (status === 'cancelled') {
+    const { error } = await supabase.rpc('cancel_order', { p_order_id: id })
+    if (error) throw error
+    return
+  }
   const { error } = await supabase
     .from('orders')
     .update({ status })

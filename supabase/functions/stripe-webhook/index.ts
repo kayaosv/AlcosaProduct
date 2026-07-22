@@ -43,6 +43,26 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   )
 
+  // Best-effort, nunca bloquea ni afecta la respuesta a Stripe — el
+  // pedido ya esta creado y pagado independientemente de si Odoo
+  // responde o no (mismo espiritu que odoo-sync desde el TPV, ver
+  // supabase/functions/odoo-sync).
+  const triggerOdooSync = async (orderId: string) => {
+    try {
+      await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/odoo-sync`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          apikey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        },
+        body: JSON.stringify({ order_id: orderId }),
+      })
+    } catch (err) {
+      console.error("No se pudo disparar odoo-sync:", err)
+    }
+  }
+
   const { data: draft, error: draftError } = await supabase
     .from("checkout_drafts")
     .select("*")
@@ -58,7 +78,7 @@ Deno.serve(async (req) => {
     return new Response("ok", { status: 200 })
   }
 
-  const { error: orderError } = await supabase.rpc("create_paid_order", {
+  const { data: orderData, error: orderError } = await supabase.rpc("create_paid_order", {
     p_customer_name: draft.customer_name,
     p_customer_email: draft.customer_email,
     p_customer_phone: draft.customer_phone,
@@ -113,5 +133,9 @@ Deno.serve(async (req) => {
   }
 
   await supabase.from("checkout_drafts").update({ consumed_at: new Date().toISOString() }).eq("id", draftId)
+
+  const orderId = orderData?.[0]?.order_id
+  if (orderId) await triggerOdooSync(orderId)
+
   return new Response("ok", { status: 200 })
 })

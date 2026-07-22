@@ -35,7 +35,7 @@ export const SectionTransitions = () => {
             trigger: section,
             start: 'bottom 75%',
             end: 'bottom top',
-            scrub: 1,
+            scrub: 0.6,
           },
         })
           .set(plane1Ref.current, { backgroundColor: darkColor, transformOrigin: 'bottom center' })
@@ -52,13 +52,14 @@ export const SectionTransitions = () => {
         gsap.timeline({
           scrollTrigger: {
             trigger: section,
-            start: 'bottom 75%',
-            end: 'bottom top',
-            scrub: 1,
+            start: 'bottom 85%',
+            end: 'bottom 20%',
+            scrub: 0.4,
           },
         })
-          .to(circleRef.current, { scale: 1, ease: 'none', duration: 0.5 })
-          .to(circleRef.current, { scale: 0, ease: 'none', duration: 0.5 })
+          .to(circleRef.current, { scale: 1, ease: 'none', duration: 0.4 })
+          .to(circleRef.current, { scale: 1, ease: 'none', duration: 0.2 })
+          .to(circleRef.current, { scale: 0, ease: 'none', duration: 0.4 })
       }
 
       if (type === 'flash') {

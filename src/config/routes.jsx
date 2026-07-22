@@ -21,6 +21,7 @@ import { Categories } from '../pages/admin/Categories.jsx'
 import { Wholesale } from '../pages/admin/Wholesale.jsx'
 import { Analytics } from '../pages/admin/Analytics.jsx'
 import { StockScanner } from '../pages/admin/StockScanner.jsx'
+import { Tpv } from '../pages/admin/Tpv.jsx'
 
 export const router = createBrowserRouter([
   {
@@ -44,6 +45,7 @@ export const router = createBrowserRouter([
     element: <AdminLayout />,
     children: [
       { index: true, element: <Dashboard /> },
+      { path: 'tpv', element: <Tpv /> },
       { path: 'products', element: <Products /> },
       { path: 'products/:id', element: <ProductEditor /> },
       { path: 'products/:id/label', element: <ProductLabel /> },

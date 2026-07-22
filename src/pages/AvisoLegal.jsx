@@ -50,7 +50,7 @@ export const AvisoLegal = () => (
             <strong>Domicilio:</strong> Avd. de Ildefonso Marañón Lavín, Nº 9, Local 2, 41019
             Sevilla
             <br />
-            <strong>Contacto:</strong> 682 72 57 80 · [COMPLETAR: email] ·{' '}
+            <strong>Contacto:</strong> 682 72 57 80 · vapersalcosa019@gmail.com ·{' '}
             <a
               href="https://instagram.com/vapers.alcosa"
               target="_blank"

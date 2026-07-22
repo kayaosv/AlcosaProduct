@@ -129,6 +129,32 @@ export const StockScanner = () => {
     setSelectedVariantId(null)
     setDelta(1)
 
+    // Primero se busca por codigo de VARIANTE -- si la unidad fisica
+    // escaneada tiene su propio EAN (sabor/mg/color/Ω distinto), esto
+    // identifica exactamente cual es sin pedirle al usuario que la
+    // elija a mano en la lista (ver variants mas abajo).
+    const { data: variantHit } = await supabase
+      .from('product_variants')
+      .select('id, label, stock, sort_order, product_id, products(id, name, brand, image_url, categories(name))')
+      .eq('barcode', clean)
+      .single()
+
+    if (variantHit?.products) {
+      setProduct(variantHit.products)
+      const { data: variantRows } = await supabase
+        .from('product_variants')
+        .select('id, label, stock, sort_order')
+        .eq('product_id', variantHit.product_id)
+        .order('sort_order')
+      setVariants(variantRows ?? [])
+      setSelectedVariantId(variantHit.id)
+      requestAnimationFrame(() => {
+        if (resultRef.current)
+          gsap.from(resultRef.current, { y: 10, opacity: 0, duration: 0.3, ease: 'power2.out' })
+      })
+      return
+    }
+
     const { data } = await supabase
       .from('products')
       .select('id, name, brand, stock, image_url, categories(name)')

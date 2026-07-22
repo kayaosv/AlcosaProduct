@@ -14,6 +14,7 @@ import {
   LONGFILL_CONCENTRATES, LONGFILL_BOTTLES, MINILONGFILL_CONCENTRATES,
   categoryKind, categoryVariantType,
 } from '../../lib/productSpecs.js'
+import { generateInternalEAN13, generateUniqueBarcode } from '../../lib/barcode.js'
 
 const EMPTY = {
   name: '',
@@ -103,12 +104,13 @@ export const ProductEditor = () => {
     }
   }, [isNew, categories, form.category_id])
 
-  const currentSlug = useMemo(
-    () => categories.find((c) => c.id === form.category_id)?.slug,
+  const currentCategory = useMemo(
+    () => categories.find((c) => c.id === form.category_id),
     [categories, form.category_id],
   )
-  const kind = categoryKind(currentSlug)
-  const variantType = categoryVariantType(currentSlug)
+  const currentSlug = currentCategory?.slug
+  const kind = categoryKind(currentSlug, currentCategory)
+  const variantType = categoryVariantType(currentSlug, currentCategory)
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }))
   const setDetail = (key, val) =>
@@ -166,6 +168,7 @@ export const ProductEditor = () => {
               sale_price: v.sale_price !== '' && v.sale_price != null ? parseFloat(v.sale_price) : null,
               wholesale_price: v.wholesale_price !== '' && v.wholesale_price != null ? parseFloat(v.wholesale_price) : null,
               image_url: v.image_url ?? null,
+              barcode: v.barcode?.trim() || null,
               is_primary: v.is_primary ?? i === 0,
               sort_order: i,
             }))
@@ -488,6 +491,7 @@ export const ProductEditor = () => {
                 upload={upload}
                 uploading={uploading}
                 productName={form.name}
+                isDraft={isNew}
               />
             </section>
           )}
@@ -664,13 +668,13 @@ const MAX_COLOR_IMAGES = 12
 const VARIANT_META = {
   color:  { title: 'Colores y variantes',              placeholder: 'ej. Negro mate, Azul cielo…',  hasColor: true,  hasImage: true  },
   flavor: { title: 'Sabores y variantes',              placeholder: 'ej. Mango Ice, Fresa Helada…', hasColor: false, hasImage: true  },
-  ohm:    { title: 'Resistencias (Ω)',                 placeholder: 'ej. 0.3Ω, 0.6Ω, 1.2Ω…',      hasColor: false, hasImage: false },
-  nic:    { title: 'Concentraciones de nicotina',      placeholder: 'ej. 5 mg, 10 mg, 20 mg…',     hasColor: false, hasImage: false },
-  volume: { title: 'Variantes de volumen',             placeholder: 'ej. 10ml/30ml, 24ml/60ml…',   hasColor: false, hasImage: false },
+  ohm:    { title: 'Resistencias (Ω)',                 placeholder: 'ej. 0.3Ω, 0.6Ω, 1.2Ω…',      hasColor: false, hasImage: true  },
+  nic:    { title: 'Concentraciones de nicotina',      placeholder: 'ej. 5 mg, 10 mg, 20 mg…',     hasColor: false, hasImage: true  },
+  volume: { title: 'Variantes de volumen',             placeholder: 'ej. 10ml/30ml, 24ml/60ml…',   hasColor: false, hasImage: true  },
   recipe: { title: 'Composición (bases y nicokits)',   placeholder: '',                             hasColor: false, hasImage: false },
 }
 
-const EMPTY_DRAFT = { label: '', hex: '#6b7280', stock: '', price: '', sale_price: '', wholesale_price: '' }
+const EMPTY_DRAFT = { label: '', hex: '#6b7280', stock: '', price: '', sale_price: '', wholesale_price: '', barcode: '' }
 
 const PriceInput = ({ value, onChange, onCommit, placeholder, inherited }) => (
   <div className="vfield">
@@ -738,11 +742,12 @@ const AlquimiaComposer = ({ value, onChange }) => {
   )
 }
 
-const VariantsEditor = ({ variantType, variants, onAdd, onUpdate, onRemove, onSetPrimary, upload, uploading, productName }) => {
+const VariantsEditor = ({ variantType, variants, onAdd, onUpdate, onRemove, onSetPrimary, upload, uploading, productName, isDraft }) => {
   const meta = VARIANT_META[variantType] ?? VARIANT_META.flavor
   const [draft, setDraft] = useState(EMPTY_DRAFT)
   const [saving, setSaving] = useState(false)
   const [edits, setEdits] = useState({}) // { [id]: { field: value } }
+  const [generatingId, setGeneratingId] = useState(null)
 
   const primary = variants.find((v) => v.is_primary) ?? variants[0]
   const imagesUsed = variants.filter((v) => v.image_url).length
@@ -753,7 +758,9 @@ const VariantsEditor = ({ variantType, variants, onAdd, onUpdate, onRemove, onSe
   const commit = async (id, field) => {
     const val = edits[id]?.[field]
     if (val === undefined) return
-    const parsed = field === 'stock' ? (Number(val) || 0) : (val !== '' ? parseFloat(val) : null)
+    const parsed = field === 'stock' ? (Number(val) || 0)
+      : field === 'barcode' ? (val.trim() || null)
+      : (val !== '' ? parseFloat(val) : null)
     await onUpdate(id, { [field]: parsed })
     setEdits((e) => {
       const next = { ...e }
@@ -774,6 +781,7 @@ const VariantsEditor = ({ variantType, variants, onAdd, onUpdate, onRemove, onSe
         sale_price: draft.sale_price !== '' ? parseFloat(draft.sale_price) : null,
         wholesale_price: draft.wholesale_price !== '' ? parseFloat(draft.wholesale_price) : null,
         image_url: null,
+        barcode: draft.barcode?.trim() || null,
       })
       setDraft(EMPTY_DRAFT)
     } catch (err) {
@@ -790,6 +798,26 @@ const VariantsEditor = ({ variantType, variants, onAdd, onUpdate, onRemove, onSe
       await onUpdate(id, { image_url: publicUrl })
     } catch (err) {
       alert(`Error subiendo imagen: ${err.message}`)
+    }
+  }
+
+  // En borrador (producto nuevo, sin guardar) no hay fila en la DB con
+  // la que chocar todavia, así que alcanza con un código al azar — el
+  // reintento contra el UNIQUE real solo aplica a variantes ya
+  // persistidas (mismo criterio que el código a nivel producto, que
+  // tampoco se genera hasta después de crear el producto).
+  const handleGenerateBarcode = async (id) => {
+    setGeneratingId(id)
+    try {
+      if (isDraft) {
+        await onUpdate(id, { barcode: generateInternalEAN13() })
+      } else {
+        await generateUniqueBarcode((code) => onUpdate(id, { barcode: code }))
+      }
+    } catch (err) {
+      alert(`Error generando código: ${err.message}`)
+    } finally {
+      setGeneratingId(null)
     }
   }
 
@@ -846,6 +874,28 @@ const VariantsEditor = ({ variantType, variants, onAdd, onUpdate, onRemove, onSe
                 )}
 
                 <button type="button" className="color-remove-btn" onClick={() => onRemove(v.id)}>✕</button>
+              </div>
+
+              <div className="variant-card-barcode" style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '8px 0' }}>
+                <input
+                  type="text"
+                  className="color-name-input"
+                  style={{ flex: 1, fontSize: 12 }}
+                  value={fieldVal(v.id, 'barcode', v.barcode)}
+                  onChange={(e) => setEdit(v.id, 'barcode', e.target.value)}
+                  onBlur={() => commit(v.id, 'barcode')}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit(v.id, 'barcode') } }}
+                  placeholder="Código de barras (EAN/UPC)"
+                />
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  style={{ fontSize: 11, flexShrink: 0 }}
+                  onClick={() => handleGenerateBarcode(v.id)}
+                  disabled={generatingId === v.id}
+                >
+                  {generatingId === v.id ? '…' : 'Generar'}
+                </button>
               </div>
 
               <div className="variant-card-pricing">
@@ -927,6 +977,24 @@ const VariantsEditor = ({ variantType, variants, onAdd, onUpdate, onRemove, onSe
               placeholder={meta.placeholder}
             />
           )}
+        </div>
+        <div className="variant-card-barcode" style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '8px 0' }}>
+          <input
+            type="text"
+            className="color-name-input"
+            style={{ flex: 1, fontSize: 12 }}
+            value={draft.barcode}
+            onChange={(e) => setDraft((d) => ({ ...d, barcode: e.target.value }))}
+            placeholder="Código de barras (EAN/UPC) — opcional"
+          />
+          <button
+            type="button"
+            className="btn-ghost"
+            style={{ fontSize: 11, flexShrink: 0 }}
+            onClick={() => setDraft((d) => ({ ...d, barcode: generateInternalEAN13() }))}
+          >
+            Generar
+          </button>
         </div>
         <div className="variant-card-pricing">
           <div className="vfield-wrap">

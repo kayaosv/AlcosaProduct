@@ -474,13 +474,16 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
   verificación online más "seria", no mejora la cobertura legal.
 
 **Pendiente (por prioridad):**
-0. **Bloqueante para probar el pago online**: el cliente está creando la
-   cuenta de Stripe (en curso, 2026-07-16). Pasos: copiar la clave
-   secreta (modo test primero) y configurarla como secreto
-   `STRIPE_SECRET_KEY` de las Edge Functions, crear un webhook endpoint
-   en el dashboard de Stripe apuntando a la función `stripe-webhook`
-   desplegada y copiar su secreto de firma como `STRIPE_WEBHOOK_SECRET`.
-   Sin esto, los botones de "Pagar online ahora" fallan.
+0. ~~Bloqueante para probar el pago online~~ — **resuelto en modo test,
+   2026-07-19**. `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` (modo test)
+   configurados en Supabase, verificado end-to-end (sesión de checkout
+   real creada, evento `checkout.session.completed` firmado simulado
+   contra el webhook real → pedido creado, stock descontado,
+   `checkout_drafts` consumido). Ver item 17. **Pendiente real**: pasar
+   a modo live cuando el cliente termine de activar su cuenta de Stripe
+   (verificación de negocio) y configure el IBAN de cobro — mismo
+   procedimiento con las keys `sk_live_`/`whsec_` del webhook creado en
+   modo live.
 0.5. ~~Figura legal real: autónomo, no SL~~ — **resuelto 2026-07-16**.
    `AvisoLegal.jsx`/`Privacidad.jsx` ya no dicen "SUB OHM-TECHNOLOGIES
    SL" ni "Inscripción registral: Registro Mercantil de Sevilla"
@@ -628,3 +631,305 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
       ficha del producto.
     - Verificado: build limpio, push a `preview/alcosa`
       (`49beac9`), deploy Vercel exitoso.
+
+15. **Favicon, año de apertura, contacto, mapa, timing de scroll — resuelto 2026-07-18**
+    (a partir de una auditoría externa generada con opencode +
+    Supabase MCP + Vercel CLI, guardada en el chat como referencia y
+    re-verificada contra código/datos reales antes de aplicar nada —
+    ver nota de discrepancia más abajo).
+    - **Favicon**: `index.html` apuntaba a `/vite.svg`, que no existe
+      en `public/` (404, pestaña sin logo). Se creó
+      `public/va-favicon.svg` (SVG con "VA", navy/lime) y se actualizó
+      el link.
+    - **AboutSection**: "Desde 2019" → "Desde 2024" (año real de
+      apertura, confirmado por el cliente).
+    - **Footer**: se agregó email de contacto
+      (`vapersalcosa019@gmail.com`, confirmado real por el cliente, no
+      inventado), el bloque de dirección ahora enlaza a Google Maps, y
+      se reemplazó el texto "Solo tienda física" (desactualizado — el
+      checkout ya ofrece reserva-y-pago-en-tienda y pago online vía
+      Stripe) por un texto neutral que no promete envío a domicilio
+      hasta que ese flujo esté confirmado en `Checkout.jsx`.
+    - **`AvisoLegal.jsx` / `Privacidad.jsx`**: se completó el
+      `[COMPLETAR: email]` con el mismo email. El `[COMPLETAR]` sobre
+      transferencia internacional de datos en `Privacidad.jsx` sección
+      04 sigue pendiente, fuera de alcance de este fix (ver ítem 2 de
+      "Pendiente").
+    - **`SectionTransitions.jsx`**: se redujo el scrub de la
+      transición `double-plane` (1 → 0.6) y se reescribió la
+      transición `circle` (gobierna Oxva→BestSellers) con el mismo
+      patrón de 3 etapas + rango corto (`bottom 85%`→`bottom 20%`) +
+      scrub 0.4 que ya funcionaba bien en `flash` — el cliente reportó
+      que la bola de esa transición "no se ajusta bien" al hacer
+      scroll.
+    - **`AboutSection`/`OxvaSection`/`ProductsOverview`/`BestSellersSection`**:
+      se adelantó el trigger de entrada del contenido de `top 65%` a
+      `top 50%`, y el de las product-cards en `ProductsOverview` de
+      `top 85%` a `top 60%`, para que el contenido no empiece a
+      animarse mientras la transición de la sección anterior todavía
+      se está resolviendo (ajuste de sensación visual, no verificable
+      sin navegador — pendiente de confirmación visual del cliente en
+      dispositivo real).
+    - **Discrepancia encontrada en la auditoría externa**: proponía
+      agregar `data-transition-type="none"` a `AboutSection` para
+      arreglar el corte brusco BestSellers→About. Diagnóstico
+      incorrecto — `AboutSection` es la última sección con
+      `[data-section]` (Footer no tiene ese atributo), así que el loop
+      de `SectionTransitions.jsx` la descarta por `if (!next) return`
+      antes de leer su tipo; el fix propuesto no habría tenido ningún
+      efecto. El corte real lo gobierna `data-transition-type="none"`
+      explícito en `BestSellersSection.jsx` — se dejó como está
+      (posible decisión de diseño previa, no un bug).
+    - **`is_on_sale` sin `sale_price` en variante** (2 productos: "THE
+      ORDER Salts – Tarta de Santiago", "OXVA Xlim 3 Ultra") —
+      detectado por la misma auditoría, verificado con SQL contra
+      producción. Confirmado que **no** es un bug: `stockPricing.js`
+      (`getEffectivePrice`) ya muestra el precio de oferta en cuanto
+      la variante tiene `sale_price` — el cliente todavía no cargó
+      esos precios reales para esos 2 productos. No se tocaron datos.
+    - Verificado: build limpio, push a `preview/alcosa` (`61d1694`),
+      deploy Vercel exitoso.
+
+16. **Admin — fotos por variante, molde de categoría editable, código de
+    barras por variante (resuelto 2026-07-18)**. Tres pedidos del
+    cliente, encarados juntos por relacionados:
+    - **Fotos por variante en Sales de Nicotina, Longfill/Minilongfill
+      y Resistencia**: `VARIANT_META` en `ProductEditor.jsx` tenía
+      `hasImage: false` para los tipos `nic`/`volume`/`ohm` mientras
+      `color` (vapers) y `flavor` (desechables) ya lo tenían en `true`.
+      El mecanismo (`product_variants.image_url`, mismo uploader) ya
+      existía — solo estaba apagado para esas categorías. Flip de un
+      valor por tipo, sin tocar schema. La concentración de sales de
+      nicotina se mantiene como input de texto libre en la variante (no
+      se agregó ningún `<select>` de niveles fijos ahí, a pedido
+      explícito del cliente — cuidado si alguien lo "arregla" pensando
+      que es un descuido).
+    - **Molde de categoría editable desde `/admin/categories`**: antes
+      `kind`/`variantType` (qué bloque de "Especificaciones" se muestra
+      y qué tipo de variante acepta una categoría) vivían hardcodeados
+      en `CATEGORY_META` (`src/lib/productSpecs.js`) — `Categories.jsx`
+      ya tenía un aviso propio admitiendo que crear una categoría nueva
+      requería pedir un cambio de código para tener specs/variantes.
+      Ahora `categories.kind`/`categories.variant_type` viven en la DB
+      (migración `supabase/add-variant-barcode-and-category-template.sql`,
+      con backfill de las 12 categorías existentes a los mismos valores
+      que ya tenían hardcodeados, sin cambiar nada de su comportamiento
+      actual) y `Categories.jsx` tiene un selector "Tipo de producto
+      (molde)" — al crear una categoría y para cambiarle el molde
+      después — con los moldes ya construidos en código (Sales,
+      Longfill, Vapers, Desechables, Resistencia, Alquimia, Accesorio
+      simple, Color/modelo simple sin ficha especial).
+      `categoryKind()`/`categoryVariantType()` en `productSpecs.js`
+      ahora priorizan la fila real de la categoría (`category.kind`) y
+      solo caen al mapa hardcodeado por slug como red de seguridad para
+      filas que no tengan `kind` seteado. **Límite real**: esto permite
+      asignar categorías nuevas a un molde *ya existente* sin pedir
+      código — un molde genuinamente nuevo (una ficha de
+      especificaciones nunca vista) sigue necesitando un cambio de
+      código, ya que cada `kind` sigue siendo JSX escrito a mano en
+      `ProductEditor.jsx`.
+    - **Código de barras por variante**: antes `barcode` vivía solo en
+      `products` (único), así que escanear un producto con variantes
+      nunca identificaba *cuál* variante tenés en la mano —
+      `StockScanner.jsx` obligaba a elegir a mano de una lista después
+      de cada escaneo, y `ProductLabel.jsx` solo imprimía una etiqueta
+      para todo el producto. Agregada `product_variants.barcode`
+      (único, nullable — no rompe nada, no obliga a re-etiquetar las
+      208 variantes existentes de una). `VariantsEditor` (dentro de
+      `ProductEditor.jsx`) ahora tiene input + botón "Generar" por fila
+      de variante, reutilizando el generador EAN-13 interno (rango GS1
+      20-29) — el retry-ante-colisión se extrajo a
+      `generateUniqueBarcode()` en `src/lib/barcode.js`, reutilizado
+      también por el flujo a nivel producto en `ProductLabel.jsx`.
+      `StockScanner.jsx.lookup()` ahora busca primero por
+      `product_variants.barcode`: si hay match, resuelve el producto
+      padre y auto-selecciona esa variante exacta (sin el paso manual
+      de "elige variante"); si no hay match, cae al comportamiento
+      actual por `products.barcode`. `ProductLabel.jsx` ahora imprime
+      un bloque de etiqueta por variante (con su propio precio,
+      heredando el del producto si la variante no tiene el suyo) en vez
+      de una sola etiqueta para todo el producto cuando este tiene
+      variantes; `admin.css` ganó `.label-print-grid` para el layout
+      (pantalla y print) de varias etiquetas a la vez.
+    - **Deliberadamente fuera de esta tanda**: motor de SEO (título/meta
+      description dinámicos, JSON-LD `Product`, sitemap.xml) — no existe
+      nada de esto en el proyecto hoy (confirmado por búsqueda, cero
+      `react-helmet`/JSON-LD/sitemap), no es un ajuste chico sino
+      infraestructura nueva. Cuando se encare, el `gtin13` del JSON-LD
+      mapea directo al `barcode` ya armado acá, y los campos por
+      categoría (`flavor`, `nicotine_mg`, `concentrate_ml`, `puffs`…)
+      son los que alimentarían el título/meta description dinámico.
+
+17. **Stripe modo test activado + TPV físico en admin + integración
+    Odoo (stub) + fix de restock al cancelar (2026-07-19)**. Sesión
+    larga, cuatro piezas relacionadas:
+    - **Stripe modo test**: el cliente activó su cuenta y configuró
+      `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` (test) en Supabase.
+      Primer intento falló con 500 genérico — diagnosticado por
+      eliminación (RPC de validación de stock OK, insert en
+      `checkout_drafts` OK, la `sk_test_` válida contra la API real de
+      Stripe) hasta aislar que el problema era el secret en sí: el
+      cliente había pegado sin querer una `sk_live_` primero. Una vez
+      corregido a `sk_test_`, verificado el flujo completo simulando un
+      evento `checkout.session.completed` firmado con el `whsec_` real
+      contra el webhook desplegado → pedido creado, stock descontado,
+      `checkout_drafts` consumido. Datos de prueba limpiados después.
+      **Pendiente real para pasar a producción**: modo live (ver item
+      0) + IBAN de cobro configurado en Stripe + `Privacidad.jsx`
+      sección 04 (transferencia internacional de datos, ya aplica de
+      verdad con Stripe activo).
+    - **TPV en `/admin/tpv`** (nueva sección, arquitectura decidida
+      explícitamente para que el stock siga viviendo 100% acá, no en
+      Odoo — Odoo solo procesa la factura legal por detrás): escaneo de
+      código de barras (mismo patrón que `StockScanner.jsx` — pistola
+      vía captura de teclado, cámara vía `BarcodeDetector` nativo),
+      carrito, cobro en efectivo/tarjeta, ticket imprimible a 80mm
+      (`PosTicket.jsx`, `window.print()` + `@page { size: 80mm auto }`
+      — impresora física es una POS80 Unika, se asume configurada como
+      impresora del sistema en el equipo del mostrador, no probado con
+      hardware real desde acá). Nueva función `create_pos_sale()`
+      (`supabase/pos-sale.sql`) — mismo patrón atómico `FOR UPDATE` que
+      `create_order()`/`create_paid_order()`, guard de rol admin
+      server-side (`auth.uid()` + `profiles.role='admin'`), pedido
+      nace `status='delivered'`/`payment_status='paid'` (la entrega es
+      inmediata, sin estado intermedio). **Pago con tarjeta es
+      100% manual**: el TPV no habla con el datáfono físico (uno BBVA
+      clásico) — el cajero cobra en el datáfono aparte y solo toca
+      "Tarjeta" en el TPV para dejarlo registrado. Una integración real
+      (mandar el monto al datáfono automáticamente) solo sería viable
+      si el cliente tuviera el TPV Android/Smart Business de BBVA
+      (soporta apps de terceros) — no evaluado en profundidad, no es
+      bloqueante.
+    - **Integración Odoo (stub, sin activar)**: nueva Edge Function
+      `supabase/functions/odoo-sync/index.ts` — recibe un `order_id`,
+      intenta login JSON-RPC contra Odoo y crear un `account.move`,
+      actualiza `orders.odoo_sync_status`/`odoo_invoice_id`/
+      `odoo_sync_error`. Se llama fire-and-forget tanto desde el TPV
+      (`Tpv.jsx`, tras `create_pos_sale`) como desde `stripe-webhook`
+      (tras `create_paid_order`) — toda venta, física u online, intenta
+      sincronizar. Sin credenciales de Odoo todavía
+      (`ODOO_URL`/`ODOO_DB`/`ODOO_API_USER`/`ODOO_API_KEY`), así que
+      hoy siempre falla de forma controlada y marca
+      `odoo_sync_status='error'` sin afectar la venta — visible como
+      badge "⚠ Odoo" en `/admin/orders`. **Decisión pendiente, marcada
+      con TODO en el código**: al conectar contra el Odoo real, definir
+      si conviene crear un `pos.order` (pasa por el circuito Verifactu
+      que certifica el módulo POS de Odoo, más correcto) o seguir con
+      `account.move` (más simple, pero puede no pasar por el mismo
+      camino certificado) — no se puede decidir sin probar contra la
+      instancia real. El cliente ya tiene el trial de Odoo activo
+      (apps Punto de Venta, Facturación, Inventario, Contabilidad) pero
+      **todavía sin certificado AEAT cargado** — sin eso no puede
+      facturar de verdad en modo Veri*Factu (ver conversación,
+      distinción entre modo Veri*Factu con envío en tiempo real vs.
+      modo SIF sin envío automático, este último no requeriría el
+      certificado pero sí que el módulo esté bien activado — a
+      confirmar con su gestor antes de facturar ventas reales).
+    - **Fix: cancelar un pedido no reponía stock** (bug preexistente,
+      no introducido hoy, pero encontrado al notar que una venta del
+      TPV cancelada no devolvía el producto) — `updateOrderStatus()` en
+      `useAdminOrders.js` era un `UPDATE orders SET status=...` sin
+      ningún efecto sobre inventario, afectaba a cualquier pedido
+      (TPV, online o pickup). Nueva función `cancel_order()`
+      (`supabase/cancel-order.sql`) — guard admin, idempotente (cancelar
+      dos veces no duplica la reposición), repone stock de cada línea
+      antes de marcar cancelado. `updateOrderStatus()` la usa
+      automáticamente cuando el nuevo estado es `'cancelled'`, sin
+      tocar los call sites en `Orders.jsx`/`OrderDetail.jsx`.
+    - **Gotcha de Supabase encontrado dos veces en esta sesión**: en
+      este proyecto, `revoke all on function ... from public` **no**
+      le saca el `EXECUTE` a `anon` — hay default privileges que se lo
+      otorgan directo (no vía el rol `public`) a cualquier función
+      nueva del schema `public`. Hace falta un
+      `revoke execute on function ... from anon;` explícito además del
+      `revoke ... from public`. Confirmado con
+      `information_schema.role_routine_grants` en ambos casos
+      (`create_pos_sale`, `cancel_order`) — el guard interno
+      (`auth.uid()`+`role='admin'`) ya bloqueaba el abuso en la
+      práctica, pero el grant no reflejaba la intención real hasta
+      corregirlo. **Revisar si `create_order`/`create_paid_order`/
+      `get_checkout_line`/`get_order_by_session`/`is_admin` (todas
+      preexistentes, aparecen en `get_advisors` con la misma alerta)
+      tienen el mismo problema real o son falsos positivos** — no
+      confirmado, `create_paid_order` específicamente sí se ve limpio
+      en `role_routine_grants` así que no todas las funciones lo
+      sufren; pendiente de auditar una por una si se quiere cerrar del
+      todo.
+    - Verificado: build limpio, todas las funciones probadas contra la
+      base real (RPC directo con `request.jwt.claims` simulado para
+      `create_pos_sale`/`cancel_order`, webhook con evento firmado
+      simulado para `stripe-webhook`+`odoo-sync`), datos de prueba
+      limpiados después. Push a `preview/alcosa` (`08fb44b` TPV,
+      `0cd6e5b` fix restock + Odoo online), deploy Vercel confirmado
+      ambos vía `commit-status` API.
+
+**Pendiente (nuevo, agregado 2026-07-19):**
+18. ~~Credenciales de Odoo~~ — **conexión confirmada 2026-07-21**,
+    `odoo-sync` ya funciona end-to-end: `ODOO_URL`/`ODOO_DB`/
+    `ODOO_API_USER`/`ODOO_API_KEY` configurados en Supabase (usuario
+    dedicado, no el admin del cliente — rol "Usuario" + acceso
+    "Facturación" en Contabilidad, scope de la API key en "RPC"),
+    probado con un pedido de prueba insertado directamente en `orders`/
+    `order_items` (payment_method `pos_efectivo`, luego borrado) e
+    invocando la función manualmente vía curl — resultado
+    `{"synced":true,"odoo_invoice_id":2}`, confirmado también en
+    `orders.odoo_sync_status='synced'`. Dos gotchas encontrados en el
+    camino, documentados por si se repiten: (a) `ODOO_URL` no es la URL
+    de la interfaz visual (`https://x.odoo.com/odoo`) sino la raíz del
+    dominio (`https://x.odoo.com`) — el `/odoo` rompe el endpoint
+    `/jsonrpc`; (b) el desplegable "Cuenta y seguridad"/API Keys de un
+    usuario **solo aparece en tu propio perfil** (la sesión con la que
+    estás logueado), no se puede generar una key para otro usuario
+    abriendo su ficha como admin — hay que loguearse como ese usuario
+    (contraseña temporal fijada por el admin) para verla. También
+    confirmado en la práctica: el TODO sobre falta de `partner_id` al
+    crear el `account.move` **no bloqueó nada** — Odoo lo acepta igual
+    en borrador sin cliente asociado, así que no hace falta tocar el
+    código por eso (al menos no todavía, revisar si molesta una vez que
+    se decida `pos.order` vs `account.move` en serio).
+    - **Sigue pendiente, deliberadamente fuera de esta sesión**:
+      certificado AEAT — sin él las facturas se quedan en borrador, no
+      se timbran ante la AEAT, no son válidas fiscalmente todavía. No
+      bloquea seguir probando el pipe, sí bloquea depender de esto para
+      facturación real.
+19. ~~Auditar una por una las funciones RPC preexistentes marcadas por
+    `get_advisors` como ejecutables por `anon`~~ — **resuelto 2026-07-20,
+    ninguna es una exposición real** (`create_order` es intencional,
+    pero `get_checkout_line`/`get_order_by_session`/`is_admin` no
+    estaba confirmado si eran falsos positivos del linter o el mismo
+    gotcha de default privileges que se encontró y corrigió en
+    `create_pos_sale`/`cancel_order` — ver item 17).
+    - Verificado: build limpio, migración aplicada a producción vía
+      Supabase MCP (`get_advisors` sin hallazgos nuevos), push a
+      `preview/alcosa` (`9dbd49d`), deploy Vercel confirmado.
+    - **Auditoría 2026-07-20** — leídas las definiciones completas de
+      las 6 funciones vía `pg_get_functiondef` contra la base real, no
+      solo el resumen de `get_advisors`:
+      - `create_order` / `get_checkout_line`: públicas a propósito, son
+        el checkout anónimo y la validación de precio/stock previa a
+        pagar — mismos datos que ya son visibles en el catálogo
+        público. `get_checkout_line` es `STABLE`, solo lectura.
+      - `get_order_by_session(p_session_id)`: pública por diseño, la
+        usa `CheckoutSuccess.jsx` para mostrar la confirmación al
+        volver de Stripe sin sesión de usuario. El único "secreto" es
+        el `stripe_session_id`, que Stripe genera con entropía
+        criptográfica (no enumerable/adivinable) — actúa como token de
+        acceso implícito, mismo patrón que un link de confirmación de
+        pedido.
+      - `is_admin()`: anon-callable pero inofensiva — con `auth.uid()`
+        nulo (anon) la comparación `id = auth.uid()` nunca es cierta,
+        siempre devuelve `false`, no filtra ningún dato.
+      - `cancel_order` / `create_pos_sale` (el flag real de
+        `get_advisors` era `authenticated`, no `anon`): sí tienen el
+        guard interno correcto (`if not exists (select 1 from profiles
+        where id = auth.uid() and role = 'admin') then raise
+        exception`). Confirmado además que en producción solo existe
+        **1 perfil, `admin`** — no hay cuentas de cliente autenticadas
+        en este proyecto, así que "authenticated" en la práctica
+        siempre es admin.
+      - **Conclusión: el gotcha real de default privileges de `anon`
+        (el que sí afectaba el grant crudo de `create_pos_sale`/
+        `cancel_order` antes del fix del item 17) no se repite en estas
+        4 funciones preexistentes — están bien tal como están, no hace
+        falta revocar nada.** Solo lectura/confirmación contra la base
+        real, ningún grant ni código tocado.
