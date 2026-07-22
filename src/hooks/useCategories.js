@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase.js'
 
-const SELECT = 'id, name, slug, sort_order, color, kind, variant_type'
+const SELECT = 'id, name, slug, sort_order, color, kind, variant_type, promo_tiers'
 
 export const useCategories = () => {
   const [categories, setCategories] = useState([])

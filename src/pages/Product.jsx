@@ -9,6 +9,7 @@ import { useCartStore } from '../stores/useCartStore.js'
 import { useAppStore } from '../stores/useAppStore.js'
 import { categoryVariantType, VARIANT_LABELS } from '../lib/productSpecs.js'
 import { ProductSuggestions } from '../components/dom/ProductSuggestions.jsx'
+import { PromoTiers } from '../components/dom/PromoTiers.jsx'
 
 const formatPrice = (n) => `${Number(n).toFixed(2)}€`
 
@@ -329,6 +330,10 @@ export const Product = () => {
               </span>
             )}
           </div>
+
+          {slug === 'vapers-desechables' && (
+            <PromoTiers basePrice={finalPrice} tiers={product.categories?.promo_tiers} />
+          )}
 
           {hasVariants && (
             <VariantPicker

@@ -315,6 +315,10 @@ export const Categories = () => {
               )}
             </div>
 
+            {c.kind === 'desechables' && (
+              <PromoTiersEditor category={c} onSave={(tiers) => update(c.id, { promo_tiers: tiers })} />
+            )}
+
             <div className="cat-card-actions">
               <div className="cat-card-order">
                 <button
@@ -364,6 +368,105 @@ export const Categories = () => {
           </div>
           )
         })}
+      </div>
+    </div>
+  )
+}
+
+const EMPTY_TIERS = [
+  { min_qty: '', unit_price: '' },
+  { min_qty: '', unit_price: '' },
+  { min_qty: '', unit_price: '' },
+]
+
+// Promociones por volumen — solo para categorías de tipo desechables
+// (ver apply_desechables_tier() en supabase/, se aplican automático
+// en carrito/checkout/TPV, esto solo define los 3 tramos). Es
+// configuración de la categoría, no del producto: aplica a todos los
+// desechables por igual.
+const PromoTiersEditor = ({ category, onSave }) => {
+  const [open, setOpen] = useState(false)
+  const [draft, setDraft] = useState(null)
+  const [saving, setSaving] = useState(false)
+
+  const existing = Array.isArray(category.promo_tiers) && category.promo_tiers.length > 0
+    ? category.promo_tiers
+    : null
+
+  const startEdit = () => {
+    setDraft(
+      existing
+        ? [0, 1, 2].map((i) => existing[i] ?? { min_qty: '', unit_price: '' })
+        : EMPTY_TIERS
+    )
+    setOpen(true)
+  }
+
+  const setTier = (i, field, val) =>
+    setDraft((d) => d.map((t, idx) => (idx === i ? { ...t, [field]: val } : t)))
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      const cleaned = draft
+        .filter((t) => t.min_qty !== '' && t.unit_price !== '')
+        .map((t) => ({ min_qty: parseInt(t.min_qty), unit_price: parseFloat(t.unit_price) }))
+        .sort((a, b) => a.min_qty - b.min_qty)
+      await onSave(cleaned.length ? cleaned : null)
+      setOpen(false)
+    } catch (err) {
+      alert(`Error guardando promociones: ${err.message}`)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!open) {
+    return (
+      <div style={{ marginTop: 6 }}>
+        <span
+          title="Clic para definir promociones por volumen"
+          style={{ cursor: 'pointer', fontSize: 11, color: 'rgba(255,255,255,0.4)' }}
+          onClick={startEdit}
+        >
+          Promos: {existing ? `${existing.length} tramo${existing.length !== 1 ? 's' : ''}` : 'sin definir'}
+        </span>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ marginTop: 6, padding: 10, background: 'rgba(255,255,255,0.03)', borderRadius: 6 }}>
+      <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>
+        Hasta 3 tramos — vacío = sin promoción en ese tramo
+      </p>
+      {draft.map((t, i) => (
+        <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
+          <input
+            type="number" min={1}
+            placeholder="uds."
+            value={t.min_qty}
+            onChange={(e) => setTier(i, 'min_qty', e.target.value)}
+            style={{ width: 56, fontSize: 11 }}
+          />
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>uds. →</span>
+          <input
+            type="number" step="0.01" min={0}
+            placeholder="€/ud"
+            value={t.unit_price}
+            onChange={(e) => setTier(i, 'unit_price', e.target.value)}
+            style={{ width: 64, fontSize: 11 }}
+          />
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>€/ud</span>
+        </div>
+      ))}
+      <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+        <button type="button" className="btn-primary" style={{ fontSize: 11 }} onClick={save} disabled={saving}>
+          {saving ? 'Guardando…' : 'Guardar'}
+        </button>
+        <button type="button" className="btn-ghost" style={{ fontSize: 11 }} onClick={() => setOpen(false)}>
+          Cancelar
+        </button>
       </div>
     </div>
   )
