@@ -1111,3 +1111,36 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
       necesariamente que el build esté lento — probar primero un commit
       vacío antes de asumir que hay que debuggear el código.**
     - Build limpio, verificado por el cliente en vivo tras el retrigger.
+
+23. **Auditoría legal/pagos (2026-07-23) — investigación, sin código
+    tocado todavía.** Pedido explícito de investigar si el pago
+    (TPV propio + Stripe + Odoo) y la venta de vapeo cumplen la
+    normativa española, con foco en Veri*Factu. Informe completo
+    publicado como artifact — pedir el link en la próxima sesión si
+    hace falta releerlo (queda registrado en memoria).
+    - **Hallazgo crítico, pendiente de arreglar**: en `Checkout.jsx`
+      las casillas obligatorias "confirmo mayor de edad" / "acepto
+      privacidad" (`confirmAge`/`acceptPrivacy`) no bloquean el envío
+      del formulario — `handleSubmit` nunca las valida, y los botones
+      solo se deshabilitan por `loading`. Se puede comprar sin
+      marcarlas. El control real de edad (verificación en persona al
+      entregar, reparto propio no tercerizado — ver `CheckoutSuccess.jsx`)
+      sigue funcionando igual, esto es un defecto del checkbox online,
+      no una falta de control real. Arreglo trivial: condicionar el
+      envío a que ambas estén marcadas.
+    - **Veri*Factu no es urgente**: aplazado dos veces, fecha real
+      1 ene 2027 (sociedades) / 1 jul 2027 (autónomos), RD-ley
+      15/2025. La arquitectura actual (ticket del TPV declarado
+      explícitamente no-fiscal + Odoo como única factura real) ya
+      encaja con lo que va a exigir — confirmar con el gestor antes de
+      esa fecha si la instancia de Odoo trae el módulo Veri*Factu.
+    - **Para vigilar, ninguna en vigor todavía**: anteproyecto de ley
+      del tabaco (aprobado en Consejo de Ministros 22/07/2026, pendiente
+      Congreso) que eventualmente prohibiría desechables de un solo uso
+      (categoría `vapers-desechables`, justo la del motor de promos
+      recién construido); propuesta de Sanidad en consulta pública
+      desde nov-2024 que limitaría aromas a solo sabor tabaco (afectaría
+      casi todo el catálogo real si avanza tal cual).
+    - Categoría `cbd` sin productos cargados — sin exposición hoy, pero
+      CBD para consumo (no cosmético) no es legalmente vendible en
+      España si algún día se carga algo ahí.
