@@ -1082,3 +1082,32 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
     - Build limpio, push a `preview/alcosa` (`c24ac9b`), deploy Vercel
       confirmado, edge function `create-checkout-session` desplegada
       (v15).
+
+22. **Ajuste sobre el item 21 (promos desechables) — 2026-07-23.**
+    Corrección de UX: el cliente esperaba los 3 inputs de tramo
+    directamente en `ProductEditor.jsx` (al cargar/editar un producto
+    de categoría desechables), no escondidos en `/admin/categories`
+    como se había shippeado primero. Es la misma configuración (sigue
+    viviendo en `categories.promo_tiers`, sigue aplicando a TODOS los
+    desechables, no por producto) — solo cambió DÓNDE se edita.
+    Extraído `PromoTiersEditor` a componente compartido
+    (`src/components/dom/admin/PromoTiersEditor.jsx`, prop `alwaysOpen`
+    para el modo expandido de `ProductEditor` vs. el modo colapsado
+    "clic para expandir" que ya tenía `Categories.jsx`), usado en
+    ambos lugares. Push `196d0d7`.
+    - **Gotcha de infraestructura encontrado en el camino, no relacionado
+      al código**: dos commits seguidos (`e426fab` doc-only, `196d0d7`
+      este fix) quedaron sin ningún deploy de Vercel — ni pending, ni
+      success, ni failure, directamente `total_count: 0` en el
+      commit-status de GitHub (confirmado con `gh api .../deployments`,
+      que tampoco listaba ninguna entrada para esos SHAs). No fue un
+      build lento, fue el webhook GitHub→Vercel que no disparó. Se
+      resolvió con un commit vacío (`git commit --allow-empty`) para
+      forzar una nueva entrega del webhook — funcionó, deploy
+      `8dd55f6` confirmado success en segundos (probablemente Vercel ya
+      tenía el build hecho en cola y solo faltaba que la notificación
+      llegara). **Si un futuro push se queda "sin status" en vez de
+      pending/success/failure durante más de un par de minutos, no es
+      necesariamente que el build esté lento — probar primero un commit
+      vacío antes de asumir que hay que debuggear el código.**
+    - Build limpio, verificado por el cliente en vivo tras el retrigger.
