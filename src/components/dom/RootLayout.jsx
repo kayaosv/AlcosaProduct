@@ -8,11 +8,13 @@ import { CustomCursor } from './CustomCursor.jsx'
 import { CartDrawer } from './CartDrawer.jsx'
 import { SmoothScroll } from './SmoothScroll.jsx'
 import { Preloader } from './Preloader.jsx'
+import { AgeGate } from './AgeGate.jsx'
 import { SectionTransitions } from './SectionTransitions.jsx'
 import { useAppStore } from '../../stores/useAppStore.js'
 
 export const RootLayout = () => {
   const isLoaded = useAppStore((s) => s.isLoaded)
+  const ageVerified = useAppStore((s) => s.ageVerified)
 
   // Once preloader unmounts, recompute ScrollTrigger positions.
   useEffect(() => {
@@ -29,6 +31,7 @@ export const RootLayout = () => {
   return (
     <SmoothScroll>
       {!isLoaded && <Preloader />}
+      {isLoaded && !ageVerified && <AgeGate />}
       <SectionTransitions />
       <CustomCursor />
       <Nav />
