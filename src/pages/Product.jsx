@@ -1,8 +1,6 @@
-import { Suspense, useRef, useState } from 'react'
+import { Suspense, lazy, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import gsap from 'gsap'
-import { Canvas, useFrame } from '@react-three/fiber'
-import { Float, Environment, useGLTF } from '@react-three/drei'
 import { useProduct } from '../hooks/useProduct.js'
 import { useProductVariants } from '../hooks/useProductVariants.js'
 import { useCartStore } from '../stores/useCartStore.js'
@@ -10,6 +8,14 @@ import { useAppStore } from '../stores/useAppStore.js'
 import { categoryVariantType, VARIANT_LABELS } from '../lib/productSpecs.js'
 import { ProductSuggestions } from '../components/dom/ProductSuggestions.jsx'
 import { PromoTiers } from '../components/dom/PromoTiers.jsx'
+import { shouldSimplifyVisuals, isDesktopViewport } from '../lib/deviceCapability.js'
+
+// Import dinamico: es un fondo decorativo (ver mas abajo), asi que en
+// movil/tablet/reduced-motion o pantallas angostas ni three.js ni el
+// modelo GLB se descargan.
+const ProductDecorCanvas = lazy(() =>
+  import('../components/three/ProductDecorCanvas.jsx').then((m) => ({ default: m.ProductDecorCanvas })),
+)
 
 const formatPrice = (n) => `${Number(n).toFixed(2)}€`
 
@@ -108,37 +114,6 @@ const VariantPicker = ({ variantType, variants, selectedId, onSelect }) => (
   </div>
 )
 
-const ProductVape = () => {
-  const ref = useRef(null)
-  const { scene } = useGLTF('/models/vape.glb')
-  useFrame((_, d) => {
-    if (ref.current) ref.current.rotation.y += d * 0.4
-  })
-  return (
-    <Float floatIntensity={0.3} speed={1}>
-      <primitive ref={ref} object={scene.clone()} scale={2.2} />
-    </Float>
-  )
-}
-
-const ProductCanvas = () => (
-  <Canvas
-    dpr={[1, 1.5]}
-    gl={{ antialias: true, alpha: true }}
-    camera={{ position: [0, 0, 5], fov: 35 }}
-    className="!absolute inset-0 pointer-events-none"
-    style={{ zIndex: 0 }}
-  >
-    <ambientLight intensity={0.5} />
-    <directionalLight position={[3, 4, 3]} intensity={1} color="#C6F91F" />
-    <directionalLight position={[-3, -2, 2]} intensity={0.5} color="#5B8EE8" />
-    <Suspense fallback={null}>
-      <ProductVape />
-    </Suspense>
-    <Environment preset="studio" />
-  </Canvas>
-)
-
 export const Product = () => {
   const { id } = useParams()
   const buttonRef = useRef(null)
@@ -147,6 +122,7 @@ export const Product = () => {
   const [selectedVariantId, setSelectedVariantId] = useState(null)
   const addItem = useCartStore((s) => s.addItem)
   const setCartOpen = useAppStore((s) => s.setCartOpen)
+  const [canShowDecorCanvas] = useState(() => !shouldSimplifyVisuals() && isDesktopViewport())
 
   if (loading) {
     return (
@@ -199,7 +175,7 @@ export const Product = () => {
   const effectiveStock = hasVariants ? selectedVariant.stock : product.stock
   const out = effectiveStock === 0
   const low = effectiveStock > 0 && effectiveStock < 5
-  const showCanvas = slug === 'vapers' || slug === 'vapers-desechables'
+  const showCanvas = canShowDecorCanvas && (slug === 'vapers' || slug === 'vapers-desechables')
 
   const handleAdd = () => {
     if (out) return
@@ -236,7 +212,9 @@ export const Product = () => {
           className="hidden lg:block absolute top-32 right-0 w-[40%] h-[80vh] opacity-30 pointer-events-none"
           style={{ zIndex: -1 }}
         >
-          <ProductCanvas />
+          <Suspense fallback={null}>
+            <ProductDecorCanvas />
+          </Suspense>
         </div>
       )}
 
