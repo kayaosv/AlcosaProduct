@@ -33,8 +33,11 @@ export const SectionTransitions = () => {
         gsap.timeline({
           scrollTrigger: {
             trigger: section,
-            start: 'bottom 75%',
-            end: 'bottom top',
+            // Antes 'bottom 75%' -> 'bottom top' (~75% de viewport de
+            // scroll tapando la pantalla entera). Acortado a ~45% -
+            // mismo efecto, resuelve mas rapido, menos scroll molesto.
+            start: 'bottom 70%',
+            end: 'bottom 25%',
             scrub: 0.6,
           },
         })
@@ -52,8 +55,10 @@ export const SectionTransitions = () => {
         gsap.timeline({
           scrollTrigger: {
             trigger: section,
-            start: 'bottom 85%',
-            end: 'bottom 20%',
+            // Antes 'bottom 85%' -> 'bottom 20%' (~65% de viewport).
+            // Acortado a ~45%.
+            start: 'bottom 80%',
+            end: 'bottom 35%',
             scrub: 0.4,
           },
         })
@@ -66,8 +71,10 @@ export const SectionTransitions = () => {
         gsap.timeline({
           scrollTrigger: {
             trigger: section,
-            start: 'bottom 85%',
-            end: 'bottom 20%',
+            // Antes 'bottom 85%' -> 'bottom 20%' (~65% de viewport).
+            // Acortado a ~45%.
+            start: 'bottom 80%',
+            end: 'bottom 35%',
             scrub: 0.4,
           },
         })
