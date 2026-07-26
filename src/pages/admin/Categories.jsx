@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { useAdminProducts } from '../../hooks/useAdminProducts.js'
 import { useCategories } from '../../hooks/useCategories.js'
 import { categoryColor, CATEGORY_TEMPLATES } from '../../lib/productSpecs.js'
+import { PromoTiersEditor } from '../../components/dom/admin/PromoTiersEditor.jsx'
 
 const DEFAULT_COLOR = '#6b7280'
 const DEFAULT_TEMPLATE = 'accesorios'
@@ -315,6 +316,10 @@ export const Categories = () => {
               )}
             </div>
 
+            {c.kind === 'desechables' && (
+              <PromoTiersEditor category={c} onSave={(tiers) => update(c.id, { promo_tiers: tiers })} />
+            )}
+
             <div className="cat-card-actions">
               <div className="cat-card-order">
                 <button
@@ -368,3 +373,4 @@ export const Categories = () => {
     </div>
   )
 }
+

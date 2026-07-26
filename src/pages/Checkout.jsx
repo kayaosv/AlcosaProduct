@@ -60,6 +60,56 @@ const ConsentCheckbox = ({ checked, onChange, children }) => (
   </label>
 )
 
+// Segunda verificacion de edad, especifica del pago online con Stripe -
+// se suma al checkbox "Confirmo que soy mayor de edad" ya requerido en el
+// formulario (03 - Confirmacion), como paso explicito adicional justo
+// antes de iniciar el pago.
+const StripeAgeConfirmModal = ({ onConfirm, onCancel }) => (
+  <div
+    className="fixed inset-0 z-[2000] flex items-center justify-center p-6"
+    style={{ background: 'rgba(23,45,109,0.85)' }}
+  >
+    <div className="max-w-sm w-full p-8" style={{ background: 'var(--color-cream)' }}>
+      <span
+        className="block text-[10px] tracking-[0.25em] uppercase mb-4"
+        style={{ color: 'var(--color-blue)' }}
+      >
+        Antes de pagar
+      </span>
+      <h2
+        className="leading-[0.95] mb-4"
+        style={{ fontWeight: 900, fontSize: 'var(--text-lg)', color: 'var(--color-navy)' }}
+      >
+        ÚLTIMA CONFIRMACIÓN
+      </h2>
+      <p className="text-[13px] leading-relaxed mb-8" style={{ color: 'rgba(23,45,109,0.8)' }}>
+        Confirma que eres mayor de 18 años antes de continuar al pago online. La venta de
+        estos productos está restringida a mayores de edad.
+      </p>
+      <div className="flex flex-col gap-3">
+        <button
+          type="button"
+          onClick={onConfirm}
+          data-cursor="link"
+          className="w-full py-4 text-[12px] tracking-[0.2em] uppercase"
+          style={{ background: 'var(--color-navy)', color: 'var(--color-lime)', fontWeight: 900 }}
+        >
+          ▸ Confirmo, continuar al pago
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          data-cursor="link"
+          className="w-full py-4 text-[12px] tracking-[0.2em] uppercase"
+          style={{ border: '1px solid rgba(23,45,109,0.3)', color: 'var(--color-navy)', fontWeight: 700 }}
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+)
+
 const SuccessState = ({ orderId, total, onContinue }) => {
   const ref = useRef(null)
 
@@ -177,6 +227,7 @@ export const Checkout = () => {
   const [acceptPrivacy, setAcceptPrivacy] = useState(false)
   const [confirmAge, setConfirmAge] = useState(false)
   const [success, setSuccess] = useState(null)
+  const [showStripeAgeGate, setShowStripeAgeGate] = useState(false)
 
   const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
 
@@ -209,7 +260,9 @@ export const Checkout = () => {
 
     if (method === 'stripe') {
       if (stripeLoading) return
-      await payOnline({ customer: form, items, notes: form.notes })
+      // Segunda verificacion de edad especifica del pago online, antes
+      // de llamar a payOnline - ver StripeAgeConfirmModal.
+      setShowStripeAgeGate(true)
       return
     }
 
@@ -225,6 +278,11 @@ export const Checkout = () => {
       clearCart()
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
+  }
+
+  const confirmStripePayment = async () => {
+    setShowStripeAgeGate(false)
+    await payOnline({ customer: form, items, notes: form.notes })
   }
 
   if (success) {
@@ -276,6 +334,13 @@ export const Checkout = () => {
 
   return (
     <main ref={containerRef} className="min-h-screen pt-32 pb-24 px-6 md:px-10">
+      {showStripeAgeGate && (
+        <StripeAgeConfirmModal
+          onConfirm={confirmStripePayment}
+          onCancel={() => setShowStripeAgeGate(false)}
+        />
+      )}
+
       <div data-anim="checkout">
         <Link
           to="/cart"

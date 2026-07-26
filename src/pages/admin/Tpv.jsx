@@ -1,8 +1,9 @@
-import { useRef, useState, useEffect, useCallback } from 'react'
+import { useRef, useState, useEffect, useMemo, useCallback } from 'react'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { supabase } from '../../lib/supabase.js'
 import { PosTicket } from '../../components/dom/admin/PosTicket.jsx'
+import { applyDesechablesTiers } from '../../lib/promoTiers.js'
 
 const BARCODE_FORMATS = ['ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a', 'upc_e', 'qr_code']
 
@@ -142,7 +143,7 @@ export const Tpv = () => {
       .from('product_variants')
       .select(`
         id, label, stock, price, sale_price, is_primary, product_id,
-        products(id, name, price, sale_price, is_on_sale)
+        products(id, name, price, sale_price, is_on_sale, categories(id, kind, promo_tiers))
       `)
       .eq('barcode', clean)
       .maybeSingle()
@@ -164,6 +165,9 @@ export const Tpv = () => {
         variantLabel: variantHit.label,
         unitPrice: resolveVariantPrice(variantHit.products, variantHit, primary),
         maxStock: variantHit.stock,
+        categoryId: variantHit.products.categories?.id ?? null,
+        categoryKind: variantHit.products.categories?.kind ?? null,
+        promoTiers: variantHit.products.categories?.promo_tiers ?? null,
       })
       setBarcode('')
       return
@@ -171,7 +175,7 @@ export const Tpv = () => {
 
     const { data: product } = await supabase
       .from('products')
-      .select('id, name, price, sale_price, is_on_sale, stock')
+      .select('id, name, price, sale_price, is_on_sale, stock, categories(id, kind, promo_tiers)')
       .eq('barcode', clean)
       .maybeSingle()
 
@@ -188,6 +192,9 @@ export const Tpv = () => {
       variantLabel: null,
       unitPrice: resolveVariantPrice(product, null, null),
       maxStock: product.stock,
+      categoryId: product.categories?.id ?? null,
+      categoryKind: product.categories?.kind ?? null,
+      promoTiers: product.categories?.promo_tiers ?? null,
     })
     setBarcode('')
   }, [])
@@ -209,7 +216,12 @@ export const Tpv = () => {
 
   const removeLine = (key) => setCart((prev) => prev.filter((l) => l.key !== key))
 
-  const total = cart.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0)
+  // Ajuste por tramo de volumen (desechables) — mismo calculo que
+  // apply_desechables_tier() en el server, ver src/lib/promoTiers.js.
+  // El vendedor tiene que ver el precio ya con el tramo aplicado antes
+  // de cobrar en el datafono fisico, no despues.
+  const displayCart = useMemo(() => applyDesechablesTiers(cart), [cart])
+  const total = displayCart.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0)
 
   const charge = async () => {
     if (cart.length === 0 || !paymentType || charging) return
@@ -226,7 +238,7 @@ export const Tpv = () => {
       if (error) throw error
 
       const sale = Array.isArray(data) ? data[0] : data
-      const soldItems = cart
+      const soldItems = displayCart
       const soldPaymentType = paymentType
 
       setLastSale({
@@ -317,7 +329,7 @@ export const Tpv = () => {
             <p className="tpv-cart-empty">El carrito está vacío — escaneá un producto para empezar.</p>
           ) : (
             <div className="tpv-cart-lines">
-              {cart.map((l) => (
+              {displayCart.map((l) => (
                 <div key={l.key} className="tpv-cart-line">
                   <div className="tpv-cart-line-info">
                     <p className="tpv-cart-line-name">{l.name}</p>

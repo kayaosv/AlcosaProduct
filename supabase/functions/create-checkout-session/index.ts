@@ -3,7 +3,10 @@
 // Coexiste con create_order() (reserva, paga en tienda) - esta funcion
 // es solo para la opcion "pagar ahora online" del checkout. Nunca
 // confia en precios/stock que manda el cliente: los revalida contra la
-// base real via get_checkout_line() (supabase/stripe-checkout.sql).
+// base real via get_checkout_lines() (supabase/add-desechables-promo-tiers.sql),
+// que resuelve el carrito COMPLETO de una vez (necesario para calcular
+// las promociones por volumen de desechables, que dependen del total
+// de unidades en todo el carrito, no de una linea sola).
 // El pedido en si NO se crea aqui, ni se descuenta stock aqui - eso
 // pasa recien cuando Stripe confirma el pago (ver stripe-webhook), por
 // eso el carrito se guarda de momento en checkout_drafts.
@@ -65,19 +68,34 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     )
 
-    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = []
-    const draftItems: { product_id: string; variant_id: string | null; quantity: number }[] = []
-
     for (const item of items) {
       if (!item.productId || !item.quantity || item.quantity <= 0) {
         return json({ error: "Línea de pedido inválida" }, 400)
       }
+    }
 
-      const { data, error } = await supabase
-        .rpc("get_checkout_line", { p_product_id: item.productId, p_variant_id: item.variantId ?? null })
-        .single()
+    // get_checkout_lines() resuelve el carrito COMPLETO de una vez (no
+    // linea por linea como el viejo get_checkout_line) — necesario para
+    // que las promociones por volumen de desechables (que dependen de
+    // cuantas unidades hay en TODO el carrito, no solo en esta linea)
+    // se calculen antes de fijar el monto que Stripe va a cobrar.
+    const { data: lines, error: linesError } = await supabase.rpc("get_checkout_lines", {
+      p_items: items.map((item: { productId: string; variantId?: string | null; quantity: number }) => ({
+        product_id: item.productId,
+        variant_id: item.variantId ?? null,
+        quantity: item.quantity,
+      })),
+    })
 
-      if (error) throw error
+    if (linesError) throw linesError
+
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = []
+    const draftItems: { product_id: string; variant_id: string | null; quantity: number }[] = []
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      const data = lines?.[i]
+
       if (!data?.is_available) {
         return json({ error: `"${data?.product_name ?? "Producto"}" ya no está disponible` }, 409)
       }

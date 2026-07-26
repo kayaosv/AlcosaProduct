@@ -17,7 +17,7 @@ export const useProduct = (id) => {
         .select(`
           id, name, brand, price, sale_price, is_on_sale,
           stock, is_active, is_featured, image_url, details,
-          categories(id, name, slug)
+          categories(id, name, slug, kind, promo_tiers)
         `)
         .eq('id', id)
         .maybeSingle()

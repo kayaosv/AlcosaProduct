@@ -1003,3 +1003,144 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
       un campo `promo_tiers jsonb` en `categories` (editable solo
       cuando `kind = 'desechables'`), con hasta 3 tramos
       `{unidades_min, precio_unidad}`.
+
+21. **Fase 2 del pedido de frontend — promociones automáticas por
+    volumen en Vapers Desechables, 2026-07-23.** Hasta 3 tramos
+    `{unidades_min, precio_unidad}` configurables desde
+    `/admin/categories` (solo visible cuando la categoría es de tipo
+    `desechables`), aplicados **automáticamente** al total en los 4
+    puntos donde se fija un precio de cobro — no es solo informativo.
+    - **`apply_desechables_tier(lineas)`**: única función SQL donde
+      vive el cálculo del tramo (agrupa por categoría, suma unidades,
+      busca el tramo más alto cuyo mínimo se alcanza, nunca empeora un
+      precio ya rebajado por oferta individual). `create_order`,
+      `create_paid_order` y `create_pos_sale` NO se reescribieron por
+      dentro — el núcleo con `FOR UPDATE` + descuento de stock quedó
+      intacto, solo se les agregó un paso al final que llama a esta
+      función antes de insertar las líneas del pedido.
+    - **Pago online (Stripe) — el punto más delicado**: `create-
+      checkout-session` fijaba el monto a cobrar llamando a
+      `get_checkout_line` línea por línea, sin ver el resto del
+      carrito, así que no podía saber si había suficientes desechables
+      para un tramo. Se creó `get_checkout_lines` (plural, recibe el
+      carrito completo) y se cambió el edge function para usarla —
+      desplegado como versión 15.
+    - **TPV**: el total en pantalla (`Tpv.jsx`) ya usaba una función JS
+      que espeja la resolución de precio del server solo para mostrar
+      algo antes de cobrar (el RPC es la fuente real). Se espejó
+      también el cálculo de tramo ahí (`src/lib/promoTiers.js`,
+      `applyDesechablesTiers`) — importante porque el pago en TPV es
+      manual (el vendedor cobra en un datáfono aparte), así que el
+      monto en pantalla tiene que ya venir con el descuento antes de
+      cobrar, no después.
+    - **Deliberadamente fuera de esta fase**: el total mostrado en el
+      carrito/checkout online (`useCartStore.total`) NO quedó
+      conectado al cálculo de tramo — sigue siendo una suma simple.
+      Esto no afecta lo que Stripe cobra de verdad (eso lo resuelve
+      `get_checkout_lines` en el servidor, con el número correcto,
+      pase lo que pase en pantalla antes), pero el cliente podría ver
+      un total en el carrito que no coincide con el que ve al llegar a
+      la página de Stripe. Pendiente si se quiere pulir después.
+    - **Ficha de producto**: `PromoTiers.jsx` muestra hasta 3
+      mini-cards estilo sinhumo.net ("3 uds · 10% dto. · Ahorras
+      2,67€"), calculado contra el precio ya resuelto por variante
+      (`finalPrice`, no `product.price` — los desechables tienen
+      variantes de sabor, así que el precio base del producto está
+      vacío). Deliberadamente NO se muestra nada en la card chica de
+      la grilla del catálogo (decisión del cliente, sinhumo tampoco lo
+      hace ahí).
+    - **2 bugs reales encontrados recién al ejecutar** (no visibles
+      leyendo el código, típico de PL/pgSQL): (a) `get_checkout_lines`
+      no podía ser `STABLE` porque hace `CREATE TEMP TABLE` (DDL,
+      exige `VOLATILE`); (b) usar `idx`/`product_id`/`variant_id` como
+      columnas de salida (`RETURNS TABLE`) las deja en scope como
+      variables PL/pgSQL dentro de toda la función — cualquier
+      referencia SIN alias a esas mismas columnas en una tabla real
+      quedaba ambigua. Se resolvió aliasing explícito en todas las
+      queries y sacando `product_id`/`variant_id` del `RETURNS TABLE`
+      (no se usaban). Confirmado por `get_advisors` sin hallazgos
+      nuevos tras la migración.
+    - **Verificado con datos reales, revertido después** (mismo
+      criterio que la prueba de Odoo): tramo de prueba `3→4.20€,
+      5→3.90€, 10→3.50€` sobre "OXBAR 600 Puff" (único producto real
+      en `vapers-desechables`, hoy con stock 0 en catálogo — pendiente
+      el punto 9 de abajo), carrito sintético de 3+4=7 unidades →
+      aplicó correctamente el tramo de 5 (3,90€/ud), total
+      `create_order` devolvió `27.30€` (=3,90×7), verificado también
+      contra las filas de `order_items`. Solo se probó `create_order`
+      y `get_checkout_lines` directamente (no `create_pos_sale`/
+      `create_paid_order`, que comparten el mismo patrón exacto pero
+      necesitan simular sesión de admin / evento real de Stripe) —
+      recomendado hacer una venta de prueba real en `/admin/tpv` y un
+      pago de prueba con Stripe test mode antes de confiar en esto en
+      producción, mismo criterio que se usó para validar Stripe/Odoo.
+    - **Pendiente para que la promo tenga efecto real**: cargar los
+      tramos reales desde `/admin/categories` (hoy `promo_tiers` es
+      `null`, la función no hace nada hasta que se configure) y subir
+      stock/variantes reales de desechables — hoy solo hay 1 producto
+      con 10 variantes de sabor y stock 0.
+    - Build limpio, push a `preview/alcosa` (`c24ac9b`), deploy Vercel
+      confirmado, edge function `create-checkout-session` desplegada
+      (v15).
+
+22. **Ajuste sobre el item 21 (promos desechables) — 2026-07-23.**
+    Corrección de UX: el cliente esperaba los 3 inputs de tramo
+    directamente en `ProductEditor.jsx` (al cargar/editar un producto
+    de categoría desechables), no escondidos en `/admin/categories`
+    como se había shippeado primero. Es la misma configuración (sigue
+    viviendo en `categories.promo_tiers`, sigue aplicando a TODOS los
+    desechables, no por producto) — solo cambió DÓNDE se edita.
+    Extraído `PromoTiersEditor` a componente compartido
+    (`src/components/dom/admin/PromoTiersEditor.jsx`, prop `alwaysOpen`
+    para el modo expandido de `ProductEditor` vs. el modo colapsado
+    "clic para expandir" que ya tenía `Categories.jsx`), usado en
+    ambos lugares. Push `196d0d7`.
+    - **Gotcha de infraestructura encontrado en el camino, no relacionado
+      al código**: dos commits seguidos (`e426fab` doc-only, `196d0d7`
+      este fix) quedaron sin ningún deploy de Vercel — ni pending, ni
+      success, ni failure, directamente `total_count: 0` en el
+      commit-status de GitHub (confirmado con `gh api .../deployments`,
+      que tampoco listaba ninguna entrada para esos SHAs). No fue un
+      build lento, fue el webhook GitHub→Vercel que no disparó. Se
+      resolvió con un commit vacío (`git commit --allow-empty`) para
+      forzar una nueva entrega del webhook — funcionó, deploy
+      `8dd55f6` confirmado success en segundos (probablemente Vercel ya
+      tenía el build hecho en cola y solo faltaba que la notificación
+      llegara). **Si un futuro push se queda "sin status" en vez de
+      pending/success/failure durante más de un par de minutos, no es
+      necesariamente que el build esté lento — probar primero un commit
+      vacío antes de asumir que hay que debuggear el código.**
+    - Build limpio, verificado por el cliente en vivo tras el retrigger.
+
+23. **Auditoría legal/pagos (2026-07-23) — investigación, sin código
+    tocado todavía.** Pedido explícito de investigar si el pago
+    (TPV propio + Stripe + Odoo) y la venta de vapeo cumplen la
+    normativa española, con foco en Veri*Factu. Informe completo
+    publicado como artifact — pedir el link en la próxima sesión si
+    hace falta releerlo (queda registrado en memoria).
+    - **Hallazgo crítico, pendiente de arreglar**: en `Checkout.jsx`
+      las casillas obligatorias "confirmo mayor de edad" / "acepto
+      privacidad" (`confirmAge`/`acceptPrivacy`) no bloquean el envío
+      del formulario — `handleSubmit` nunca las valida, y los botones
+      solo se deshabilitan por `loading`. Se puede comprar sin
+      marcarlas. El control real de edad (verificación en persona al
+      entregar, reparto propio no tercerizado — ver `CheckoutSuccess.jsx`)
+      sigue funcionando igual, esto es un defecto del checkbox online,
+      no una falta de control real. Arreglo trivial: condicionar el
+      envío a que ambas estén marcadas.
+    - **Veri*Factu no es urgente**: aplazado dos veces, fecha real
+      1 ene 2027 (sociedades) / 1 jul 2027 (autónomos), RD-ley
+      15/2025. La arquitectura actual (ticket del TPV declarado
+      explícitamente no-fiscal + Odoo como única factura real) ya
+      encaja con lo que va a exigir — confirmar con el gestor antes de
+      esa fecha si la instancia de Odoo trae el módulo Veri*Factu.
+    - **Para vigilar, ninguna en vigor todavía**: anteproyecto de ley
+      del tabaco (aprobado en Consejo de Ministros 22/07/2026, pendiente
+      Congreso) que eventualmente prohibiría desechables de un solo uso
+      (categoría `vapers-desechables`, justo la del motor de promos
+      recién construido); propuesta de Sanidad en consulta pública
+      desde nov-2024 que limitaría aromas a solo sabor tabaco (afectaría
+      casi todo el catálogo real si avanza tal cual).
+    - Categoría `cbd` sin productos cargados — sin exposición hoy, pero
+      CBD para consumo (no cosmético) no es legalmente vendible en
+      España si algún día se carga algo ahí.
