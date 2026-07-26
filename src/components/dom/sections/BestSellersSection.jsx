@@ -3,23 +3,19 @@ import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { SplitText } from 'gsap/SplitText'
-import { useGLTF } from '@react-three/drei'
 import { BEST_SELLERS } from '../../../config/bestSellers.js'
 import { ProductCard3D } from '../ProductCard3D.jsx'
-import { shouldSimplifyVisuals } from '../../../lib/deviceCapability.js'
+import { useInView } from '../../../hooks/useInView.js'
 
-// En movil/tablet/reduced-motion, ProductCard3D no monta el modelo 3D
-// (ver su propio chequeo interno) - precargarlo igual seria descargar
-// el .glb (varios cientos de KB) sin usarlo nunca.
-if (!shouldSimplifyVisuals()) {
-  BEST_SELLERS.forEach((p) => useGLTF.preload(p.model))
-}
-
+// Sin preload manual: el modelo 3D se carga solo cuando la seccion esta
+// por aparecer (useInView, con margen de adelanto), no antes - ver
+// ProductCard3D (recibe `active` y decide cuando montar el modelo real).
 const FLEX_LAYOUT = [1.4, 1, 1, 0.8]
 
 export const BestSellersSection = () => {
   const rootRef = useRef(null)
   const headingRef = useRef(null)
+  const [, inView] = useInView('300px', rootRef)
 
   useGSAP(
     () => {
@@ -119,6 +115,7 @@ export const BestSellersSection = () => {
               key={product.id}
               product={product}
               flex={FLEX_LAYOUT[i] ?? 1}
+              active={inView}
             />
           ))}
         </div>
