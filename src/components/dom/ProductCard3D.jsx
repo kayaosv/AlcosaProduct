@@ -4,12 +4,14 @@ import { View, PerspectiveCamera } from '@react-three/drei'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { ProductModel3D } from '../canvas/ProductModel3D.jsx'
+import { shouldSimplifyVisuals } from '../../lib/deviceCapability.js'
 
 export const ProductCard3D = ({ product, flex = 1 }) => {
   const rootRef = useRef(null)
   const viewRef = useRef(null)
   const ctaRef = useRef(null)
   const [isHovered, setIsHovered] = useState(false)
+  const [simplify] = useState(shouldSimplifyVisuals)
 
   useGSAP(
     () => {
@@ -61,10 +63,21 @@ export const ProductCard3D = ({ product, flex = 1 }) => {
           position: 'relative',
         }}
       >
-        <View track={viewRef} style={{ width: '100%', height: '100%' }}>
-          <PerspectiveCamera makeDefault position={[0, 0, 4]} fov={35} />
-          <ProductModel3D model={product.model} isHovered={isHovered} />
-        </View>
+        {simplify ? (
+          <div
+            className="w-full h-full flex items-center justify-center"
+            style={{ background: 'var(--color-dark)', color: 'var(--color-lime)' }}
+          >
+            <span style={{ fontWeight: 900, fontSize: 32 }}>
+              {(product.brand || product.name || 'V').slice(0, 2).toUpperCase()}
+            </span>
+          </div>
+        ) : (
+          <View track={viewRef} style={{ width: '100%', height: '100%' }}>
+            <PerspectiveCamera makeDefault position={[0, 0, 4]} fov={35} />
+            <ProductModel3D model={product.model} isHovered={isHovered} />
+          </View>
+        )}
       </div>
 
       <div className="flex flex-col gap-2 p-6 pt-4 border-t border-white/5">
