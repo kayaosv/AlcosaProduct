@@ -5,7 +5,12 @@ import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { ProductModel3D } from '../canvas/ProductModel3D.jsx'
 
-export const ProductCard3D = ({ product, flex = 1 }) => {
+// `active`: controlado por BestSellersSection via useInView - el
+// modelo 3D real (y la descarga de su .glb) solo se monta cuando la
+// seccion esta por aparecer en el scroll, en cualquier dispositivo
+// (tactil o no - antes se decidia por tipo de dispositivo, lo que
+// tambien apagaba el 3D en tablets capaces).
+export const ProductCard3D = ({ product, flex = 1, active = true }) => {
   const rootRef = useRef(null)
   const viewRef = useRef(null)
   const ctaRef = useRef(null)
@@ -61,10 +66,21 @@ export const ProductCard3D = ({ product, flex = 1 }) => {
           position: 'relative',
         }}
       >
-        <View track={viewRef} style={{ width: '100%', height: '100%' }}>
-          <PerspectiveCamera makeDefault position={[0, 0, 4]} fov={35} />
-          <ProductModel3D model={product.model} isHovered={isHovered} />
-        </View>
+        {!active ? (
+          <div
+            className="w-full h-full flex items-center justify-center"
+            style={{ background: 'var(--color-dark)', color: 'var(--color-lime)' }}
+          >
+            <span style={{ fontWeight: 900, fontSize: 32 }}>
+              {(product.brand || product.name || 'V').slice(0, 2).toUpperCase()}
+            </span>
+          </div>
+        ) : (
+          <View track={viewRef} style={{ width: '100%', height: '100%' }}>
+            <PerspectiveCamera makeDefault position={[0, 0, 4]} fov={35} />
+            <ProductModel3D model={product.model} isHovered={isHovered} />
+          </View>
+        )}
       </div>
 
       <div className="flex flex-col gap-2 p-6 pt-4 border-t border-white/5">

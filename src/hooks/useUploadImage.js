@@ -2,7 +2,12 @@ import { useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase.js'
 
 const BUCKET = 'product-images'
-const MAX_DIMENSION = 1600
+// Bajado de 1600 a 1000 - las tarjetas de catalogo se ven a ~300px de
+// ancho (mismo comentario de mas abajo) y hasta la foto grande de
+// ficha de producto no necesita mas de 1000px en la practica. Reduce
+// el peso de descarga para todos los usos sin generar tamaños
+// multiples/srcset (mejora mas completa, pendiente por separado).
+const MAX_DIMENSION = 1000
 const WEBP_QUALITY = 0.82
 
 const slugify = (s) =>

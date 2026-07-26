@@ -1,7 +1,5 @@
-import { useEffect } from 'react'
-import { Outlet } from 'react-router-dom'
-import { Canvas } from '@react-three/fiber'
-import { View } from '@react-three/drei'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import { Outlet, useLocation } from 'react-router-dom'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { Nav } from './Nav.jsx'
 import { CustomCursor } from './CustomCursor.jsx'
@@ -11,10 +9,21 @@ import { Preloader } from './Preloader.jsx'
 import { AgeGate } from './AgeGate.jsx'
 import { SectionTransitions } from './SectionTransitions.jsx'
 import { useAppStore } from '../../stores/useAppStore.js'
+import { shouldSimplifyVisuals } from '../../lib/deviceCapability.js'
+
+// Import dinamico: three.js/fiber/drei no se descargan en absoluto en
+// rutas que no lo necesitan (View.Port solo lo usa BestSellersSection,
+// solo en home) ni en dispositivos simplificados.
+const SharedCanvas = lazy(() =>
+  import('../three/SharedCanvas.jsx').then((m) => ({ default: m.SharedCanvas })),
+)
 
 export const RootLayout = () => {
   const isLoaded = useAppStore((s) => s.isLoaded)
   const ageVerified = useAppStore((s) => s.ageVerified)
+  const location = useLocation()
+  const [simplify] = useState(shouldSimplifyVisuals)
+  const needsCanvas = !simplify && location.pathname === '/'
 
   // Once preloader unmounts, recompute ScrollTrigger positions.
   useEffect(() => {
@@ -37,19 +46,11 @@ export const RootLayout = () => {
       <Nav />
       <Outlet />
       <CartDrawer />
-      <Canvas
-        style={{
-          position: 'fixed',
-          inset: 0,
-          pointerEvents: 'none',
-          zIndex: 1,
-          background: 'transparent',
-        }}
-        gl={{ antialias: false, alpha: true }}
-        dpr={[1, 1.5]}
-      >
-        <View.Port />
-      </Canvas>
+      {needsCanvas && (
+        <Suspense fallback={null}>
+          <SharedCanvas />
+        </Suspense>
+      )}
     </SmoothScroll>
   )
 }
