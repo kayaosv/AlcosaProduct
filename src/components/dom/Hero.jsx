@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { lazy, Suspense, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
@@ -6,7 +6,14 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { SplitText } from 'gsap/SplitText'
 import { useAppStore } from '../../stores/useAppStore.js'
 import { useCTAHover } from '../../hooks/useCTAHover.js'
-import { HeroCanvas } from '../three/HeroCanvas.jsx'
+import { shouldSimplifyVisuals } from '../../lib/deviceCapability.js'
+
+// Import dinamico: en movil/tablet/reduced-motion, el modulo entero
+// (three.js + postprocesado + preload del modelo GLB) ni siquiera se
+// descarga - no solo se evita renderizarlo. Ver deviceCapability.js.
+const HeroCanvas = lazy(() =>
+  import('../three/HeroCanvas.jsx').then((m) => ({ default: m.HeroCanvas })),
+)
 
 export const Hero = () => {
   const rootRef = useRef(null)
@@ -16,6 +23,7 @@ export const Hero = () => {
   const verticalRef = useRef(null)
   const isLoaded = useAppStore((s) => s.isLoaded)
   const cta = useCTAHover()
+  const [simplify] = useState(shouldSimplifyVisuals)
 
   useGSAP(
     () => {
@@ -75,7 +83,11 @@ export const Hero = () => {
           .hero-lime { margin-left: -0.2em; }
         }
       `}</style>
-      <HeroCanvas />
+      {!simplify && (
+        <Suspense fallback={null}>
+          <HeroCanvas />
+        </Suspense>
+      )}
 
       <div
         className="absolute inset-0 pointer-events-none"
