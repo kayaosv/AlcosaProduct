@@ -1,4 +1,4 @@
-import { Canvas, useFrame } from '@react-three/fiber'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Float, Environment, useGLTF } from '@react-three/drei'
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing'
 import { Suspense, useRef } from 'react'
@@ -8,6 +8,15 @@ useGLTF.preload('/models/vape.glb')
 const VapeModel = () => {
   const ref = useRef(null)
   const { scene } = useGLTF('/models/vape.glb')
+  // El FOV de three.js es vertical - el ancho visible en profundidad
+  // depende de la relacion de aspecto del viewport. Un desplazamiento
+  // fijo en X (pensado para desktop, aspecto ancho) cae fuera de
+  // cuadro en movil (aspecto angosto y alto). `viewport.width` ya
+  // calcula el ancho visible real en unidades de mundo para el
+  // aspecto actual - usar una fraccion de eso en vez de un valor fijo
+  // mantiene el modelo dentro de cuadro en cualquier dispositivo.
+  const viewportWidth = useThree((state) => state.viewport.width)
+  const xOffset = Math.min(1.4, viewportWidth * 0.22)
 
   useFrame((_, delta) => {
     if (!ref.current) return
@@ -20,7 +29,7 @@ const VapeModel = () => {
         ref={ref}
         object={scene}
         scale={0.9}
-        position={[1.4, -0.2, 0]}
+        position={[xOffset, -0.2, 0]}
         rotation={[0, -0.4, 0.15]}
       />
     </Float>
