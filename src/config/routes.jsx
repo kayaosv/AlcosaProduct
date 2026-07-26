@@ -1,62 +1,111 @@
 import { createBrowserRouter } from 'react-router-dom'
 import { RootLayout } from '../components/dom/RootLayout.jsx'
 import { Home } from '../pages/Home.jsx'
-import { Catalog } from '../pages/Catalog.jsx'
-import { Product } from '../pages/Product.jsx'
-import { Cart } from '../pages/Cart.jsx'
-import { Checkout } from '../pages/Checkout.jsx'
-import { CheckoutSuccess } from '../pages/CheckoutSuccess.jsx'
-import { AvisoLegal } from '../pages/AvisoLegal.jsx'
-import { Privacidad } from '../pages/Privacidad.jsx'
-import { Cookies } from '../pages/Cookies.jsx'
 import { AdminLayout } from '../pages/admin/AdminLayout.jsx'
-import { Login } from '../pages/admin/Login.jsx'
-import { Dashboard } from '../pages/admin/Dashboard.jsx'
-import { Products } from '../pages/admin/Products.jsx'
-import { ProductEditor } from '../pages/admin/ProductEditor.jsx'
-import { ProductLabel } from '../pages/admin/ProductLabel.jsx'
-import { Orders } from '../pages/admin/Orders.jsx'
-import { OrderDetail } from '../pages/admin/OrderDetail.jsx'
-import { Categories } from '../pages/admin/Categories.jsx'
-import { Wholesale } from '../pages/admin/Wholesale.jsx'
-import { Analytics } from '../pages/admin/Analytics.jsx'
-import { StockScanner } from '../pages/admin/StockScanner.jsx'
-import { Tpv } from '../pages/admin/Tpv.jsx'
-import { Settings } from '../pages/admin/Settings.jsx'
 
+// Code-splitting via las rutas: solo Home/RootLayout/AdminLayout se
+// cargan de entrada (lo minimo para pintar algo en cualquier ruta). El
+// resto de paginas publicas (Checkout, legales, etc.) y TODO el panel
+// admin (Dashboard, editor de productos, TPV, analytics...) se
+// descargan solo cuando se navega a ellas - antes se importaban todas
+// de forma estatica, asi que un cliente que solo visita la home
+// descargaba tambien el panel admin completo, sin usarlo nunca.
 export const router = createBrowserRouter([
   {
     path: '/',
     element: <RootLayout />,
     children: [
       { index: true, element: <Home /> },
-      { path: 'catalog', element: <Catalog /> },
-      { path: 'product/:id', element: <Product /> },
-      { path: 'cart', element: <Cart /> },
-      { path: 'checkout', element: <Checkout /> },
-      { path: 'checkout/success', element: <CheckoutSuccess /> },
-      { path: 'aviso-legal', element: <AvisoLegal /> },
-      { path: 'privacidad', element: <Privacidad /> },
-      { path: 'cookies', element: <Cookies /> },
+      {
+        path: 'catalog',
+        lazy: () => import('../pages/Catalog.jsx').then((m) => ({ Component: m.Catalog })),
+      },
+      {
+        path: 'product/:id',
+        lazy: () => import('../pages/Product.jsx').then((m) => ({ Component: m.Product })),
+      },
+      {
+        path: 'cart',
+        lazy: () => import('../pages/Cart.jsx').then((m) => ({ Component: m.Cart })),
+      },
+      {
+        path: 'checkout',
+        lazy: () => import('../pages/Checkout.jsx').then((m) => ({ Component: m.Checkout })),
+      },
+      {
+        path: 'checkout/success',
+        lazy: () => import('../pages/CheckoutSuccess.jsx').then((m) => ({ Component: m.CheckoutSuccess })),
+      },
+      {
+        path: 'aviso-legal',
+        lazy: () => import('../pages/AvisoLegal.jsx').then((m) => ({ Component: m.AvisoLegal })),
+      },
+      {
+        path: 'privacidad',
+        lazy: () => import('../pages/Privacidad.jsx').then((m) => ({ Component: m.Privacidad })),
+      },
+      {
+        path: 'cookies',
+        lazy: () => import('../pages/Cookies.jsx').then((m) => ({ Component: m.Cookies })),
+      },
     ],
   },
-  { path: '/admin/login', element: <Login /> },
+  {
+    path: '/admin/login',
+    lazy: () => import('../pages/admin/Login.jsx').then((m) => ({ Component: m.Login })),
+  },
   {
     path: '/admin',
     element: <AdminLayout />,
     children: [
-      { index: true, element: <Dashboard /> },
-      { path: 'tpv', element: <Tpv /> },
-      { path: 'products', element: <Products /> },
-      { path: 'products/:id', element: <ProductEditor /> },
-      { path: 'products/:id/label', element: <ProductLabel /> },
-      { path: 'orders', element: <Orders /> },
-      { path: 'orders/:id', element: <OrderDetail /> },
-      { path: 'categories', element: <Categories /> },
-      { path: 'wholesale', element: <Wholesale /> },
-      { path: 'analytics', element: <Analytics /> },
-      { path: 'stock-scanner', element: <StockScanner /> },
-      { path: 'settings', element: <Settings /> },
+      {
+        index: true,
+        lazy: () => import('../pages/admin/Dashboard.jsx').then((m) => ({ Component: m.Dashboard })),
+      },
+      {
+        path: 'tpv',
+        lazy: () => import('../pages/admin/Tpv.jsx').then((m) => ({ Component: m.Tpv })),
+      },
+      {
+        path: 'products',
+        lazy: () => import('../pages/admin/Products.jsx').then((m) => ({ Component: m.Products })),
+      },
+      {
+        path: 'products/:id',
+        lazy: () => import('../pages/admin/ProductEditor.jsx').then((m) => ({ Component: m.ProductEditor })),
+      },
+      {
+        path: 'products/:id/label',
+        lazy: () => import('../pages/admin/ProductLabel.jsx').then((m) => ({ Component: m.ProductLabel })),
+      },
+      {
+        path: 'orders',
+        lazy: () => import('../pages/admin/Orders.jsx').then((m) => ({ Component: m.Orders })),
+      },
+      {
+        path: 'orders/:id',
+        lazy: () => import('../pages/admin/OrderDetail.jsx').then((m) => ({ Component: m.OrderDetail })),
+      },
+      {
+        path: 'categories',
+        lazy: () => import('../pages/admin/Categories.jsx').then((m) => ({ Component: m.Categories })),
+      },
+      {
+        path: 'wholesale',
+        lazy: () => import('../pages/admin/Wholesale.jsx').then((m) => ({ Component: m.Wholesale })),
+      },
+      {
+        path: 'analytics',
+        lazy: () => import('../pages/admin/Analytics.jsx').then((m) => ({ Component: m.Analytics })),
+      },
+      {
+        path: 'stock-scanner',
+        lazy: () => import('../pages/admin/StockScanner.jsx').then((m) => ({ Component: m.StockScanner })),
+      },
+      {
+        path: 'settings',
+        lazy: () => import('../pages/admin/Settings.jsx').then((m) => ({ Component: m.Settings })),
+      },
     ],
   },
 ])
