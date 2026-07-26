@@ -67,7 +67,10 @@ const MenuLink = ({ index, to, label, onNavigate }) => {
           className="block"
           style={{
             fontWeight: 900,
-            fontSize: 'clamp(3.5rem, 10vw, 7rem)',
+            // Piso bajado (era 3.5rem/56px) para que en moviles
+            // angostos los labels largos ("Desechables.") entren sin
+            // envolver de forma desproporcionada.
+            fontSize: 'clamp(2.5rem, 9vw, 7rem)',
             letterSpacing: '-0.04em',
             color: 'var(--color-cream)',
           }}
@@ -190,12 +193,14 @@ const MenuOverlay = ({ open, onClose, onOpenCart, itemsCount }) => {
           type="button"
           onClick={onClose}
           data-cursor="link"
-          className="px-2 py-1"
+          className="flex items-center justify-center"
           style={{
             color: 'var(--color-cream)',
             fontWeight: 700,
             fontSize: '11px',
             letterSpacing: '0.25em',
+            minWidth: 44,
+            minHeight: 44,
           }}
         >
           CERRAR
@@ -227,6 +232,7 @@ const MenuOverlay = ({ open, onClose, onOpenCart, itemsCount }) => {
               fontWeight: 700,
               fontSize: '12px',
               letterSpacing: '0.22em',
+              minHeight: 44,
             }}
           >
             <span>▸ CARRITO</span>
@@ -276,9 +282,13 @@ const CartButton = ({ itemsCount, onOpen, theme }) => {
       onClick={onOpen}
       data-cursor="link"
       aria-label={itemsCount > 0 ? `Abrir carrito, ${itemsCount} artículos` : 'Abrir carrito'}
-      className="relative p-2"
-      style={{ color: fg, transition: 'color 0.4s ease' }}
+      className="flex items-center justify-center"
+      style={{ color: fg, transition: 'color 0.4s ease', minWidth: 44, minHeight: 44 }}
     >
+      {/* Badge posicionado contra este wrapper (tamaño real del icono),
+          no contra el boton (area tactil ampliada a 44px min) - si no,
+          el badge quedaria flotando lejos del icono. */}
+      <span className="relative inline-flex">
       <svg
         width="21"
         height="21"
@@ -311,6 +321,7 @@ const CartButton = ({ itemsCount, onOpen, theme }) => {
           {itemsCount > 9 ? '9+' : itemsCount}
         </span>
       )}
+      </span>
     </button>
   )
 }
@@ -345,13 +356,15 @@ const MenuToggle = ({ open, onToggle, theme }) => {
       data-cursor="link"
       aria-label={open ? 'Cerrar menú' : 'Abrir menú'}
       aria-expanded={open}
-      className="px-2 py-1"
+      className="flex items-center justify-center"
       style={{
         fontWeight: 700,
         fontSize: '13px',
         letterSpacing: '0.25em',
         color: fg,
         transition: 'color 0.4s ease',
+        minWidth: 44,
+        minHeight: 44,
       }}
     >
       <span ref={labelRef} className="inline-block">

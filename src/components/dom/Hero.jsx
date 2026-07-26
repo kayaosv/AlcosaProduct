@@ -119,7 +119,16 @@ export const Hero = () => {
           className="font-sans"
           style={{
             fontWeight: 900,
-            fontSize: 'clamp(3.5rem, 14vw, 16rem)',
+            // Piso bajado (era 3.5rem) - en moviles angostos el 14vw
+            // quedaba por debajo del minimo y clamp() se iba al piso
+            // fijo, empujando "BARATO Y LOCAL." mas ancho que la
+            // pantalla (no hay overflow-hidden horizontal aqui, asi
+            // que no se recortaba, pero envolvia de forma fea a mitad
+            // de frase). Con el piso mas bajo entra completo con mas
+            // frecuencia, y si igual envuelve, la animacion de
+            // aparicion sigue funcionando bien (yPercent es relativo a
+            // la altura real del bloque).
+            fontSize: 'clamp(2.75rem, 13vw, 16rem)',
             lineHeight: 0.88,
             letterSpacing: '-0.04em',
             color: 'var(--color-navy)',
@@ -165,6 +174,7 @@ export const Hero = () => {
                 letterSpacing: '0.15em',
                 textTransform: 'uppercase',
                 willChange: 'transform',
+                minHeight: 44,
               }}
             >
               <span data-cta-arrow className="inline-block">▸</span>

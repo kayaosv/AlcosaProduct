@@ -228,11 +228,18 @@ export const ProductsOverview = () => {
           ref={headingRef}
           className="col-span-12 leading-[0.85] overflow-hidden"
           style={{
-            fontSize: 'clamp(3.5rem, 12.5vw, 13rem)',
+            // Piso bajado (era 3.5rem) y sin whiteSpace:nowrap - a ese
+            // piso, en moviles angostos (~360-390px) el 12.5vw quedaba
+            // por debajo del minimo, clamp() se iba al piso fijo de
+            // 3.5rem/56px, y forzado a una sola linea "PRODUCTOS."
+            // no entraba en pantalla - el overflow-hidden (necesario
+            // para la animacion de aparicion) lo recortaba en vez de
+            // mostrarlo. Ahora puede achicarse mas y, si aun asi no
+            // entra, envuelve en vez de recortarse.
+            fontSize: 'clamp(2.25rem, 11vw, 13rem)',
             fontWeight: 900,
             color: 'var(--color-navy)',
             letterSpacing: '-0.05em',
-            whiteSpace: 'nowrap',
           }}
         >
           PRODUCTOS<span style={{ color: 'var(--color-lime)' }}>.</span>
