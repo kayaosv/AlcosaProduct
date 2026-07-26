@@ -92,7 +92,9 @@ export const BestSellersSection = () => {
               className="leading-[0.85] overflow-hidden"
               style={{
                 fontWeight: 900,
-                fontSize: 'clamp(3rem, 9vw, 10rem)',
+                // Piso bajado (era 3rem/48px) por el mismo motivo que
+                // el resto de titulares grandes del sitio.
+                fontSize: 'clamp(2.25rem, 8vw, 10rem)',
                 letterSpacing: '-0.04em',
                 color: 'var(--color-cream)',
               }}
