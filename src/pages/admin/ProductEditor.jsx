@@ -143,7 +143,7 @@ export const ProductEditor = () => {
       const payload = {
         name: form.name.trim(),
         brand: form.brand || null,
-        barcode: form.barcode.trim() || null,
+        barcode: form.barcode.trim() || (isNew ? generateInternalEAN13() : null),
         category_id: form.category_id || null,
         price: parseFloat(form.price) || 0,
         sale_price: form.is_on_sale && form.sale_price !== '' ? parseFloat(form.sale_price) : null,
@@ -288,7 +288,8 @@ export const ProductEditor = () => {
                 </div>
                 <div className="field">
                   <label>Sabor / Descripción</label>
-                  <input
+                  <textarea
+                    rows={3}
                     value={form.details.flavor ?? ''}
                     onChange={(e) => setDetail('flavor', e.target.value)}
                     placeholder="ej. Mango con toque helado"
@@ -343,7 +344,8 @@ export const ProductEditor = () => {
                 </div>
                 <div className="field">
                   <label>Sabor / Descripción</label>
-                  <input
+                  <textarea
+                    rows={3}
                     value={form.details.flavor ?? ''}
                     onChange={(e) => setDetail('flavor', e.target.value)}
                     placeholder="ej. Arándanos y frambuesas heladas"
@@ -398,7 +400,8 @@ export const ProductEditor = () => {
                 </div>
                 <div className="field">
                   <label>Sabor / Descripción</label>
-                  <input
+                  <textarea
+                    rows={3}
                     value={form.details.flavor ?? ''}
                     onChange={(e) => setDetail('flavor', e.target.value)}
                     placeholder="ej. Arándanos y frambuesas heladas"
@@ -493,11 +496,22 @@ export const ProductEditor = () => {
 
           {kind === 'alquimia' && (
             <section className="editor-section">
-              <h2 className="editor-section-title">Especificaciones — Bases</h2>
+              <h2 className="editor-section-title">Especificaciones — Alquimia</h2>
               <div className="field-group">
+                <div className="field">
+                  <label>Tipo</label>
+                  <select
+                    value={form.details.alquimia_type ?? 'base'}
+                    onChange={(e) => setDetail('alquimia_type', e.target.value)}
+                  >
+                    <option value="base">Base neutra</option>
+                    <option value="nicokit">Nicokit</option>
+                    <option value="otro">Otro / genérico</option>
+                  </select>
+                </div>
                 <div className="field-row">
                   <div className="field">
-                    <label>%VG</label>
+                    <label>%VG {form.details.alquimia_type === 'nicokit' ? '(referencia, puede variar por variante)' : ''}</label>
                     <input
                       type="text"
                       value={form.details.vg_pct ?? ''}
@@ -515,16 +529,20 @@ export const ProductEditor = () => {
                     />
                   </div>
                 </div>
-                <div className="field-row">
+                {form.details.alquimia_type === 'nicokit' ? (
                   <div className="field">
-                    <label>Volumen del producto (ml)</label>
-                    <input
-                      type="text"
-                      value={form.details.base_vol_ml ?? ''}
-                      onChange={(e) => setDetail('base_vol_ml', e.target.value)}
-                      placeholder="ej. 30"
-                    />
+                    <label>Botella (ml)</label>
+                    <select
+                      value={form.details.bottle_ml ?? 10}
+                      onChange={(e) => setDetail('bottle_ml', Number(e.target.value))}
+                    >
+                      {[10, 30, 60].map((v) => <option key={v} value={v}>{v} ml</option>)}
+                    </select>
+                    <span className="field-hint">
+                      Tamaño de bote fijo de este nicokit — la concentración de sales se elige por variante, abajo.
+                    </span>
                   </div>
+                ) : (
                   <div className="field">
                     <label>Volumen final sugerido de preparación (ml)</label>
                     <input
@@ -534,7 +552,7 @@ export const ProductEditor = () => {
                       placeholder="ej. 100"
                     />
                   </div>
-                </div>
+                )}
               </div>
             </section>
           )}
@@ -552,6 +570,7 @@ export const ProductEditor = () => {
                 uploading={uploading}
                 productName={form.name}
                 isDraft={isNew}
+                alquimiaType={form.details.alquimia_type ?? 'base'}
               />
             </section>
           )}
@@ -751,22 +770,41 @@ const PriceInput = ({ value, onChange, onCommit, placeholder, inherited }) => (
   </div>
 )
 
-const ALQUIMIA_AXES = [
-  { key: 'vol',   label: 'Volumen',  opts: ['10ml','30ml','60ml','100ml','250ml','500ml','1L'] },
-  { key: 'ratio', label: 'Ratio',    opts: ['50/50','30/70','20/80','100%VG','100%PG'] },
-  { key: 'nic',   label: 'Nicotina', opts: ['0mg','3mg','6mg','9mg','12mg','18mg','20mg'] },
-]
+// Ejes de composicion Alquimia. `ratio` y `nic` se ampliaron para cubrir
+// valores reales del catalogo que faltaban (75/25, 65/35, 10mg, 15mg) -
+// su ausencia era lo que forzaba a caer siempre en "Libre". `nic` son
+// sales de nicotina (nicokits), no nicotina base/freebase (esa vive en
+// NICOTINE_LEVELS, usada por longfill/desechables/sales).
+const ALQUIMIA_AXES = {
+  vol:   { key: 'vol',   label: 'Volumen',           opts: ['10ml','30ml','60ml','100ml','250ml','500ml','1L'] },
+  ratio: { key: 'ratio', label: 'Ratio',             opts: ['50/50','30/70','20/80','75/25','65/35','100%VG','100%PG'] },
+  nic:   { key: 'nic',   label: 'Nicotina (sales)',  opts: ['5mg','10mg','15mg','20mg'] },
+}
 
-const AlquimiaComposer = ({ value, onChange }) => {
+// Que ejes ofrece el composer segun el tipo de Alquimia elegido en el
+// producto (ver ProductEditor "Especificaciones — Alquimia"). Base
+// neutra no necesita nicotina (es 0mg por definicion); Nicokit no
+// necesita volumen (el bote es fijo, campo de producto). "otro" deja
+// los 3 disponibles para casos que no encajan en ninguno (ej. formatos
+// atipicos como nicotina en polvo).
+const ALQUIMIA_TYPE_AXES = {
+  base: ['vol', 'ratio'],
+  nicokit: ['ratio', 'nic'],
+  otro: ['vol', 'ratio', 'nic'],
+}
+
+const AlquimiaComposer = ({ value, onChange, alquimiaType = 'base' }) => {
+  const axisKeys = ALQUIMIA_TYPE_AXES[alquimiaType] ?? ALQUIMIA_TYPE_AXES.otro
+  const axes_ = axisKeys.map((k) => ALQUIMIA_AXES[k])
   const [axes, setAxes] = useState({ vol: '', ratio: '', nic: '' })
   const [free, setFree] = useState(false)
 
-  const composed = ALQUIMIA_AXES.map((a) => axes[a.key]).filter(Boolean).join(' · ')
+  const composed = axes_.map((a) => axes[a.key]).filter(Boolean).join(' · ')
 
   const handleAxis = (key, val) => {
     const next = { ...axes, [key]: val }
     setAxes(next)
-    const parts = ALQUIMIA_AXES.map((a) => next[a.key]).filter(Boolean)
+    const parts = axes_.map((a) => next[a.key]).filter(Boolean)
     onChange(parts.join(' · '))
   }
 
@@ -785,7 +823,7 @@ const AlquimiaComposer = ({ value, onChange }) => {
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-        {ALQUIMIA_AXES.map((axis) => (
+        {axes_.map((axis) => (
           <select key={axis.key} className="alq-axis-select"
             value={axes[axis.key]} onChange={(e) => handleAxis(axis.key, e.target.value)}>
             <option value="">{axis.label}…</option>
@@ -802,7 +840,7 @@ const AlquimiaComposer = ({ value, onChange }) => {
   )
 }
 
-const VariantsEditor = ({ variantType, variants, onAdd, onUpdate, onRemove, onSetPrimary, upload, uploading, productName, isDraft }) => {
+const VariantsEditor = ({ variantType, variants, onAdd, onUpdate, onRemove, onSetPrimary, upload, uploading, productName, isDraft, alquimiaType }) => {
   const meta = VARIANT_META[variantType] ?? VARIANT_META.flavor
   const [draft, setDraft] = useState(EMPTY_DRAFT)
   const [saving, setSaving] = useState(false)
@@ -841,7 +879,7 @@ const VariantsEditor = ({ variantType, variants, onAdd, onUpdate, onRemove, onSe
         sale_price: draft.sale_price !== '' ? parseFloat(draft.sale_price) : null,
         wholesale_price: draft.wholesale_price !== '' ? parseFloat(draft.wholesale_price) : null,
         image_url: null,
-        barcode: draft.barcode?.trim() || null,
+        barcode: draft.barcode?.trim() || generateInternalEAN13(),
       })
       setDraft(EMPTY_DRAFT)
     } catch (err) {
@@ -886,6 +924,11 @@ const VariantsEditor = ({ variantType, variants, onAdd, onUpdate, onRemove, onSe
   return (
     <div className="color-variants-section">
       <h2 className="editor-section-title">{meta.title}</h2>
+      {meta.hasImage && (
+        <p style={{ fontSize: 11, color: '#666', margin: '-4px 0 12px' }}>
+          Cada variante puede tener su propia foto — usa el botón "📷 Foto" en su tarjeta.
+        </p>
+      )}
 
       <div className="variant-cards-list">
         {variants.length === 0 && (
@@ -925,7 +968,7 @@ const VariantsEditor = ({ variantType, variants, onAdd, onUpdate, onRemove, onSe
                       </>
                     ) : imagesUsed < MAX_COLOR_IMAGES ? (
                       <label className="btn-ghost color-img-upload" title={`${imagesUsed}/${MAX_COLOR_IMAGES} imágenes`}>
-                        📷
+                        📷 Foto
                         <input type="file" accept="image/*" style={{ display: 'none' }}
                           onChange={(e) => handleImage(v.id, e.target.files?.[0])} disabled={uploading} />
                       </label>
@@ -1025,6 +1068,7 @@ const VariantsEditor = ({ variantType, variants, onAdd, onUpdate, onRemove, onSe
             <AlquimiaComposer
               value={draft.label}
               onChange={(v) => setDraft((d) => ({ ...d, label: v }))}
+              alquimiaType={alquimiaType}
             />
           ) : (
             <input
