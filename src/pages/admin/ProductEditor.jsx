@@ -753,7 +753,7 @@ const VARIANT_META = {
   recipe: { title: 'Composición (bases y nicokits)',   placeholder: '',                             hasColor: false, hasImage: true  },
 }
 
-const EMPTY_DRAFT = { label: '', hex: '#6b7280', stock: '', price: '', sale_price: '', wholesale_price: '', barcode: '' }
+const EMPTY_DRAFT = { label: '', hex: '#6b7280', stock: '', price: '', sale_price: '', wholesale_price: '', barcode: '', image_url: null }
 
 const PriceInput = ({ value, onChange, onCommit, placeholder, inherited }) => (
   <div className="vfield">
@@ -878,7 +878,7 @@ const VariantsEditor = ({ variantType, variants, onAdd, onUpdate, onRemove, onSe
         price: draft.price !== '' ? parseFloat(draft.price) : null,
         sale_price: draft.sale_price !== '' ? parseFloat(draft.sale_price) : null,
         wholesale_price: draft.wholesale_price !== '' ? parseFloat(draft.wholesale_price) : null,
-        image_url: null,
+        image_url: draft.image_url ?? null,
         barcode: draft.barcode?.trim() || generateInternalEAN13(),
       })
       setDraft(EMPTY_DRAFT)
@@ -894,6 +894,22 @@ const VariantsEditor = ({ variantType, variants, onAdd, onUpdate, onRemove, onSe
     try {
       const { publicUrl } = await upload(file, `${productName || 'product'}-variant-${id}`)
       await onUpdate(id, { image_url: publicUrl })
+    } catch (err) {
+      alert(`Error subiendo imagen: ${err.message}`)
+    }
+  }
+
+  // Foto de la variante todavia sin añadir (tarjeta "Añadir nueva
+  // variante") - antes de pulsar "+ Añadir" no existe un id de fila con
+  // el que asociar la imagen via onUpdate, asi que se sube igual pero se
+  // guarda en el estado local del draft, y se manda junto al resto de
+  // campos recien en handleAdd. Antes de este cambio la foto solo podia
+  // subirse despues de crear la variante, lo que hacia facil olvidarla.
+  const handleDraftImage = async (file) => {
+    if (!file) return
+    try {
+      const { publicUrl } = await upload(file, `${productName || 'product'}-variant-draft-${Date.now()}`)
+      setDraft((d) => ({ ...d, image_url: publicUrl }))
     } catch (err) {
       alert(`Error subiendo imagen: ${err.message}`)
     }
@@ -1080,6 +1096,24 @@ const VariantsEditor = ({ variantType, variants, onAdd, onUpdate, onRemove, onSe
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAdd() } }}
               placeholder={meta.placeholder}
             />
+          )}
+
+          {meta.hasImage && (
+            <div className="color-image-slot" style={{ marginLeft: 'auto' }}>
+              {draft.image_url ? (
+                <>
+                  <img src={draft.image_url} alt="" className="color-thumb" />
+                  <button type="button" className="btn-ghost" style={{ fontSize: 11, padding: '2px 6px' }}
+                    onClick={() => setDraft((d) => ({ ...d, image_url: null }))}>✕</button>
+                </>
+              ) : imagesUsed < MAX_COLOR_IMAGES ? (
+                <label className="btn-ghost color-img-upload" title="Foto de esta variante">
+                  📷 Foto
+                  <input type="file" accept="image/*" style={{ display: 'none' }}
+                    onChange={(e) => handleDraftImage(e.target.files?.[0])} disabled={uploading} />
+                </label>
+              ) : <span className="color-img-cap">—</span>}
+            </div>
           )}
         </div>
         <div className="variant-card-barcode" style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '8px 0' }}>
