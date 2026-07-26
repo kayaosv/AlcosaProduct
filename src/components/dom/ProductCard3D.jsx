@@ -4,14 +4,17 @@ import { View, PerspectiveCamera } from '@react-three/drei'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { ProductModel3D } from '../canvas/ProductModel3D.jsx'
-import { shouldSimplifyVisuals } from '../../lib/deviceCapability.js'
 
-export const ProductCard3D = ({ product, flex = 1 }) => {
+// `active`: controlado por BestSellersSection via useInView - el
+// modelo 3D real (y la descarga de su .glb) solo se monta cuando la
+// seccion esta por aparecer en el scroll, en cualquier dispositivo
+// (tactil o no - antes se decidia por tipo de dispositivo, lo que
+// tambien apagaba el 3D en tablets capaces).
+export const ProductCard3D = ({ product, flex = 1, active = true }) => {
   const rootRef = useRef(null)
   const viewRef = useRef(null)
   const ctaRef = useRef(null)
   const [isHovered, setIsHovered] = useState(false)
-  const [simplify] = useState(shouldSimplifyVisuals)
 
   useGSAP(
     () => {
@@ -63,7 +66,7 @@ export const ProductCard3D = ({ product, flex = 1 }) => {
           position: 'relative',
         }}
       >
-        {simplify ? (
+        {!active ? (
           <div
             className="w-full h-full flex items-center justify-center"
             style={{ background: 'var(--color-dark)', color: 'var(--color-lime)' }}
