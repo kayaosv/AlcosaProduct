@@ -1,27 +1,21 @@
 // Heuristicas de capacidad de dispositivo para decidir cuando saltar
 // efectos 3D pesados (postprocesado, HDRI, modelos rotando en loop
-// continuo). No hay forma fiable de medir la potencia real de un GPU
-// desde JS, asi que se usan dos señales baratas y ya usadas en el
-// proyecto:
+// continuo).
 //
-// - `prefers-reduced-motion`: preferencia explicita del usuario, se
-//   respeta sin importar el dispositivo.
-// - `pointer: coarse` (tactil): mismo criterio que ya usa
-//   CustomCursor.jsx para desactivarse en movil/tablet - el 3D pesado
-//   es justo donde mas golpea el rendimiento en gama baja, y coincide
-//   con los mismos dispositivos que no se benefician del hover 3D de
-//   todas formas (sin mouse no hay hover). Esto simplifica tambien en
-//   tablets/moviles de gama alta - compromiso deliberado: preferimos
-//   quedarnos cortos en dispositivos potentes antes que arriesgar jank
-//   en uno debil, en vez de intentar adivinar RAM/CPU (APIs no
-//   soportadas en Safari/iOS y poco fiables en general).
+// CORRECCION (2026-07-26): la primera version tambien usaba `pointer:
+// coarse` (tactil) como señal de "gama baja", igual que CustomCursor.jsx
+// - pero eso apaga el 3D en CUALQUIER tablet/movil sin importar su
+// potencia real (confirmado: una tablet TCL capaz se quedaba sin
+// modelo). Tactil no es sinonimo de debil. Ahora `shouldSimplifyVisuals`
+// solo respeta `prefers-reduced-motion` (preferencia explicita del
+// usuario) - el control real de cuando cargar el 3D pesado pasa a ser
+// visibilidad en viewport (ver useInView.js), no tipo de dispositivo:
+// se carga cuando la seccion esta por aparecer, nunca antes, y se ve en
+// cualquier dispositivo capaz de hacerlo, tactil o no.
 export const prefersReducedMotion = () =>
   typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-export const shouldSimplifyVisuals = () => {
-  if (typeof window === 'undefined') return false
-  return prefersReducedMotion() || window.matchMedia('(pointer: coarse)').matches
-}
+export const shouldSimplifyVisuals = () => prefersReducedMotion()
 
 // Ancho minimo desde el que un elemento 3D puramente decorativo (no
 // interactivo) se considera visible - coincide con el breakpoint `lg`
