@@ -15,7 +15,7 @@ import { shouldSimplifyVisuals } from '../../lib/deviceCapability.js'
 // rutas que no lo necesitan (View.Port solo lo usa BestSellersSection,
 // solo en home) ni en dispositivos simplificados.
 const SharedCanvas = lazy(() =>
-  import('./SharedCanvas.jsx').then((m) => ({ default: m.SharedCanvas })),
+  import('../three/SharedCanvas.jsx').then((m) => ({ default: m.SharedCanvas })),
 )
 
 export const RootLayout = () => {
