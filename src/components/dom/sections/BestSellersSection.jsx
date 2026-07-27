@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { SplitText } from 'gsap/SplitText'
+import { useGLTF } from '@react-three/drei'
 import { supabase } from '../../../lib/supabase.js'
 import { getEffectivePrice, getStock } from '../../../lib/stockPricing.js'
-
-const formatPrice = (n) => `${Number(n).toFixed(2)}€`
+import { ProductCard3D } from '../ProductCard3D.jsx'
+import { useInView } from '../../../hooks/useInView.js'
 
 const SELECT = `
   id, name, brand, price, sale_price, is_on_sale, stock, image_url,
@@ -15,123 +15,21 @@ const SELECT = `
   product_variants(price, sale_price, is_primary, is_active, stock)
 `
 
+// Modelo generico de vitrina hasta que existan modelos 3D reales por
+// producto - lo que cambio (2026-07-27) es que ahora cada tarjeta es un
+// producto real (is_featured, con stock) y enlaza a su propia ficha
+// real (ver ProductCard3D), en vez de la lista inventada a mano de
+// antes que enlazaba solo a categorias. Cuando haya modelos 3D reales
+// por producto, alcanza con setear `model` por producto aca.
+const PLACEHOLDER_MODEL = '/models/vape.glb'
+
 const FLEX_LAYOUT = [1.4, 1, 1, 0.8]
-
-// Antes esta seccion mostraba 4 productos inventados a mano
-// (config/bestSellers.js) con un visor 3D generico repetido - ningun
-// producto del catalogo real tiene modelo 3D, asi que ese enlace
-// nunca llevaba a una ficha real. Ahora trae productos reales
-// (is_featured=true, con stock) y cada tarjeta enlaza a su propia
-// ficha de producto real, con su foto real.
-const BestSellerCard = ({ product, flex = 1 }) => {
-  const rootRef = useRef(null)
-  const ctaRef = useRef(null)
-  const { contextSafe } = useGSAP({ scope: rootRef })
-
-  const onEnter = contextSafe(() => {
-    gsap.to(rootRef.current, { scale: 1.02, duration: 0.4, ease: 'power2.out' })
-    gsap.to(ctaRef.current, { color: 'var(--color-lime)', duration: 0.3 })
-  })
-  const onLeave = contextSafe(() => {
-    gsap.to(rootRef.current, { scale: 1, duration: 0.4, ease: 'power2.out' })
-    gsap.to(ctaRef.current, { color: 'var(--color-cream)', duration: 0.3 })
-  })
-
-  const price = getEffectivePrice(product)
-
-  return (
-    <Link
-      to={`/product/${product.id}`}
-      ref={rootRef}
-      data-anim="bs-card"
-      data-cursor="link"
-      onMouseEnter={onEnter}
-      onMouseLeave={onLeave}
-      className="bs-card relative flex flex-col overflow-hidden"
-      style={{
-        '--bs-flex': flex,
-        background: 'var(--color-navy)',
-        minWidth: 0,
-        willChange: 'transform',
-      }}
-    >
-      <div style={{ width: '100%', height: 300, position: 'relative', background: 'var(--color-dark)' }}>
-        {product.image_url ? (
-          <img
-            src={product.image_url}
-            alt={product.name}
-            loading="lazy"
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div
-            className="w-full h-full flex items-center justify-center"
-            style={{ color: 'var(--color-lime)' }}
-          >
-            <span style={{ fontWeight: 900, fontSize: 32 }}>
-              {(product.brand || product.name || 'V').slice(0, 2).toUpperCase()}
-            </span>
-          </div>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-2 p-6 pt-4 border-t border-white/5">
-        <span
-          className="text-[10px] tracking-[0.3em] uppercase"
-          style={{ color: 'var(--color-lime)', fontWeight: 700 }}
-        >
-          Lo más pedido
-        </span>
-
-        <h3
-          className="font-sans"
-          style={{
-            fontWeight: 700,
-            fontSize: '20px',
-            color: 'var(--color-cream)',
-            lineHeight: 1.1,
-            letterSpacing: '-0.01em',
-          }}
-        >
-          {product.name}
-        </h3>
-
-        <span
-          className="text-[11px] tracking-[0.25em] uppercase"
-          style={{ color: 'var(--color-blue)' }}
-        >
-          {product.categories?.name}
-        </span>
-
-        <div className="flex items-end justify-between mt-3">
-          <span
-            style={{
-              color: 'var(--color-lime)',
-              fontWeight: 700,
-              fontSize: '22px',
-              letterSpacing: '-0.02em',
-            }}
-          >
-            {formatPrice(price)}
-          </span>
-
-          <span
-            ref={ctaRef}
-            className="text-[11px] tracking-[0.25em] uppercase"
-            style={{ color: 'var(--color-cream)', fontWeight: 700 }}
-          >
-            Ver producto →
-          </span>
-        </div>
-      </div>
-    </Link>
-  )
-}
 
 export const BestSellersSection = () => {
   const rootRef = useRef(null)
   const headingRef = useRef(null)
   const [products, setProducts] = useState(null)
+  const [, inView] = useInView('300px', rootRef)
 
   useEffect(() => {
     let cancelled = false
@@ -143,13 +41,31 @@ export const BestSellersSection = () => {
       .limit(8)
       .then(({ data }) => {
         if (cancelled) return
-        const inStock = (data ?? []).filter((p) => getStock(p) > 0).slice(0, 4)
-        setProducts(inStock)
+        const cards = (data ?? [])
+          .filter((p) => getStock(p) > 0)
+          .slice(0, 4)
+          .map((p) => ({
+            id: p.id,
+            name: p.name,
+            brand: p.brand,
+            tag: 'Lo más pedido',
+            category: p.categories?.name ?? '',
+            price: getEffectivePrice(p),
+            model: PLACEHOLDER_MODEL,
+          }))
+        setProducts(cards)
       })
     return () => {
       cancelled = true
     }
   }, [])
+
+  // El modelo 3D se descarga solo cuando la seccion esta por aparecer
+  // en el scroll (useInView, con margen de adelanto) - no antes, en
+  // cualquier dispositivo capaz de mostrarlo.
+  useEffect(() => {
+    if (inView) useGLTF.preload(PLACEHOLDER_MODEL)
+  }, [inView])
 
   useGSAP(
     () => {
@@ -248,12 +164,13 @@ export const BestSellersSection = () => {
           </span>
         </div>
 
-        <div data-anim="best-sellers-grid" className="flex flex-col lg:flex-row gap-4 lg:gap-5 items-stretch">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-5 items-stretch">
           {(products ?? []).map((product, i) => (
-            <BestSellerCard
+            <ProductCard3D
               key={product.id}
               product={product}
               flex={FLEX_LAYOUT[i] ?? 1}
+              active={inView}
             />
           ))}
         </div>
