@@ -82,7 +82,7 @@ export const OxvaSection = () => {
       ref={rootRef}
       data-section="oxva"
       data-nav-theme="dark"
-      data-transition-type="circle"
+      data-transition-type="none"
       className="relative w-full overflow-hidden py-32 md:py-48"
       style={{ background: 'var(--color-navy)', color: 'var(--color-cream)' }}
     >
