@@ -13,6 +13,21 @@
 // pero puede no pasar por el mismo camino certificado del POS). Por
 // ahora este stub crea un account.move; revisar antes de depender de
 // esto para facturas reales.
+//
+// action: 'credit_note' (2026-07-27) — Verifactu prohibe modificar o
+// borrar una factura ya emitida (la cadena de hash exige que quede
+// intacta). Si un pedido que ya tenia factura sincronizada
+// (odoo_sync_status='synced') se cancela, la unica forma legal de
+// reflejarlo es una factura rectificativa (nota de credito) que
+// REFERENCIA a la original, nunca la toca. Se dispara desde
+// updateOrderStatus() en useAdminOrders.js justo despues de que
+// cancel_order() reponga el stock — mismo patron fire-and-forget que
+// la sincronizacion al crear. Usa el wizard nativo de Odoo
+// (account.move.reversal) — mismo mecanismo que el boton "Añadir nota
+// de credito" del propio Odoo. Igual que el resto de este stub, no se
+// pudo probar contra la instancia real todavia (sin credenciales/
+// certificado AEAT reales) - verificar nombres exactos de metodo/campos
+// en cuanto se pueda hacer una prueba real.
 
 import { createClient } from "npm:@supabase/supabase-js@2"
 
@@ -56,21 +71,30 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   )
 
-  const markError = async (orderId: string, message: string) => {
+  const markInvoiceError = async (orderId: string, message: string) => {
     await supabase
       .from("orders")
       .update({ odoo_sync_status: "error", odoo_sync_error: message })
       .eq("id", orderId)
   }
 
-  // Se guarda fuera del try para que el catch pueda marcar el pedido
-  // como error incluso si lo que fallo fue la llamada a Odoo, no el
+  const markCreditNoteError = async (orderId: string, message: string) => {
+    await supabase
+      .from("orders")
+      .update({ odoo_credit_note_status: "error", odoo_credit_note_error: message })
+      .eq("id", orderId)
+  }
+
+  // Se guardan fuera del try para que el catch pueda marcar el error
+  // correcto incluso si lo que fallo fue la llamada a Odoo, no el
   // parseo del body.
   let orderId: string | undefined
+  let action: "invoice" | "credit_note" = "invoice"
 
   try {
     const body = await req.json()
     orderId = body.order_id
+    action = body.action === "credit_note" ? "credit_note" : "invoice"
     if (!orderId) return json({ error: "Falta order_id" }, 400)
 
     const odooUrl = Deno.env.get("ODOO_URL")
@@ -79,8 +103,70 @@ Deno.serve(async (req) => {
     const odooApiKey = Deno.env.get("ODOO_API_KEY")
 
     if (!odooUrl || !odooDb || !odooUser || !odooApiKey) {
-      await markError(orderId, "Odoo no configurado todavía (faltan credenciales)")
-      return json({ synced: false, error: "Odoo no configurado todavía" })
+      const message = "Odoo no configurado todavía (faltan credenciales)"
+      if (action === "credit_note") await markCreditNoteError(orderId, message)
+      else await markInvoiceError(orderId, message)
+      return json({ synced: false, error: message })
+    }
+
+    const uid = await odooCall(odooUrl, "common", "login", [odooDb, odooUser, odooApiKey])
+    if (!uid) throw new Error("Login de Odoo falló (credenciales inválidas)")
+
+    if (action === "credit_note") {
+      const { data: order, error: orderError } = await supabase
+        .from("orders")
+        .select("id, odoo_invoice_id, odoo_sync_status")
+        .eq("id", orderId)
+        .single()
+
+      if (orderError || !order) {
+        throw new Error(orderError?.message ?? "Pedido no encontrado")
+      }
+
+      // No habia factura real que revertir (se cancelo antes de
+      // facturar, o Odoo no estaba configurado en ese momento) - no es
+      // un error, simplemente no hay nada que hacer del lado de Odoo.
+      if (order.odoo_sync_status !== "synced" || !order.odoo_invoice_id) {
+        await supabase
+          .from("orders")
+          .update({ odoo_credit_note_status: "not_required" })
+          .eq("id", orderId)
+        return json({ synced: true, skipped: true })
+      }
+
+      // Wizard nativo de Odoo para notas de credito - crea un nuevo
+      // account.move (move_type out_refund) enlazado al original via
+      // reversed_entry_id, sin tocarlo. Mismo mecanismo que el boton
+      // "Añadir nota de credito" de la UI de Odoo.
+      const reversalWizardId = await odooCall(odooUrl, "object", "execute_kw", [
+        odooDb, uid, odooApiKey,
+        "account.move.reversal", "create",
+        [{
+          move_ids: [[6, 0, [Number(order.odoo_invoice_id)]]],
+          reason: "Pedido cancelado en Vapers Alcosa",
+          journal_id: false,
+        }],
+      ])
+
+      const reversalResult = await odooCall(odooUrl, "object", "execute_kw", [
+        odooDb, uid, odooApiKey,
+        "account.move.reversal", "reverse_moves", [[reversalWizardId]],
+      ]) as { res_id?: number } | number
+
+      const creditNoteId = typeof reversalResult === "object" && reversalResult !== null
+        ? reversalResult.res_id
+        : reversalResult
+
+      await supabase
+        .from("orders")
+        .update({
+          odoo_credit_note_status: "synced",
+          odoo_credit_note_id: String(creditNoteId),
+          odoo_credit_note_error: null,
+        })
+        .eq("id", orderId)
+
+      return json({ synced: true, odoo_credit_note_id: creditNoteId })
     }
 
     const { data: order, error: orderError } = await supabase
@@ -90,12 +176,9 @@ Deno.serve(async (req) => {
       .single()
 
     if (orderError || !order) {
-      await markError(orderId, orderError?.message ?? "Pedido no encontrado")
+      await markInvoiceError(orderId, orderError?.message ?? "Pedido no encontrado")
       return json({ synced: false, error: "Pedido no encontrado" })
     }
-
-    const uid = await odooCall(odooUrl, "common", "login", [odooDb, odooUser, odooApiKey])
-    if (!uid) throw new Error("Login de Odoo falló (credenciales inválidas)")
 
     const invoiceLines = (order.order_items ?? []).map((item: {
       product_name: string; variant_label: string | null; product_price: number; quantity: number
@@ -123,7 +206,10 @@ Deno.serve(async (req) => {
   } catch (err) {
     console.error("odoo-sync error:", err)
     const message = err instanceof Error ? err.message : "Error desconocido"
-    if (orderId) await markError(orderId, message)
+    if (orderId) {
+      if (action === "credit_note") await markCreditNoteError(orderId, message)
+      else await markInvoiceError(orderId, message)
+    }
     return json({ synced: false, error: message })
   }
 })
