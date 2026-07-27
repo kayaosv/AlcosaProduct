@@ -125,12 +125,12 @@ export const ProductCard3D = ({ product, flex = 1, active = true }) => {
 
           <Link
             ref={ctaRef}
-            to={`/catalog?cat=${product.catalogSlug}`}
+            to={`/product/${product.id}`}
             data-cursor="link"
             className="text-[11px] tracking-[0.25em] uppercase"
             style={{ color: 'var(--color-cream)', fontWeight: 700 }}
           >
-            Ver en tienda →
+            Ver producto →
           </Link>
         </div>
       </div>

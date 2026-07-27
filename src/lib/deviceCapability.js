@@ -8,10 +8,11 @@
 // potencia real (confirmado: una tablet TCL capaz se quedaba sin
 // modelo). Tactil no es sinonimo de debil. Ahora `shouldSimplifyVisuals`
 // solo respeta `prefers-reduced-motion` (preferencia explicita del
-// usuario) - el control real de cuando cargar el 3D pesado pasa a ser
-// visibilidad en viewport (ver useInView.js), no tipo de dispositivo:
-// se carga cuando la seccion esta por aparecer, nunca antes, y se ve en
-// cualquier dispositivo capaz de hacerlo, tactil o no.
+// usuario) - el control real de cuando cargar el 3D pesado de Best
+// Sellers pasa a ser visibilidad en viewport (ver useInView.js), no
+// tipo de dispositivo: se carga cuando la seccion esta por aparecer,
+// nunca antes, y se ve en cualquier dispositivo capaz de hacerlo,
+// tactil o no.
 export const prefersReducedMotion = () =>
   typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 

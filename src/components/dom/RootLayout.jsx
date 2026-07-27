@@ -13,7 +13,7 @@ import { shouldSimplifyVisuals } from '../../lib/deviceCapability.js'
 
 // Import dinamico: three.js/fiber/drei no se descargan en absoluto en
 // rutas que no lo necesitan (View.Port solo lo usa BestSellersSection,
-// solo en home) ni en dispositivos simplificados.
+// solo en home) ni con prefers-reduced-motion activo.
 const SharedCanvas = lazy(() =>
   import('../three/SharedCanvas.jsx').then((m) => ({ default: m.SharedCanvas })),
 )
