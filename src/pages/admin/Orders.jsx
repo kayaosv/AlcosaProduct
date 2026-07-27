@@ -57,7 +57,7 @@ export const Orders = () => {
     const prev = orders
     setOrders((os) => os.map((o) => (o.id === order.id ? { ...o, status: next } : o)))
     try {
-      await updateOrderStatus(order.id, next)
+      await updateOrderStatus(order.id, next, order)
     } catch (err) {
       setOrders(prev)
       alert(`No se pudo actualizar el pedido: ${err.message}`)

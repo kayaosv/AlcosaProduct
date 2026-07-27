@@ -74,12 +74,22 @@ export const fetchOrderById = async (id) => {
   return data
 }
 
-export const updateOrderStatus = async (id, status) => {
+export const updateOrderStatus = async (id, status, currentOrder) => {
   // Cancelar repone stock (ver supabase/cancel-order.sql) — cualquier
   // otro cambio de estado es un simple update, no toca inventario.
   if (status === 'cancelled') {
     const { error } = await supabase.rpc('cancel_order', { p_order_id: id })
     if (error) throw error
+    // Si el pedido ya tenia una factura real sincronizada en Odoo,
+    // Verifactu prohibe modificarla/borrarla - hay que reflejar la
+    // cancelacion con una nota de credito que la referencia, nunca
+    // tocarla (ver supabase/add-odoo-credit-note.sql y odoo-sync).
+    // Fire-and-forget, mismo patron que la sincronizacion al crear.
+    if (currentOrder?.odoo_sync_status === 'synced') {
+      supabase.functions
+        .invoke('odoo-sync', { body: { order_id: id, action: 'credit_note' } })
+        .catch((err) => console.error('No se pudo crear la nota de crédito en Odoo:', err))
+    }
     return
   }
   const { error } = await supabase

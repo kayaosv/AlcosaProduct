@@ -58,7 +58,7 @@ export const OrderDetail = () => {
     const prevStatus = order.status
     setOrder((o) => ({ ...o, status: next }))
     try {
-      await updateOrderStatus(id, next)
+      await updateOrderStatus(id, next, order)
     } catch (err) {
       setOrder((o) => ({ ...o, status: prevStatus }))
       setError(err.message)

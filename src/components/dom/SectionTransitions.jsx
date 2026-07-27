@@ -33,54 +33,53 @@ export const SectionTransitions = () => {
         gsap.timeline({
           scrollTrigger: {
             trigger: section,
-            // Antes 'bottom 75%' -> 'bottom top' (~75% de viewport de
-            // scroll tapando la pantalla entera). Acortado a ~45% -
-            // mismo efecto, resuelve mas rapido, menos scroll molesto.
             start: 'bottom 70%',
             end: 'bottom 25%',
-            scrub: 0.6,
+            // Scrub mas alto (era 0.6) - el "playhead" tarda mas en
+            // alcanzar la posicion real de scroll, asi el movimiento no
+            // queda pegado 1:1 a cada tick crudo de la rueda/touch
+            // (que es lo que lo hacia sentir tosco). Los eases
+            // power2.inOut (antes 'none'/lineal) le dan aceleracion y
+            // frenado a cada tramo en vez de velocidad constante.
+            scrub: 0.9,
           },
         })
           .set(plane1Ref.current, { backgroundColor: darkColor, transformOrigin: 'bottom center' })
           .set(plane2Ref.current, { transformOrigin: 'bottom center' })
-          .to(plane1Ref.current, { scaleY: 1, ease: 'none', duration: 0.35 }, 0)
-          .to(plane2Ref.current, { scaleY: 1, ease: 'none', duration: 0.35 }, 0.2)
+          .to(plane1Ref.current, { scaleY: 1, ease: 'power2.inOut', duration: 0.35 }, 0)
+          .to(plane2Ref.current, { scaleY: 1, ease: 'power2.inOut', duration: 0.35 }, 0.2)
           .set(plane2Ref.current, { transformOrigin: 'top center' }, 0.55)
-          .to(plane2Ref.current, { scaleY: 0, ease: 'none', duration: 0.25 }, 0.55)
+          .to(plane2Ref.current, { scaleY: 0, ease: 'power2.inOut', duration: 0.25 }, 0.55)
           .set(plane1Ref.current, { transformOrigin: 'top center' }, 0.65)
-          .to(plane1Ref.current, { scaleY: 0, ease: 'none', duration: 0.35 }, 0.65)
+          .to(plane1Ref.current, { scaleY: 0, ease: 'power2.inOut', duration: 0.35 }, 0.65)
       }
 
       if (type === 'circle') {
         gsap.timeline({
           scrollTrigger: {
             trigger: section,
-            // Antes 'bottom 85%' -> 'bottom 20%' (~65% de viewport).
-            // Acortado a ~45%.
             start: 'bottom 80%',
             end: 'bottom 35%',
-            scrub: 0.4,
+            scrub: 0.7,
           },
         })
-          .to(circleRef.current, { scale: 1, ease: 'none', duration: 0.4 })
+          .to(circleRef.current, { scale: 1, ease: 'power2.inOut', duration: 0.4 })
           .to(circleRef.current, { scale: 1, ease: 'none', duration: 0.2 })
-          .to(circleRef.current, { scale: 0, ease: 'none', duration: 0.4 })
+          .to(circleRef.current, { scale: 0, ease: 'power2.inOut', duration: 0.4 })
       }
 
       if (type === 'flash') {
         gsap.timeline({
           scrollTrigger: {
             trigger: section,
-            // Antes 'bottom 85%' -> 'bottom 20%' (~65% de viewport).
-            // Acortado a ~45%.
             start: 'bottom 80%',
             end: 'bottom 35%',
-            scrub: 0.4,
+            scrub: 0.7,
           },
         })
-          .to(flashRef.current, { opacity: 1, ease: 'none', duration: 0.4 })
+          .to(flashRef.current, { opacity: 1, ease: 'power2.inOut', duration: 0.4 })
           .to(flashRef.current, { opacity: 1, ease: 'none', duration: 0.2 })
-          .to(flashRef.current, { opacity: 0, ease: 'none', duration: 0.4 })
+          .to(flashRef.current, { opacity: 0, ease: 'power2.inOut', duration: 0.4 })
       }
     })
   })
