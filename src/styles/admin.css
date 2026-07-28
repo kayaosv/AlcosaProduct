@@ -330,61 +330,35 @@
 .alert-list--expanded { max-height: 480px; }
 .alert-list-toggle { width: 100%; margin-top: 10px; font-size: 12px; }
 
-/* ── Dashboard: dos columnas + cards compactas ───────────────────────────── */
+/* ── Dashboard: cards compactas ───────────────────────────────────────────── */
 .dash-quick-links { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
-.dash-two-col {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  align-items: start;
-}
-.dash-col { display: flex; flex-direction: column; gap: 20px; }
-
-.stats-grid--compact { grid-template-columns: repeat(2, 1fr); margin-bottom: 0; }
-.stats-grid--1 { grid-template-columns: 1fr; }
+.stats-grid--compact { grid-template-columns: repeat(3, 1fr); margin-bottom: 0; }
 
 .stat-card--sm { padding: 14px 16px; }
 .stat-value--sm { font-size: 22px; margin: 4px 0 0; }
 
 .cat-bar-count--euro { color: #333; font-size: 11px; }
 
-/* ── Dashboard: historial de pedidos ──────────────────────────────────────── */
-.order-history-chart {
-  position: relative;
+/* Listas de barras largas (por categoria, top marcas) - scrolleables y
+   compactas en vez de ocupar todo el alto que necesiten. */
+.cat-bars--scroll { max-height: 220px; overflow-y: auto; padding-right: 4px; }
+
+/* ── Dashboard: grafico de ventas (lineas) ────────────────────────────────── */
+.sales-line-wrap { height: 160px; }
+.sales-line-chart { width: 100%; height: 100%; overflow: visible; }
+.sales-line { fill: none; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+.sales-line--online { stroke: #6366f1; }
+.sales-line--fisica { stroke: #f59e0b; }
+.sales-line--trend { stroke: #888; stroke-dasharray: 3 3; stroke-width: 1.2; }
+
+.sales-line-axis {
   display: flex;
-  align-items: flex-end;
-  gap: 4px;
-  height: 120px;
-  padding-top: 8px;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #333;
+  margin-top: 6px;
 }
-.order-history-avg-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  border-top: 1px dashed #444;
-  z-index: 1;
-}
-.order-history-col {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-.order-history-bars {
-  width: 100%;
-  height: 100px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 2px;
-}
-.order-history-bar { width: 40%; border-radius: 2px 2px 0 0; min-height: 1px; }
-.order-history-bar--online { background: #6366f1; }
-.order-history-bar--fisica { background: #f59e0b; }
-.order-history-label { font-size: 9px; color: #333; }
 
 .order-history-legend {
   display: flex;
@@ -398,7 +372,36 @@
 .order-history-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
 .order-history-dot--online { background: #6366f1; }
 .order-history-dot--fisica { background: #f59e0b; }
-.order-history-avg-label { color: #444; margin-left: auto; }
+.order-history-dot--trend { background: #888; }
+
+/* ── Dashboard: historial de pedidos (lista) ──────────────────────────────── */
+.order-row-total { font-size: 12px; font-weight: 700; color: #ccc; }
+
+/* ── Dashboard: margen por categoria, cards chicas ────────────────────────── */
+.margin-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+.margin-card {
+  background: #0d0d0d;
+  border: 1px solid #1a1a1a;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.margin-card-cat { font-size: 11px; }
+.margin-card-pct { font-size: 20px; font-weight: 800; color: #f0f0f0; letter-spacing: -0.5px; }
+.margin-card-euro { font-size: 11px; color: #4ade80; }
+
+/* ── Dashboard: distribucion por categoria (nicotina/tamaños) ─────────────── */
+.dist-group { margin-bottom: 14px; }
+.dist-group:last-child { margin-bottom: 0; }
+.dist-group-label { display: block; font-size: 11px; color: #666; margin-bottom: 8px; }
+.dist-bars--sm { gap: 8px; }
+.dist-bar-track.dist-bar-track--sm { height: 50px; }
 
 .alert-row {
   display: flex;
@@ -2279,7 +2282,6 @@
   .page-content { padding: 16px; }
 
   .dash-row { grid-template-columns: 1fr !important; }
-  .dash-two-col { grid-template-columns: 1fr; }
   .stats-grid--compact { grid-template-columns: 1fr; }
 
   .editor-layout { grid-template-columns: 1fr; }
