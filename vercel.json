@@ -13,7 +13,7 @@
         { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains" },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://jklippehnbzrrtrzbctw.supabase.co; font-src 'self'; connect-src 'self' https://jklippehnbzrrtrzbctw.supabase.co wss://jklippehnbzrrtrzbctw.supabase.co https://www.gstatic.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+          "value": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; child-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://jklippehnbzrrtrzbctw.supabase.co; font-src 'self'; connect-src 'self' https://jklippehnbzrrtrzbctw.supabase.co wss://jklippehnbzrrtrzbctw.supabase.co https://www.gstatic.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
         }
       ]
     }
