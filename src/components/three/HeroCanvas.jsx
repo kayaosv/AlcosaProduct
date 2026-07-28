@@ -73,7 +73,17 @@ export const HeroCanvas = () => (
       <VapeModel />
     </Suspense>
     <Sparks />
-    <Environment preset="studio" />
+    {/* Alojado localmente (public/hdri) en vez del preset por CDN de
+        drei (raw.githack.com) - ese servicio devolvia 403 en produccion,
+        rompiendo el Hero por completo (no tenia nada que ver con el
+        CSP, se confirmo con un curl directo al CDN). Con su propio
+        Suspense (antes no tenia ninguno) - useLoader/useEnvironment
+        suspende igual que useGLTF, y sin un limite propio dentro del
+        Canvas cualquier demora/fallo cargando el HDRI puede tumbar el
+        render de toda la escena en silencio, no solo el fondo. */}
+    <Suspense fallback={null}>
+      <Environment files="/hdri/studio_small_03_1k.hdr" />
+    </Suspense>
     <EffectComposer>
       <Bloom intensity={0.35} luminanceThreshold={0.7} luminanceSmoothing={0.4} mipmapBlur />
       <Vignette offset={0.3} darkness={0.5} />

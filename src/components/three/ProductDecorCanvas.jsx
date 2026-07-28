@@ -35,6 +35,11 @@ export const ProductDecorCanvas = () => (
     <Suspense fallback={null}>
       <ProductVape />
     </Suspense>
-    <Environment preset="studio" />
+    {/* Alojado localmente (public/hdri), ver HeroCanvas.jsx. Con su
+        propio Suspense - sin uno, un fallo/demora cargando el HDRI
+        puede tumbar el render de toda la escena en silencio. */}
+    <Suspense fallback={null}>
+      <Environment files="/hdri/studio_small_03_1k.hdr" />
+    </Suspense>
   </Canvas>
 )
