@@ -35,6 +35,7 @@ export const ProductDecorCanvas = () => (
     <Suspense fallback={null}>
       <ProductVape />
     </Suspense>
-    <Environment preset="studio" />
+    {/* Alojado localmente (public/hdri), ver HeroCanvas.jsx */}
+    <Environment files="/hdri/studio_small_03_1k.hdr" />
   </Canvas>
 )
