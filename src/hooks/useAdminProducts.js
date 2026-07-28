@@ -7,7 +7,7 @@ const SELECT = `
   stock, is_active, is_featured, image_url, images, details, category_id,
   created_at, updated_at,
   categories(id, name, slug, color),
-  product_variants(id, price, sale_price, wholesale_price, stock, is_primary, is_active)
+  product_variants(id, label, price, sale_price, wholesale_price, stock, is_primary, is_active, sort_order)
 `
 
 // Productos con variantes guardan el stock/precio/mayorista real por
