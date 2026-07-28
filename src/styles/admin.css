@@ -393,6 +393,9 @@
 }
 .chip--nic { background: #1a1a2e; color: #818cf8; }
 .chip--sabor { color: #666; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+.chip--ohm { background: #2a1a0e; color: #f97316; }
+.chip--tipo { background: #0e2a1a; color: #10b981; }
+.chip--more { color: #555; }
 
 .detalle-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 
