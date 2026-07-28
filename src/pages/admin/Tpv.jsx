@@ -1,16 +1,11 @@
 import { useRef, useState, useEffect, useMemo, useCallback } from 'react'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase.js'
 import { PosTicket } from '../../components/dom/admin/PosTicket.jsx'
 import { applyDesechablesTiers } from '../../lib/promoTiers.js'
-
-const BARCODE_FORMATS = ['ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a', 'upc_e', 'qr_code']
-
-const hasCamera = () =>
-  typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia
-const hasBarcodeDetector = () =>
-  typeof window !== 'undefined' && 'BarcodeDetector' in window
+import { useBarcodeScanner, hasCamera } from '../../hooks/useBarcodeScanner.js'
 
 // Misma resolucion de precio que create_pos_sale()/create_order() en
 // el server (variante propia -> variante principal -> precio base) -
@@ -27,19 +22,37 @@ const resolveVariantPrice = (product, variant, primaryVariant) => {
   return Number((product.is_on_sale && product.sale_price) ? product.sale_price : product.price ?? 0)
 }
 
+const buildLineFromVariant = (variantRow, primary) => ({
+  productId: variantRow.product_id,
+  variantId: variantRow.id,
+  name: variantRow.products.name,
+  variantLabel: variantRow.label,
+  unitPrice: resolveVariantPrice(variantRow.products, variantRow, primary),
+  maxStock: variantRow.stock,
+  categoryId: variantRow.products.categories?.id ?? null,
+  categoryKind: variantRow.products.categories?.kind ?? null,
+  promoTiers: variantRow.products.categories?.promo_tiers ?? null,
+})
+
+const buildLineFromProduct = (product) => ({
+  productId: product.id,
+  variantId: null,
+  name: product.name,
+  variantLabel: null,
+  unitPrice: resolveVariantPrice(product, null, null),
+  maxStock: product.stock,
+  categoryId: product.categories?.id ?? null,
+  categoryKind: product.categories?.kind ?? null,
+  promoTiers: product.categories?.promo_tiers ?? null,
+})
+
 export const Tpv = () => {
   const ref = useRef(null)
-  const inputRef = useRef(null)
-  const videoRef = useRef(null)
-  const streamRef = useRef(null)
-  const rafRef = useRef(null)
-  const detectorRef = useRef(null)
+  const location = useLocation()
+  const navigate = useNavigate()
 
-  const [barcode, setBarcode] = useState('')
   const [cart, setCart] = useState([])
   const [notFound, setNotFound] = useState(false)
-  const [cameraMode, setCameraMode] = useState(false)
-  const [cameraError, setCameraError] = useState(null)
   const [paymentType, setPaymentType] = useState(null)
   const [charging, setCharging] = useState(false)
   const [lastSale, setLastSale] = useState(null)
@@ -48,77 +61,6 @@ export const Tpv = () => {
     gsap.from('.tpv-scanner', { y: 16, opacity: 0, duration: 0.4, ease: 'power3.out' })
     gsap.from('.tpv-cart', { y: 16, opacity: 0, duration: 0.4, delay: 0.1, ease: 'power3.out' })
   }, { scope: ref })
-
-  useEffect(() => {
-    if (!cameraMode && !lastSale) inputRef.current?.focus()
-  }, [cameraMode, lastSale])
-
-  useEffect(() => {
-    if (cameraMode || lastSale) return
-    const capture = () => {
-      const tag = document.activeElement?.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
-      inputRef.current?.focus()
-    }
-    window.addEventListener('keydown', capture, true)
-    return () => window.removeEventListener('keydown', capture, true)
-  }, [cameraMode, lastSale])
-
-  useEffect(() => () => stopCamera(), [])
-
-  const stopCamera = () => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current)
-    streamRef.current?.getTracks().forEach((t) => t.stop())
-    streamRef.current = null
-  }
-
-  const startCamera = async () => {
-    setCameraError(null)
-    if (!hasBarcodeDetector()) {
-      setCameraError('Tu navegador no soporta detección de códigos. Usa Chrome en Android o Safari iOS 16.4+')
-      return
-    }
-    try {
-      detectorRef.current = new window.BarcodeDetector({ formats: BARCODE_FORMATS })
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 } },
-      })
-      streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
-      }
-      scanLoop()
-    } catch (err) {
-      setCameraError(`No se pudo acceder a la cámara: ${err.message}`)
-    }
-  }
-
-  const scanLoop = async () => {
-    if (!videoRef.current || !detectorRef.current) return
-    try {
-      const codes = await detectorRef.current.detect(videoRef.current)
-      if (codes.length > 0) {
-        navigator.vibrate?.(80)
-        stopCamera()
-        setCameraMode(false)
-        await lookup(codes[0].rawValue)
-        return
-      }
-    } catch (_) {}
-    rafRef.current = requestAnimationFrame(scanLoop)
-  }
-
-  const toggleCamera = () => {
-    if (cameraMode) {
-      stopCamera()
-      setCameraMode(false)
-      setCameraError(null)
-    } else {
-      setCameraMode(true)
-      setTimeout(startCamera, 100)
-    }
-  }
 
   const addToCart = (line) => {
     setCart((prev) => {
@@ -158,18 +100,7 @@ export const Tpv = () => {
             .eq('is_primary', true)
             .maybeSingle()
 
-      addToCart({
-        productId: variantHit.product_id,
-        variantId: variantHit.id,
-        name: variantHit.products.name,
-        variantLabel: variantHit.label,
-        unitPrice: resolveVariantPrice(variantHit.products, variantHit, primary),
-        maxStock: variantHit.stock,
-        categoryId: variantHit.products.categories?.id ?? null,
-        categoryKind: variantHit.products.categories?.kind ?? null,
-        promoTiers: variantHit.products.categories?.promo_tiers ?? null,
-      })
-      setBarcode('')
+      addToCart(buildLineFromVariant(variantHit, primary))
       return
     }
 
@@ -185,26 +116,51 @@ export const Tpv = () => {
       return
     }
 
-    addToCart({
-      productId: product.id,
-      variantId: null,
-      name: product.name,
-      variantLabel: null,
-      unitPrice: resolveVariantPrice(product, null, null),
-      maxStock: product.stock,
-      categoryId: product.categories?.id ?? null,
-      categoryKind: product.categories?.kind ?? null,
-      promoTiers: product.categories?.promo_tiers ?? null,
-    })
-    setBarcode('')
+    addToCart(buildLineFromProduct(product))
   }, [])
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      lookup(barcode)
-    }
-  }
+  const scanner = useBarcodeScanner(lookup, { active: !lastSale })
+
+  // Handoff desde StockScanner.jsx ("+ Añadir a venta") - un producto/
+  // variante ya identificado por id, no por codigo de barras, se agrega
+  // directo al carrito al entrar a esta pantalla. Se limpia el state de
+  // navegacion enseguida para que un refresh o volver atras no lo
+  // vuelva a agregar.
+  useEffect(() => {
+    const incoming = location.state?.addToCart
+    if (!incoming) return
+    ;(async () => {
+      if (incoming.variantId) {
+        const { data: variantHit } = await supabase
+          .from('product_variants')
+          .select(`
+            id, label, stock, price, sale_price, is_primary, product_id,
+            products(id, name, price, sale_price, is_on_sale, categories(id, kind, promo_tiers))
+          `)
+          .eq('id', incoming.variantId)
+          .maybeSingle()
+        if (!variantHit?.products) return
+        const { data: primary } = variantHit.is_primary
+          ? { data: variantHit }
+          : await supabase
+              .from('product_variants')
+              .select('price, sale_price')
+              .eq('product_id', variantHit.product_id)
+              .eq('is_primary', true)
+              .maybeSingle()
+        addToCart(buildLineFromVariant(variantHit, primary))
+      } else {
+        const { data: product } = await supabase
+          .from('products')
+          .select('id, name, price, sale_price, is_on_sale, stock, categories(id, kind, promo_tiers)')
+          .eq('id', incoming.productId)
+          .maybeSingle()
+        if (product) addToCart(buildLineFromProduct(product))
+      }
+    })()
+    navigate(location.pathname, { replace: true, state: null })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const changeQty = (key, delta) => {
     setCart((prev) =>
@@ -264,7 +220,7 @@ export const Tpv = () => {
 
   const newSale = () => {
     setLastSale(null)
-    setTimeout(() => inputRef.current?.focus(), 50)
+    setTimeout(() => scanner.inputRef.current?.focus(), 50)
   }
 
   if (lastSale) {
@@ -284,29 +240,29 @@ export const Tpv = () => {
         </div>
         {hasCamera() && (
           <button
-            className={`camera-btn ${cameraMode ? 'camera-btn--active' : ''}`}
-            onClick={toggleCamera}
+            className={`camera-btn ${scanner.cameraMode ? 'camera-btn--active' : ''}`}
+            onClick={scanner.toggleCamera}
           >
-            {cameraMode ? 'Cerrar cámara' : '📷 Cámara'}
+            {scanner.cameraMode ? 'Cerrar cámara' : '📷 Cámara'}
           </button>
         )}
       </div>
 
       <div className="tpv-grid">
         <div className="tpv-scanner scanner-zone">
-          {cameraMode ? (
+          {scanner.cameraMode ? (
             <div className="scanner-camera-wrap">
-              <video ref={videoRef} className="scanner-camera-video" playsInline muted />
-              {cameraError && <p className="scanner-nf-sub">{cameraError}</p>}
+              <video ref={scanner.videoRef} className="scanner-camera-video" playsInline muted />
+              {scanner.cameraError && <p className="scanner-nf-sub">{scanner.cameraError}</p>}
             </div>
           ) : (
             <div className="scanner-input-wrap">
               <input
-                ref={inputRef}
+                ref={scanner.inputRef}
                 className="scanner-input"
-                value={barcode}
-                onChange={(e) => setBarcode(e.target.value)}
-                onKeyDown={handleKeyDown}
+                value={scanner.barcode}
+                onChange={(e) => scanner.setBarcode(e.target.value)}
+                onKeyDown={scanner.handleKeyDown}
                 placeholder="Escaneá o escribí el código de barras…"
                 autoFocus
               />

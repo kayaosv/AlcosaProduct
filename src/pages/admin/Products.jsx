@@ -227,7 +227,7 @@ export const Products = () => {
                       </span>
                     )}
                   </td>
-                  <td className="td-detalles"><ProductDetails slug={slug} details={p.details} /></td>
+                  <td className="td-detalles"><ProductDetails slug={slug} details={p.details} variants={p.product_variants} /></td>
                   <td className="td-precio">
                     {!hasVariants && p.is_on_sale && p.sale_price && (
                       <span className="precio-original">{Number(p.price).toFixed(2)} €</span>
@@ -285,9 +285,46 @@ export const Products = () => {
   )
 }
 
-const ProductDetails = ({ slug, details }) => {
+const MAX_VARIANT_CHIPS = 4
+
+// Chips de labels de variante, con tope + contador "+N" - usado por
+// categorias cuyo "detalle" real vive en las variantes (resistencia,
+// alquimia), no en `details` (el JSON de specs del producto base).
+const VariantChips = ({ variants, chipClass }) => {
+  const labels = (variants ?? [])
+    .filter((v) => v.is_active !== false)
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map((v) => v.label)
+    .filter(Boolean)
+  if (labels.length === 0) return null
+  const shown = labels.slice(0, MAX_VARIANT_CHIPS)
+  const rest = labels.length - shown.length
+  return (
+    <>
+      {shown.map((l, i) => <span key={i} className={`chip ${chipClass}`}>{l}</span>)}
+      {rest > 0 && <span className="chip chip--more">+{rest}</span>}
+    </>
+  )
+}
+
+const ALQUIMIA_TYPE_LABELS = { base: 'Base neutra', nicokit: 'Nicokit', otro: 'Otro' }
+
+const ProductDetails = ({ slug, details, variants }) => {
   const d = details || {}
   const kind = categoryKind(slug)
+  if (slug === 'resistencia') return (
+    <span className="detalle-chips">
+      <VariantChips variants={variants} chipClass="chip--ohm" />
+    </span>
+  )
+  if (slug === 'alquimia') return (
+    <span className="detalle-chips">
+      {ALQUIMIA_TYPE_LABELS[d.alquimia_type] && (
+        <span className="chip chip--tipo">{ALQUIMIA_TYPE_LABELS[d.alquimia_type]}</span>
+      )}
+      <VariantChips variants={variants} chipClass="" />
+    </span>
+  )
   if (kind === 'sales') return (
     <span className="detalle-chips">
       {d.size_ml && <span className="chip">{d.size_ml}ml</span>}

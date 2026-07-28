@@ -1,28 +1,17 @@
-import { useRef, useState, useEffect, useCallback } from 'react'
+import { useRef, useState, useCallback } from 'react'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase.js'
+import { useBarcodeScanner, hasCamera } from '../../hooks/useBarcodeScanner.js'
 
 const QUICK_DELTAS = [1, 5, 10, -1, -5]
-const BARCODE_FORMATS = ['ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a', 'upc_e', 'qr_code']
-
-const hasCamera = () =>
-  typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia
-const hasBarcodeDetector = () =>
-  typeof window !== 'undefined' && 'BarcodeDetector' in window
 
 export const StockScanner = () => {
   const ref        = useRef(null)
-  const inputRef   = useRef(null)
   const resultRef  = useRef(null)
-  const videoRef   = useRef(null)
-  const streamRef  = useRef(null)
-  const rafRef     = useRef(null)
-  const detectorRef = useRef(null)
-  const lastKeyTimeRef = useRef(0)
+  const navigate   = useNavigate()
 
-  const [barcode, setBarcode]     = useState('')
   const [product, setProduct]     = useState(null)
   const [variants, setVariants]   = useState([])
   const [selectedVariantId, setSelectedVariantId] = useState(null)
@@ -31,94 +20,6 @@ export const StockScanner = () => {
   const [saving, setSaving]       = useState(false)
   const [history, setHistory]     = useState([])
   const [scanMode, setScanMode]   = useState(true)
-  const [cameraMode, setCameraMode] = useState(false)
-  const [cameraError, setCameraError] = useState(null)
-  const [scanning, setScanning]   = useState(false)
-
-  useGSAP(() => {
-    gsap.from('.scanner-zone',    { y: 16, opacity: 0, duration: 0.4, ease: 'power3.out' })
-    gsap.from('.scanner-history', { y: 16, opacity: 0, duration: 0.4, delay: 0.15, ease: 'power3.out' })
-  }, { scope: ref })
-
-  // Keep keyboard input focused when not in camera mode
-  useEffect(() => {
-    if (!cameraMode && scanMode) inputRef.current?.focus()
-  }, [scanMode, product, cameraMode])
-
-  // Global keydown capture for barcode gun (desktop)
-  useEffect(() => {
-    if (!scanMode || cameraMode) return
-    const capture = (e) => {
-      if (document.activeElement === inputRef.current) return
-      const tag = document.activeElement?.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
-      inputRef.current?.focus()
-    }
-    window.addEventListener('keydown', capture, true)
-    return () => window.removeEventListener('keydown', capture, true)
-  }, [scanMode, cameraMode])
-
-  // Stop camera on unmount
-  useEffect(() => () => stopCamera(), [])
-
-  const stopCamera = () => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current)
-    streamRef.current?.getTracks().forEach((t) => t.stop())
-    streamRef.current = null
-    setScanning(false)
-  }
-
-  const startCamera = async () => {
-    setCameraError(null)
-    if (!hasBarcodeDetector()) {
-      setCameraError('Tu navegador no soporta detección de códigos. Usa Chrome en Android o Safari iOS 16.4+')
-      return
-    }
-    try {
-      detectorRef.current = new window.BarcodeDetector({ formats: BARCODE_FORMATS })
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 } },
-      })
-      streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
-      }
-      setScanning(true)
-      scanLoop()
-    } catch (err) {
-      setCameraError(`No se pudo acceder a la cámara: ${err.message}`)
-    }
-  }
-
-  const scanLoop = async () => {
-    if (!videoRef.current || !detectorRef.current) return
-    try {
-      const codes = await detectorRef.current.detect(videoRef.current)
-      if (codes.length > 0) {
-        const raw = codes[0].rawValue
-        navigator.vibrate?.(80)
-        stopCamera()
-        setCameraMode(false)
-        await lookup(raw)
-        return
-      }
-    } catch (_) {}
-    rafRef.current = requestAnimationFrame(scanLoop)
-  }
-
-  const toggleCamera = () => {
-    if (cameraMode) {
-      stopCamera()
-      setCameraMode(false)
-      setCameraError(null)
-    } else {
-      setCameraMode(true)
-      setProduct(null)
-      setNotFound(false)
-      setTimeout(startCamera, 100)
-    }
-  }
 
   const lookup = useCallback(async (code) => {
     const clean = (code ?? '').trim()
@@ -185,14 +86,12 @@ export const StockScanner = () => {
     })
   }, [])
 
-  const handleKeyDown = (e) => {
-    lastKeyTimeRef.current = Date.now()
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      lookup(barcode)
-      setBarcode('')
-    }
-  }
+  const scanner = useBarcodeScanner(lookup, { active: scanMode })
+
+  useGSAP(() => {
+    gsap.from('.scanner-zone',    { y: 16, opacity: 0, duration: 0.4, ease: 'power3.out' })
+    gsap.from('.scanner-history', { y: 16, opacity: 0, duration: 0.4, delay: 0.15, ease: 'power3.out' })
+  }, { scope: ref })
 
   const hasVariants = variants.length > 0
   const selectedVariant = hasVariants ? (variants.find((v) => v.id === selectedVariantId) ?? null) : null
@@ -237,12 +136,27 @@ export const StockScanner = () => {
     setVariants([])
     setSelectedVariantId(null)
     setNotFound(false)
-    setBarcode('')
+    scanner.setBarcode('')
     setScanMode(true)
-    stopCamera()
-    setCameraMode(false)
-    setCameraError(null)
-    setTimeout(() => inputRef.current?.focus(), 50)
+    scanner.stopCamera()
+    setTimeout(() => scanner.inputRef.current?.focus(), 50)
+  }
+
+  // Manda a TPV con este producto/variante ya listo para agregar al
+  // carrito de venta - ver el useEffect en Tpv.jsx que consume
+  // location.state.addToCart. Un solo escaneo, dos caminos (ajustar
+  // stock aca mismo, o vender) en vez de tener que volver a escanear
+  // en la pantalla de TPV.
+  const sellThis = () => {
+    if (!product) return
+    navigate('/admin/tpv', {
+      state: {
+        addToCart: {
+          productId: product.id,
+          variantId: hasVariants ? (selectedVariant?.id ?? null) : null,
+        },
+      },
+    })
   }
 
   const stockColor = (s) => s === 0 ? '#ef4444' : s <= 5 ? '#f59e0b' : '#4ade80'
@@ -251,17 +165,17 @@ export const StockScanner = () => {
     <div ref={ref} className="page-content">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Escáner de stock</h1>
+          <h1 className="page-title">Escáner</h1>
           <p className="page-subtitle">Pistola EAN · Enter para buscar{hasCamera() ? ' · o usa la cámara' : ''}</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {hasCamera() && (
             <button
-              className={`camera-btn ${cameraMode ? 'camera-btn--active' : ''}`}
-              onClick={toggleCamera}
+              className={`camera-btn ${scanner.cameraMode ? 'camera-btn--active' : ''}`}
+              onClick={scanner.toggleCamera}
             >
               <IconCamera />
-              {cameraMode ? 'Cerrar cámara' : 'Escanear con cámara'}
+              {scanner.cameraMode ? 'Cerrar cámara' : 'Escanear con cámara'}
             </button>
           )}
           {history.length > 0 && (
@@ -275,22 +189,22 @@ export const StockScanner = () => {
         <div className="scanner-zone">
 
           {/* Modo cámara */}
-          {cameraMode && (
+          {scanner.cameraMode && (
             <div style={{ marginBottom: 16 }}>
-              {cameraError ? (
+              {scanner.cameraError ? (
                 <div className="scanner-not-found" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 8 }}>
                   <p className="scanner-nf-title">Cámara no disponible</p>
-                  <p className="scanner-nf-sub">{cameraError}</p>
-                  <button className="btn-ghost" onClick={() => { setCameraMode(false); setCameraError(null) }}>Usar pistola</button>
+                  <p className="scanner-nf-sub">{scanner.cameraError}</p>
+                  <button className="btn-ghost" onClick={scanner.toggleCamera}>Usar pistola</button>
                 </div>
               ) : (
                 <div className="camera-wrap">
-                  <video ref={videoRef} className="camera-video" playsInline muted />
+                  <video ref={scanner.videoRef} className="camera-video" playsInline muted />
                   <div className="camera-aim">
                     <div className="camera-aim-box" />
                   </div>
                   <span className="camera-hint">
-                    {scanning ? 'Apunta al código de barras…' : 'Iniciando cámara…'}
+                    {scanner.scanning ? 'Apunta al código de barras…' : 'Iniciando cámara…'}
                   </span>
                 </div>
               )}
@@ -298,22 +212,22 @@ export const StockScanner = () => {
           )}
 
           {/* Modo pistola / teclado */}
-          {!cameraMode && (
+          {!scanner.cameraMode && (
             <div className="scanner-input-wrap">
               <IconBarcode />
               <input
-                ref={inputRef}
+                ref={scanner.inputRef}
                 className="scanner-input"
-                value={barcode}
-                onChange={(e) => setBarcode(e.target.value)}
-                onKeyDown={handleKeyDown}
-                onBlur={() => { if (scanMode && !cameraMode) inputRef.current?.focus() }}
+                value={scanner.barcode}
+                onChange={(e) => scanner.setBarcode(e.target.value)}
+                onKeyDown={scanner.handleKeyDown}
+                onBlur={() => { if (scanMode && !scanner.cameraMode) scanner.inputRef.current?.focus() }}
                 placeholder="Apunta y escanea…"
                 autoComplete="off"
                 spellCheck={false}
               />
-              {barcode && (
-                <button className="scanner-clear" onClick={() => { setBarcode(''); inputRef.current?.focus() }}>✕</button>
+              {scanner.barcode && (
+                <button className="scanner-clear" onClick={() => { scanner.setBarcode(''); scanner.inputRef.current?.focus() }}>✕</button>
               )}
             </div>
           )}
@@ -419,6 +333,14 @@ export const StockScanner = () => {
               )}
 
               <div className="scanner-result-actions">
+                <button
+                  className="btn-primary"
+                  style={{ fontSize: 12 }}
+                  onClick={sellThis}
+                  disabled={hasVariants && !selectedVariant}
+                >
+                  + Añadir a venta
+                </button>
                 <Link to={`/admin/products/${product.id}`} className="btn-ghost" style={{ fontSize: 12 }}>
                   Editar producto
                 </Link>
