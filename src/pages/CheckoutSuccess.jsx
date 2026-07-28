@@ -9,14 +9,14 @@ const formatPrice = (n) => `${Number(n).toFixed(2)}€`
 const MAX_POLL_ATTEMPTS = 8
 const POLL_DELAY_MS = 1500
 
-// Sin infraestructura de envio propia todavia (sin calculo de zonas/costes,
-// sin repartidor integrado) - el envio real se organiza a mano por el
-// dueño con su propio repartidor (no un transportista externo, para no
-// depender de si aceptan o no productos de vapeo, y porque asi puede
-// verificar la edad en persona al entregar). Este boton solo arma el
-// mensaje con los datos del pedido ya pagado; la direccion se confirma
-// en la propia conversacion de WhatsApp si el cliente no la escribio en
-// las notas del checkout.
+// Sin infraestructura de envio automatizada todavia (sin calculo de
+// zonas/costes en el propio sitio) - el envio real se coordina a mano
+// por WhatsApp, y se realiza mediante Correos o empresas de mensajeria
+// profesionales (confirmado 2026-07-28 - ver AvisoLegal.jsx), que
+// verifican la mayoria de edad del destinatario al entregar. Este boton
+// solo arma el mensaje con los datos del pedido ya pagado; la direccion
+// se confirma en la propia conversacion de WhatsApp si el cliente no la
+// escribio en las notas del checkout.
 const WHATSAPP_NUMBER = '34682725780'
 
 const buildWhatsAppMessage = (order) => {
