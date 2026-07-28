@@ -10,6 +10,33 @@ import { supabase } from '../../lib/supabase.js'
 
 const ORDER_HISTORY_DAYS = 14
 const LOW_STOCK_VISIBLE = 4
+const PAYMENT_LABELS = {
+  stripe: 'Stripe', pickup: 'Recogida', pos_efectivo: 'Efectivo (TPV)', pos_tarjeta: 'Tarjeta (TPV)',
+}
+
+const isPhysical = (paymentMethod) => (paymentMethod ?? '').startsWith('pos_')
+
+// Grafico de lineas hecho a mano (sin libreria) - misma filosofia que
+// el resto de barras del dashboard, solo que en forma de SVG con
+// preserveAspectRatio="none" para que estire sin depender de medir
+// pixeles reales del contenedor.
+const SalesLineChart = ({ days }) => {
+  const max = Math.max(1, ...days.map((d) => Math.max(d.online, d.fisica)))
+  const n = days.length
+  const toPoints = (getValue) =>
+    days.map((d, i) => `${n > 1 ? (i / (n - 1)) * 100 : 50},${100 - (getValue(d) / max) * 100}`).join(' ')
+  const onlinePoints = toPoints((d) => d.online)
+  const fisicaPoints = toPoints((d) => d.fisica)
+  const trendPoints = toPoints((d) => (d.online + d.fisica) / 2)
+
+  return (
+    <svg className="sales-line-chart" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <polyline points={trendPoints} className="sales-line sales-line--trend" />
+      <polyline points={onlinePoints} className="sales-line sales-line--online" />
+      <polyline points={fisicaPoints} className="sales-line sales-line--fisica" />
+    </svg>
+  )
+}
 
 export const Dashboard = () => {
   const ref = useRef(null)
@@ -24,8 +51,9 @@ export const Dashboard = () => {
     since.setDate(since.getDate() - (ORDER_HISTORY_DAYS - 1))
     supabase
       .from('orders')
-      .select('created_at, payment_method, status')
+      .select('id, created_at, payment_method, status, total')
       .gte('created_at', since.toISOString())
+      .order('created_at', { ascending: false })
       .then(({ data }) => {
         if (!cancelled) setOrders((data ?? []).filter((o) => o.status !== 'cancelled'))
       })
@@ -50,9 +78,10 @@ export const Dashboard = () => {
     [categories, products],
   )
 
-  // Margen por categoria - promedio de % y, al lado, el margen medio
-  // en euros por unidad (precio venta - mayorista) para que el % se
-  // pueda leer junto a un numero concreto, no solo abstracto.
+  // Margen por categoria - % promedio y, al lado, el margen medio en
+  // euros por unidad (precio venta - mayorista) - la ganancia
+  // aproximada de vender una unidad mas de esa categoria, no el valor
+  // total de inventario.
   const marginByCategory = useMemo(
     () =>
       categories
@@ -80,7 +109,7 @@ export const Dashboard = () => {
       map[key].units += p.effectiveStock
       map[key].count += 1
     })
-    return Object.values(map).sort((a, b) => b.value - a.value).slice(0, 8)
+    return Object.values(map).sort((a, b) => b.value - a.value)
   }, [products])
 
   const lowStock = useMemo(
@@ -88,39 +117,53 @@ export const Dashboard = () => {
     [products],
   )
 
-  const nicotineDist = useMemo(() => {
-    const map = {}
+  // Antes mezclaba nicotina/tamaños de TODAS las categorias en un solo
+  // bucket ("6mg: 12" sin decir de que producto) - ahora separado por
+  // kind real, un mini-grupo de barras por categoria que usa ese campo.
+  const nicotineByKind = useMemo(() => {
+    const groups = {}
     products.forEach((p) => {
       const mg = p.details?.nicotine_mg
       if (mg == null) return
+      const slug = categories.find((c) => c.id === p.category_id)?.slug
+      const k = categoryKind(slug)
+      if (k !== 'sales' && k !== 'desechables') return
+      const label = k === 'sales' ? 'Sales de Nicotina' : 'Desechables'
+      if (!groups[label]) groups[label] = {}
       const key = `${mg}mg`
-      map[key] = (map[key] || 0) + 1
+      groups[label][key] = (groups[label][key] || 0) + 1
     })
-    return Object.entries(map)
-      .map(([mg, count]) => ({ mg, count }))
-      .sort((a, b) => parseInt(a.mg) - parseInt(b.mg))
-  }, [products])
+    return Object.entries(groups).map(([label, map]) => ({
+      label,
+      data: Object.entries(map)
+        .map(([mg, count]) => ({ mg, count }))
+        .sort((a, b) => parseInt(a.mg) - parseInt(b.mg)),
+    }))
+  }, [products, categories])
 
-  const sizeDist = useMemo(() => {
-    const map = {}
+  const sizeByKind = useMemo(() => {
+    const groups = {}
     products.forEach((p) => {
       const slug = categories.find((c) => c.id === p.category_id)?.slug
       const k = categoryKind(slug)
       let ml = null
-      if (k === 'sales') ml = p.details?.size_ml
-      else if (k === 'longfill') ml = p.details?.bottle_ml
+      let label = null
+      if (k === 'sales') { ml = p.details?.size_ml; label = 'Sales de Nicotina' }
+      else if (k === 'longfill') { ml = p.details?.bottle_ml; label = slug === 'minilongfill' ? 'Minilongfill' : 'Longfill' }
       if (!ml) return
+      if (!groups[label]) groups[label] = {}
       const key = `${ml}ml`
-      map[key] = (map[key] || 0) + 1
+      groups[label][key] = (groups[label][key] || 0) + 1
     })
-    return Object.entries(map)
-      .map(([ml, count]) => ({ ml, count }))
-      .sort((a, b) => parseInt(a.ml) - parseInt(b.ml))
+    return Object.entries(groups).map(([label, map]) => ({
+      label,
+      data: Object.entries(map)
+        .map(([ml, count]) => ({ ml, count }))
+        .sort((a, b) => parseInt(a.ml) - parseInt(b.ml)),
+    }))
   }, [products, categories])
 
-  // Historial de pedidos online (web) vs fisica (TPV), ultimos N dias -
-  // 'pos_efectivo'/'pos_tarjeta' vienen del TPV en tienda, todo lo demas
-  // (stripe/pickup) se origina en la web.
+  // Historial de pedidos: fisica (TPV) vs online (web), ultimos N dias.
   const orderHistory = useMemo(() => {
     const days = []
     const now = new Date()
@@ -139,16 +182,12 @@ export const Dashboard = () => {
       const key = (o.created_at ?? '').slice(0, 10)
       const bucket = byDate[key]
       if (!bucket) return
-      if ((o.payment_method ?? '').startsWith('pos_')) bucket.fisica += 1
+      if (isPhysical(o.payment_method)) bucket.fisica += 1
       else bucket.online += 1
     })
     return days
   }, [orders])
 
-  const orderHistoryAvg = orderHistory.length
-    ? orderHistory.reduce((s, d) => s + d.online + d.fisica, 0) / orderHistory.length
-    : 0
-  const orderHistoryMax = Math.max(1, ...orderHistory.map((d) => d.online + d.fisica))
   const orderHistoryTotal = orderHistory.reduce((s, d) => s + d.online + d.fisica, 0)
 
   useGSAP(() => {
@@ -166,8 +205,6 @@ export const Dashboard = () => {
   }
 
   const maxTopBrand = topBrands[0]?.value || 1
-  const maxNic = Math.max(1, ...nicotineDist.map((x) => x.count))
-  const maxSize = Math.max(1, ...sizeDist.map((x) => x.count))
   const visibleLowStock = lowStockExpanded ? lowStock : lowStock.slice(0, LOW_STOCK_VISIBLE)
 
   return (
@@ -185,197 +222,211 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      <div className="dash-two-col">
-        {/* ── COLUMNA IZQUIERDA: producto / margen ── */}
-        <div className="dash-col">
-          <div className="stats-grid stats-grid--compact">
-            <div className="stat-card stat-card--sm">
-              <span className="stat-label">Total productos</span>
-              <span className="stat-value stat-value--sm">{stats.total}</span>
-            </div>
-            <div className="stat-card stat-card--sm">
-              <span className="stat-label">Valor inventario</span>
-              <span className="stat-value stat-value--sm">{stats.inventoryValue.toFixed(0)} €</span>
-            </div>
-          </div>
-
-          <div className="dash-section">
-            <h2 className="section-title">Margen por categoría</h2>
-            <div className="cat-bars">
-              {marginByCategory.length === 0 && (
-                <p style={{ color: '#444', fontSize: 12 }}>Sin datos de mayorista todavía.</p>
-              )}
-              {marginByCategory.map((c) => (
-                <div key={c.id} className="cat-bar-row">
-                  <span className="cat-bar-label">{c.name}</span>
-                  <div className="cat-bar-track">
-                    <div
-                      className="cat-bar-fill"
-                      style={{ width: `${c.margin}%`, background: categoryColor(c.slug, c.color) }}
-                    />
-                  </div>
-                  <span className="cat-bar-count cat-bar-count--margen">
-                    {c.margin}% <span className="cat-bar-count--euro">(≈{c.marginEuro.toFixed(2)}€)</span>
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="dash-section">
-            <h2 className="section-title">Por categoría (cantidad)</h2>
-            <div className="cat-bars">
-              {byCategory.map((c) => (
-                <div key={c.id} className="cat-bar-row">
-                  <span className="cat-bar-label">{c.name}</span>
-                  <div className="cat-bar-track">
-                    <div
-                      className="cat-bar-fill"
-                      style={{
-                        width: `${stats.total ? (c.count / stats.total) * 100 : 0}%`,
-                        background: categoryColor(c.slug, c.color),
-                      }}
-                    />
-                  </div>
-                  <span className="cat-bar-count">{c.count}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* ── Fila 1: ventas (lineas) + historial de pedidos ── */}
+      <div className="dash-row" style={{ marginBottom: 20 }}>
+        <div className="dash-section dash-section--wide">
+          <h2 className="section-title">Ventas — física vs online</h2>
+          {orderHistoryTotal === 0 ? (
+            <p style={{ color: '#444', fontSize: 12 }}>Sin pedidos registrados en este período.</p>
+          ) : (
+            <>
+              <div className="sales-line-wrap">
+                <SalesLineChart days={orderHistory} />
+              </div>
+              <div className="sales-line-axis">
+                <span>{orderHistory[0]?.label}</span>
+                <span>{orderHistory[orderHistory.length - 1]?.label}</span>
+              </div>
+              <div className="order-history-legend">
+                <span><i className="order-history-dot order-history-dot--online" /> Online</span>
+                <span><i className="order-history-dot order-history-dot--fisica" /> Física (TPV)</span>
+                <span><i className="order-history-dot order-history-dot--trend" /> Tendencia media</span>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* ── COLUMNA DERECHA: stock ── */}
-        <div className="dash-col">
-          <div className="stats-grid stats-grid--compact stats-grid--1">
-            <div className="stat-card stat-card--sm stat-card--warn">
-              <span className="stat-label">Sin stock</span>
-              <span className="stat-value stat-value--sm">{stats.outOfStock}</span>
-              <span className="stat-hint">requieren reposición</span>
-            </div>
-          </div>
-
-          <div className="dash-section">
-            <h2 className="section-title">Stock bajo</h2>
-            <div className={`alert-list alert-list--scroll ${lowStockExpanded ? 'alert-list--expanded' : ''}`}>
-              {lowStock.length === 0 && (
-                <p style={{ color: '#444', fontSize: 12 }}>Todo en orden.</p>
-              )}
-              {visibleLowStock.map((p) => (
-                <Link key={p.id} to={`/admin/products/${p.id}`} className="alert-row">
-                  <div className="alert-info">
-                    <span className="alert-name">{p.name}</span>
-                    <span className="alert-marca">{p.brand || '—'}</span>
-                  </div>
-                  <span className={`stock-badge ${p.effectiveStock === 0 ? 'stock-badge--empty' : 'stock-badge--low'}`}>
-                    {p.effectiveStock === 0 ? 'AGOTADO' : `${p.effectiveStock} u.`}
-                  </span>
-                </Link>
-              ))}
-            </div>
-            {lowStock.length > LOW_STOCK_VISIBLE && (
-              <button className="btn-ghost alert-list-toggle" onClick={() => setLowStockExpanded((v) => !v)}>
-                {lowStockExpanded ? 'Ver menos' : `Ver ${lowStock.length - LOW_STOCK_VISIBLE} más`}
-              </button>
+        <div className="dash-section">
+          <h2 className="section-title">Historial de pedidos</h2>
+          <div className="alert-list alert-list--scroll">
+            {orders.length === 0 && (
+              <p style={{ color: '#444', fontSize: 12 }}>Sin pedidos en este período.</p>
             )}
+            {orders.slice(0, 25).map((o) => (
+              <Link key={o.id} to={`/admin/orders/${o.id}`} className="alert-row order-row">
+                <div className="alert-info">
+                  <span className="alert-name">
+                    {new Date(o.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}
+                    {' · '}
+                    {PAYMENT_LABELS[o.payment_method] ?? o.payment_method}
+                  </span>
+                  <span className="alert-marca">{isPhysical(o.payment_method) ? 'Física (TPV)' : 'Online'}</span>
+                </div>
+                <span className="order-row-total">{Number(o.total ?? 0).toFixed(2)} €</span>
+              </Link>
+            ))}
           </div>
         </div>
       </div>
 
-      <div className="dash-row" style={{ margin: '20px 0' }}>
-        <div className="dash-section dash-section--wide">
-          <h2 className="section-title">Top marcas por valor en stock</h2>
-          <div className="cat-bars">
-            {topBrands.map((m) => (
-              <div key={m.brand} className="cat-bar-row cat-bar-row--marca">
-                <span className="cat-bar-label">{m.brand}</span>
+      {/* ── Fila 2: totales ── */}
+      <div className="stats-grid stats-grid--compact" style={{ marginBottom: 20 }}>
+        <div className="stat-card stat-card--sm">
+          <span className="stat-label">Total productos</span>
+          <span className="stat-value stat-value--sm">{stats.total}</span>
+        </div>
+        <div className="stat-card stat-card--sm">
+          <span className="stat-label">Valor inventario</span>
+          <span className="stat-value stat-value--sm">{stats.inventoryValue.toFixed(0)} €</span>
+        </div>
+        <div className="stat-card stat-card--sm stat-card--warn">
+          <span className="stat-label">Sin stock</span>
+          <span className="stat-value stat-value--sm">{stats.outOfStock}</span>
+        </div>
+      </div>
+
+      {/* ── Fila 3: margen por categoria, en cards chicas ── */}
+      <div className="dash-section" style={{ marginBottom: 20 }}>
+        <h2 className="section-title">Margen por categoría</h2>
+        <p style={{ color: '#444', fontSize: 11, margin: '-12px 0 16px' }}>
+          El € es la ganancia aproximada por unidad vendida (precio venta − mayorista), promediada entre los productos de esa categoría con precio mayorista cargado.
+        </p>
+        {marginByCategory.length === 0 ? (
+          <p style={{ color: '#444', fontSize: 12 }}>Sin datos de mayorista todavía.</p>
+        ) : (
+          <div className="margin-card-grid">
+            {marginByCategory.map((c) => (
+              <div key={c.id} className="margin-card">
+                <span className="margin-card-cat" style={{ color: categoryColor(c.slug, c.color) }}>{c.name}</span>
+                <span className="margin-card-pct">{c.margin}%</span>
+                <span className="margin-card-euro">≈{c.marginEuro.toFixed(2)} €/u</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Fila 4: cantidad por categoria + stock bajo ── */}
+      <div className="dash-row" style={{ marginBottom: 20 }}>
+        <div className="dash-section">
+          <h2 className="section-title">Por categoría (cantidad)</h2>
+          <div className="cat-bars cat-bars--scroll">
+            {byCategory.map((c) => (
+              <div key={c.id} className="cat-bar-row">
+                <span className="cat-bar-label">{c.name}</span>
                 <div className="cat-bar-track">
                   <div
                     className="cat-bar-fill"
-                    style={{ width: `${(m.value / maxTopBrand) * 100}%`, background: '#6366f1' }}
+                    style={{
+                      width: `${stats.total ? (c.count / stats.total) * 100 : 0}%`,
+                      background: categoryColor(c.slug, c.color),
+                    }}
                   />
                 </div>
-                <span className="cat-bar-count">{m.value.toFixed(0)} €</span>
+                <span className="cat-bar-count">{c.count}</span>
               </div>
             ))}
           </div>
         </div>
 
         <div className="dash-section">
-          <h2 className="section-title">Historial de pedidos ({ORDER_HISTORY_DAYS}d)</h2>
-          {orderHistoryTotal === 0 ? (
-            <p style={{ color: '#444', fontSize: 12 }}>Sin pedidos registrados en este período.</p>
-          ) : (
-            <>
-              <div className="order-history-chart">
-                <div
-                  className="order-history-avg-line"
-                  style={{ bottom: `${(orderHistoryAvg / orderHistoryMax) * 100}%` }}
-                  title={`Promedio: ${orderHistoryAvg.toFixed(1)} pedidos/día`}
-                />
-                {orderHistory.map((d) => (
-                  <div key={d.date} className="order-history-col">
-                    <div className="order-history-bars">
-                      <div
-                        className="order-history-bar order-history-bar--online"
-                        style={{ height: `${(d.online / orderHistoryMax) * 100}%` }}
-                        title={`${d.online} online`}
-                      />
-                      <div
-                        className="order-history-bar order-history-bar--fisica"
-                        style={{ height: `${(d.fisica / orderHistoryMax) * 100}%` }}
-                        title={`${d.fisica} física`}
-                      />
-                    </div>
-                    <span className="order-history-label">{d.label}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="order-history-legend">
-                <span><i className="order-history-dot order-history-dot--online" /> Online</span>
-                <span><i className="order-history-dot order-history-dot--fisica" /> Física (TPV)</span>
-                <span className="order-history-avg-label">Promedio: {orderHistoryAvg.toFixed(1)}/día</span>
-              </div>
-            </>
+          <h2 className="section-title">Stock bajo</h2>
+          <div className={`alert-list alert-list--scroll ${lowStockExpanded ? 'alert-list--expanded' : ''}`}>
+            {lowStock.length === 0 && (
+              <p style={{ color: '#444', fontSize: 12 }}>Todo en orden.</p>
+            )}
+            {visibleLowStock.map((p) => (
+              <Link key={p.id} to={`/admin/products/${p.id}`} className="alert-row">
+                <div className="alert-info">
+                  <span className="alert-name">{p.name}</span>
+                  <span className="alert-marca">{p.brand || '—'}</span>
+                </div>
+                <span className={`stock-badge ${p.effectiveStock === 0 ? 'stock-badge--empty' : 'stock-badge--low'}`}>
+                  {p.effectiveStock === 0 ? 'AGOTADO' : `${p.effectiveStock} u.`}
+                </span>
+              </Link>
+            ))}
+          </div>
+          {lowStock.length > LOW_STOCK_VISIBLE && (
+            <button className="btn-ghost alert-list-toggle" onClick={() => setLowStockExpanded((v) => !v)}>
+              {lowStockExpanded ? 'Ver menos' : `Ver ${lowStock.length - LOW_STOCK_VISIBLE} más`}
+            </button>
           )}
         </div>
       </div>
 
+      {/* ── Fila 5: top marcas ── */}
+      <div className="dash-section" style={{ marginBottom: 20 }}>
+        <h2 className="section-title">Top marcas por valor en stock</h2>
+        <div className="cat-bars cat-bars--scroll">
+          {topBrands.map((m) => (
+            <div key={m.brand} className="cat-bar-row cat-bar-row--marca">
+              <span className="cat-bar-label">{m.brand}</span>
+              <div className="cat-bar-track">
+                <div
+                  className="cat-bar-fill"
+                  style={{ width: `${(m.value / maxTopBrand) * 100}%`, background: '#6366f1' }}
+                />
+              </div>
+              <span className="cat-bar-count">{m.value.toFixed(0)} €</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Fila 6: distribucion nicotina / tamaños, separado por categoria real ── */}
       <div className="dash-row">
         <div className="dash-section">
-          <h2 className="section-title">Distribución nicotina (mg)</h2>
-          {nicotineDist.length === 0 ? (
+          <h2 className="section-title">Nicotina (mg) por categoría</h2>
+          {nicotineByKind.length === 0 ? (
             <p style={{ color: '#444', fontSize: 12 }}>Sin productos con nicotina.</p>
           ) : (
-            <div className="dist-bars">
-              {nicotineDist.map((d) => (
-                <div key={d.mg} className="dist-bar-col">
-                  <span className="dist-bar-count">{d.count}</span>
-                  <div className="dist-bar-track">
-                    <div className="dist-bar-fill" style={{ height: `${(d.count / maxNic) * 100}%`, background: '#e53935' }} />
+            nicotineByKind.map((g) => {
+              const max = Math.max(1, ...g.data.map((d) => d.count))
+              return (
+                <div key={g.label} className="dist-group">
+                  <span className="dist-group-label">{g.label}</span>
+                  <div className="dist-bars dist-bars--sm">
+                    {g.data.map((d) => (
+                      <div key={d.mg} className="dist-bar-col">
+                        <span className="dist-bar-count">{d.count}</span>
+                        <div className="dist-bar-track dist-bar-track--sm">
+                          <div className="dist-bar-fill" style={{ height: `${(d.count / max) * 100}%`, background: '#e53935' }} />
+                        </div>
+                        <span className="dist-bar-label">{d.mg}</span>
+                      </div>
+                    ))}
                   </div>
-                  <span className="dist-bar-label">{d.mg}</span>
                 </div>
-              ))}
-            </div>
+              )
+            })
           )}
         </div>
 
-        <div className="dash-section dash-section--wide">
-          <h2 className="section-title">Distribución tamaños (ml)</h2>
-          {sizeDist.length === 0 ? (
+        <div className="dash-section">
+          <h2 className="section-title">Tamaños (ml) por categoría</h2>
+          {sizeByKind.length === 0 ? (
             <p style={{ color: '#444', fontSize: 12 }}>Sin datos de tamaños.</p>
           ) : (
-            <div className="dist-bars dist-bars--wide">
-              {sizeDist.map((d) => (
-                <div key={d.ml} className="dist-bar-col">
-                  <span className="dist-bar-count">{d.count}</span>
-                  <div className="dist-bar-track">
-                    <div className="dist-bar-fill" style={{ height: `${(d.count / maxSize) * 100}%`, background: '#8b5cf6' }} />
+            sizeByKind.map((g) => {
+              const max = Math.max(1, ...g.data.map((d) => d.count))
+              return (
+                <div key={g.label} className="dist-group">
+                  <span className="dist-group-label">{g.label}</span>
+                  <div className="dist-bars dist-bars--sm">
+                    {g.data.map((d) => (
+                      <div key={d.ml} className="dist-bar-col">
+                        <span className="dist-bar-count">{d.count}</span>
+                        <div className="dist-bar-track dist-bar-track--sm">
+                          <div className="dist-bar-fill" style={{ height: `${(d.count / max) * 100}%`, background: '#8b5cf6' }} />
+                        </div>
+                        <span className="dist-bar-label">{d.ml}</span>
+                      </div>
+                    ))}
                   </div>
-                  <span className="dist-bar-label">{d.ml}</span>
                 </div>
-              ))}
-            </div>
+              )
+            })
           )}
         </div>
       </div>
