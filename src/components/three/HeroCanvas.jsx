@@ -73,7 +73,11 @@ export const HeroCanvas = () => (
       <VapeModel />
     </Suspense>
     <Sparks />
-    <Environment preset="studio" />
+    {/* Alojado localmente (public/hdri) en vez del preset por CDN de
+        drei (raw.githack.com) - ese servicio devolvia 403 en produccion,
+        rompiendo el Hero por completo (no tenia nada que ver con el
+        CSP, se confirmo con un curl directo al CDN). */}
+    <Environment files="/hdri/studio_small_03_1k.hdr" />
     <EffectComposer>
       <Bloom intensity={0.35} luminanceThreshold={0.7} luminanceSmoothing={0.4} mipmapBlur />
       <Vignette offset={0.3} darkness={0.5} />
