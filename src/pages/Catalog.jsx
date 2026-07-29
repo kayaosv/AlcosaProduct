@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
@@ -95,23 +95,43 @@ const Skeleton = () => (
   </div>
 )
 
+const PAGE_SIZE = 24
+
 export const Catalog = () => {
   const containerRef = useRef(null)
   const [params, setParams] = useSearchParams()
   const initialCat = params.get('cat') || 'all'
   const [activeCat, setActiveCat] = useState(initialCat)
   const [search] = useState('')
+  const [page, setPage] = useState(1)
+  const [accumulated, setAccumulated] = useState([])
 
   const { categories } = useCategories()
   const { products, total, loading } = useProducts({
     categorySlug: activeCat,
     search,
-    page: 1,
-    pageSize: 24,
+    page,
+    pageSize: PAGE_SIZE,
   })
+
+  // El grid solo pinta lo que ya llego pagina a pagina — el hook trae
+  // una pagina a la vez, aca se va acumulando para que "Cargar mas"
+  // sume en vez de reemplazar (antes se pedia siempre page:1, por eso
+  // nunca se veian mas de 24 productos en total, en ninguna categoria).
+  useEffect(() => {
+    if (loading) return
+    setAccumulated((prev) => (page === 1 ? products : [...prev, ...products]))
+  }, [products, loading, page])
+
+  const initialLoading = loading && page === 1
+  const loadingMore = loading && page > 1
+  const grid = accumulated
+  const canLoadMore = grid.length < total
 
   const handleSelect = (slug) => {
     setActiveCat(slug)
+    setPage(1)
+    setAccumulated([])
     if (slug === 'all') setParams({})
     else setParams({ cat: slug })
   }
@@ -149,8 +169,6 @@ export const Catalog = () => {
     },
     { scope: containerRef, dependencies: [loading, activeCat] },
   )
-
-  const grid = useMemo(() => products, [products])
 
   return (
     <main ref={containerRef} className="min-h-screen pt-32 pb-24">
@@ -195,7 +213,7 @@ export const Catalog = () => {
           className="text-[12px] tracking-[0.2em] uppercase mt-2"
           style={{ color: 'rgba(23,45,109,0.6)' }}
         >
-          {loading ? 'Cargando…' : `${total} resultado${total === 1 ? '' : 's'}`}
+          {initialLoading ? 'Cargando…' : `${total} resultado${total === 1 ? '' : 's'}`}
         </p>
       </header>
 
@@ -219,7 +237,7 @@ export const Catalog = () => {
       </div>
 
       <section className="px-6 md:px-10">
-        {loading ? (
+        {initialLoading ? (
           <div className="cat-grid">
             {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} />
@@ -235,18 +253,39 @@ export const Catalog = () => {
             </p>
           </div>
         ) : (
-          <div className="cat-grid">
-            {grid.map((p, i) => (
-              <div
-                key={p.id}
-                data-anim="card"
-                data-span-wide={i % 5 === 2 ? '' : undefined}
-                style={{ gridColumn: i % 5 === 2 ? 'span 2' : undefined }}
-              >
-                <ProductCard product={p} span={i % 5 === 2 ? 2 : 1} />
+          <>
+            <div className="cat-grid">
+              {grid.map((p, i) => (
+                <div
+                  key={p.id}
+                  data-anim="card"
+                  data-span-wide={i % 5 === 2 ? '' : undefined}
+                  style={{ gridColumn: i % 5 === 2 ? 'span 2' : undefined }}
+                >
+                  <ProductCard product={p} span={i % 5 === 2 ? 2 : 1} />
+                </div>
+              ))}
+            </div>
+            {canLoadMore && (
+              <div className="mt-12 flex justify-center">
+                <button
+                  type="button"
+                  data-cursor="link"
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={loadingMore}
+                  className="px-8 py-3 text-[11px] tracking-[0.2em] uppercase"
+                  style={{
+                    background: loadingMore ? 'transparent' : 'var(--color-navy)',
+                    color: loadingMore ? 'var(--color-navy)' : 'var(--color-cream)',
+                    border: '1px solid var(--color-navy)',
+                    opacity: loadingMore ? 0.6 : 1,
+                  }}
+                >
+                  {loadingMore ? 'Cargando…' : 'Cargar más'}
+                </button>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </section>
     </main>
