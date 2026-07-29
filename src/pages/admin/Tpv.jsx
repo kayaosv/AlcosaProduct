@@ -106,13 +106,28 @@ export const Tpv = () => {
 
     const { data: product } = await supabase
       .from('products')
-      .select('id, name, price, sale_price, is_on_sale, stock, categories(id, kind, promo_tiers)')
+      .select(`
+        id, name, price, sale_price, is_on_sale, stock, categories(id, kind, promo_tiers),
+        product_variants(id, label, price, sale_price, stock, is_primary, is_active)
+      `)
       .eq('barcode', clean)
       .maybeSingle()
 
     if (!product) {
       setNotFound(true)
       gsap.from('.tpv-not-found', { y: 8, opacity: 0, duration: 0.25, ease: 'power2.out' })
+      return
+    }
+
+    // El codigo escaneado puede ser el del PRODUCTO (impreso en el
+    // envase) aunque el producto tenga variantes con su propio precio/
+    // stock real — products.price/stock quedan en 0 a proposito en ese
+    // caso (ver stockPricing.js). Sin este chequeo se agregaba al
+    // carrito con precio 0 en vez de resolver la variante principal.
+    const activeVariants = (product.product_variants ?? []).filter((v) => v.is_active !== false)
+    if (activeVariants.length) {
+      const primary = activeVariants.find((v) => v.is_primary) ?? activeVariants[0]
+      addToCart(buildLineFromVariant({ ...primary, product_id: product.id, products: product }, primary))
       return
     }
 

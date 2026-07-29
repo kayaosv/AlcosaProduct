@@ -23,7 +23,8 @@ export const RootLayout = () => {
   const ageVerified = useAppStore((s) => s.ageVerified)
   const location = useLocation()
   const [simplify] = useState(shouldSimplifyVisuals)
-  const needsCanvas = !simplify && location.pathname === '/'
+  const isHome = location.pathname === '/'
+  const needsCanvas = !simplify && isHome
 
   // Once preloader unmounts, recompute ScrollTrigger positions.
   useEffect(() => {
@@ -41,7 +42,12 @@ export const RootLayout = () => {
     <SmoothScroll>
       {!isLoaded && <Preloader />}
       {isLoaded && !ageVerified && <AgeGate />}
-      <SectionTransitions />
+      {/* Solo Home tiene [data-section]/data-transition-type — montado
+          siempre, estas planas/circulo fixed 100vw+200vmax quedaban en
+          el DOM en cualquier otra ruta con el ultimo estado de scroll
+          de Home (useGSAP acá solo mide las secciones una vez, no se
+          reinicia al navegar), tapando el catalogo con el negro/lima. */}
+      {isHome && <SectionTransitions />}
       <CustomCursor />
       <Nav />
       <Outlet />
