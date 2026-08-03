@@ -74,8 +74,7 @@ export const Hero = () => {
     <section
       ref={rootRef}
       data-section="hero"
-      data-transition-type="double-plane"
-      data-transition-color="#0D0D0D"
+      data-transition-type="none"
       className="relative min-h-screen w-full overflow-hidden"
     >
       <style>{`

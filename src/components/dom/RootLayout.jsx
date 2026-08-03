@@ -4,7 +4,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { Nav } from './Nav.jsx'
 import { CustomCursor } from './CustomCursor.jsx'
 import { CartDrawer } from './CartDrawer.jsx'
-import { SmoothScroll } from './SmoothScroll.jsx'
+import { SmoothScroll, useLenis } from './SmoothScroll.jsx'
 import { Preloader } from './Preloader.jsx'
 import { AgeGate } from './AgeGate.jsx'
 import { SectionTransitions } from './SectionTransitions.jsx'
@@ -18,10 +18,14 @@ const SharedCanvas = lazy(() =>
   import('../three/SharedCanvas.jsx').then((m) => ({ default: m.SharedCanvas })),
 )
 
-export const RootLayout = () => {
+// Vive dentro de <SmoothScroll> (no en RootLayout directamente) porque
+// useLenis() necesita ser descendiente del Provider, no el componente
+// que lo renderiza.
+const RootLayoutInner = () => {
   const isLoaded = useAppStore((s) => s.isLoaded)
   const ageVerified = useAppStore((s) => s.ageVerified)
   const location = useLocation()
+  const lenisRef = useLenis()
   const [simplify] = useState(shouldSimplifyVisuals)
   const isHome = location.pathname === '/'
   const needsCanvas = !simplify && isHome
@@ -38,8 +42,18 @@ export const RootLayout = () => {
     return () => { cancelAnimationFrame(id1); cancelAnimationFrame(id2) }
   }, [isLoaded])
 
+  // Lenis (no el navegador) es dueño de la posicion de scroll y
+  // RootLayout nunca se remonta entre rutas (history.scrollRestoration
+  // = 'manual' en main.jsx, sin reemplazo hasta ahora) — sin esto, cada
+  // <Link> (catalogo, legales del footer, etc.) llegaba dejando el
+  // scroll donde haya quedado la pagina anterior en vez de arrancar en
+  // el inicio de la seccion nueva.
+  useEffect(() => {
+    lenisRef?.current?.scrollTo(0, { immediate: true })
+  }, [location.pathname, lenisRef])
+
   return (
-    <SmoothScroll>
+    <>
       {!isLoaded && <Preloader />}
       {isLoaded && !ageVerified && <AgeGate />}
       {/* Solo Home tiene [data-section]/data-transition-type — montado
@@ -57,6 +71,12 @@ export const RootLayout = () => {
           <SharedCanvas />
         </Suspense>
       )}
-    </SmoothScroll>
+    </>
   )
 }
+
+export const RootLayout = () => (
+  <SmoothScroll>
+    <RootLayoutInner />
+  </SmoothScroll>
+)
