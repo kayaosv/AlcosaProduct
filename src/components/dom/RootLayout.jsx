@@ -47,10 +47,14 @@ const RootLayoutInner = () => {
   // = 'manual' en main.jsx, sin reemplazo hasta ahora) — sin esto, cada
   // <Link> (catalogo, legales del footer, etc.) llegaba dejando el
   // scroll donde haya quedado la pagina anterior en vez de arrancar en
-  // el inicio de la seccion nueva.
+  // el inicio de la seccion nueva. Se usa location.key (no solo
+  // pathname) para que tambien dispare en links que solo cambian el
+  // query string sobre la misma ruta, como los filtros de categoria del
+  // Nav (/catalog?cat=vapers) — cada navegacion por <Link>/navigate()
+  // genera un key nuevo aunque el pathname no cambie.
   useEffect(() => {
     lenisRef?.current?.scrollTo(0, { immediate: true })
-  }, [location.pathname, lenisRef])
+  }, [location.key, lenisRef])
 
   return (
     <>
