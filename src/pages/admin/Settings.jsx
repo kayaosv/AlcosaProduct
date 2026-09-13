@@ -8,10 +8,21 @@ export const Settings = () => {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
+  const [iban, setIban] = useState('')
+  const [bizumPhone, setBizumPhone] = useState('')
+  const [whatsappPhone, setWhatsappPhone] = useState('')
+  const [timerMinutes, setTimerMinutes] = useState('')
+  const [savingPayment, setSavingPayment] = useState(false)
+  const [savedPayment, setSavedPayment] = useState(false)
+
   useEffect(() => {
     if (!settings) return
     setEnabled(settings.free_shipping_enabled ?? false)
     setThreshold(settings.free_shipping_threshold ?? '')
+    setIban(settings.payment_iban ?? '')
+    setBizumPhone(settings.payment_bizum_phone ?? '')
+    setWhatsappPhone(settings.payment_whatsapp_phone ?? '')
+    setTimerMinutes(settings.payment_timer_minutes ?? 15)
   }, [settings])
 
   const handleSave = async () => {
@@ -28,6 +39,25 @@ export const Settings = () => {
       alert(`Error guardando: ${err.message}`)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleSavePayment = async () => {
+    setSavingPayment(true)
+    setSavedPayment(false)
+    try {
+      await update({
+        payment_iban: iban.trim() || null,
+        payment_bizum_phone: bizumPhone.trim() || null,
+        payment_whatsapp_phone: whatsappPhone.trim(),
+        payment_timer_minutes: timerMinutes !== '' ? parseInt(timerMinutes, 10) : 15,
+      })
+      setSavedPayment(true)
+      setTimeout(() => setSavedPayment(false), 1500)
+    } catch (err) {
+      alert(`Error guardando: ${err.message}`)
+    } finally {
+      setSavingPayment(false)
     }
   }
 
@@ -72,6 +102,61 @@ export const Settings = () => {
             style={{ alignSelf: 'flex-start' }}
           >
             {saved ? '✓ Guardado' : saving ? 'Guardando…' : 'Guardar'}
+          </button>
+        </div>
+      </section>
+
+      <section className="editor-section" style={{ maxWidth: 480 }}>
+        <h2 className="editor-section-title">Pago por transferencia/Bizum</h2>
+        <div className="field-group">
+          <div className="field">
+            <label>IBAN</label>
+            <input
+              type="text"
+              value={iban}
+              onChange={(e) => setIban(e.target.value)}
+              placeholder="ES00 0000 0000 0000 0000 0000"
+            />
+            <span className="field-hint">Se muestra en la pantalla de pago. Vacío = no se muestra.</span>
+          </div>
+          <div className="field">
+            <label>Número de Bizum</label>
+            <input
+              type="text"
+              value={bizumPhone}
+              onChange={(e) => setBizumPhone(e.target.value)}
+              placeholder="ej. 600123456"
+            />
+            <span className="field-hint">Vacío = no se muestra.</span>
+          </div>
+          <div className="field">
+            <label>WhatsApp para confirmar pagos</label>
+            <input
+              type="text"
+              value={whatsappPhone}
+              onChange={(e) => setWhatsappPhone(e.target.value)}
+              placeholder="34600000000"
+            />
+            <span className="field-hint">Formato wa.me: código de país + número, sin espacios ni +.</span>
+          </div>
+          <div className="field">
+            <label>Minutos del timer en la pantalla de pago</label>
+            <input
+              type="number"
+              min="1"
+              value={timerMinutes}
+              onChange={(e) => setTimerMinutes(e.target.value)}
+            />
+            <span className="field-hint">Solo visual — no expira ni bloquea el pedido al llegar a cero.</span>
+          </div>
+          <button
+            type="button"
+            className={`btn-primary ${savedPayment ? 'btn-primary--saved' : ''}`}
+            onClick={handleSavePayment}
+            disabled={savingPayment}
+            style={{ alignSelf: 'flex-start' }}
+          >
+            {savedPayment ? '✓ Guardado' : savingPayment ? 'Guardando…' : 'Guardar'}
           </button>
         </div>
       </section>

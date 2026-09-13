@@ -75,12 +75,13 @@ export const Privacidad = () => (
           <ul className="list-disc pl-5 space-y-1">
             <li>Supabase Inc., para el alojamiento de la base de datos y la gestión de pedidos.</li>
             <li>Vercel Inc., para el alojamiento del sitio web.</li>
-            <li>
-              Stripe, para el procesamiento del pago cuando eliges pagarlo online por adelantado
-              (ver Aviso Legal). Los datos de tu tarjeta se introducen directamente en la pasarela
-              de Stripe y en ningún momento pasan por nuestros servidores.
-            </li>
           </ul>
+          <p>
+            No usamos ninguna pasarela de pago externa: si eliges pagar online por adelantado
+            (transferencia bancaria o Bizum, ver Aviso Legal), transfieres directamente a la
+            cuenta de la tienda y el titular confirma el pago a mano al recibir tu comprobante
+            por WhatsApp. Tus datos bancarios nunca pasan por nuestros servidores.
+          </p>
           <p>
             Estos proveedores tienen sede o infraestructura en Estados Unidos, por lo que su uso
             puede implicar una transferencia internacional de datos fuera del Espacio Económico

@@ -1,11 +1,15 @@
 import { supabase } from './supabase.js'
 
 // payment_method real en la base: 'pickup' (reserva, paga en tienda),
-// 'stripe' (online), 'pos_efectivo' / 'pos_tarjeta' (TPV físico) — ver
-// supabase/stripe-checkout.sql y supabase/pos-sale.sql.
+// 'transferencia' (online, transferencia/Bizum, ver
+// supabase/transfer-payment.sql), 'pos_efectivo' / 'pos_tarjeta' (TPV
+// físico) — ver supabase/pos-sale.sql. 'stripe' se deja mapeado para
+// pedidos históricos (el flujo en sí se retiró, ver
+// specs/pago-transferencia-whatsapp.md).
 export const CHANNELS = {
   pos_efectivo: 'TPV · Efectivo',
   pos_tarjeta: 'TPV · Tarjeta',
+  transferencia: 'Online · Transferencia/Bizum',
   stripe: 'Online · Stripe',
   pickup: 'Reserva en tienda',
 }

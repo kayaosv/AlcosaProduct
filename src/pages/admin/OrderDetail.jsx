@@ -9,10 +9,19 @@ import {
 import { OrderStatusSelect } from '../../components/dom/admin/OrderStatusSelect.jsx'
 
 const PaymentBadge = ({ method, status }) => {
+  if (method === 'transferencia') {
+    return <span className="payment-badge payment-badge--paid payment-badge--lg">Transferencia/Bizum</span>
+  }
   if (method === 'stripe') {
     return status === 'paid'
       ? <span className="payment-badge payment-badge--paid payment-badge--lg">Pagado online</span>
       : <span className="payment-badge payment-badge--refunded payment-badge--lg">Reembolsado</span>
+  }
+  if (method === 'pos_efectivo') {
+    return <span className="payment-badge payment-badge--paid payment-badge--lg">Mostrador · Efectivo</span>
+  }
+  if (method === 'pos_tarjeta') {
+    return <span className="payment-badge payment-badge--paid payment-badge--lg">Mostrador · Tarjeta</span>
   }
   return <span className="payment-badge payment-badge--pickup payment-badge--lg">Paga en tienda</span>
 }

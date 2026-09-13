@@ -16,6 +16,7 @@ const order = (overrides) => ({
 describe('channelLabel', () => {
   it('mapea los payment_method conocidos a su etiqueta', () => {
     expect(channelLabel('pos_efectivo')).toBe('TPV · Efectivo')
+    expect(channelLabel('transferencia')).toBe('Online · Transferencia/Bizum')
     expect(channelLabel('stripe')).toBe('Online · Stripe')
   })
 

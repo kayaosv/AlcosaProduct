@@ -68,8 +68,9 @@ export const AvisoLegal = () => (
           <p>
             A través de este sitio web, Vapers Alcosa ofrece información sobre su catálogo de
             productos de vapeo, y permite tanto reservar un pedido para pagarlo y recogerlo en la
-            tienda física como pagarlo online por adelantado (a través de Stripe) para su
-            recogida posterior en la tienda física.
+            tienda física como pagarlo online por adelantado (por transferencia bancaria o Bizum
+            directo a la cuenta de la tienda, confirmado manualmente por el titular al recibir el
+            comprobante) para su recogida posterior en la tienda física.
           </p>
           <p>
             El envío a domicilio no se gestiona de forma automatizada a través de este sitio web;

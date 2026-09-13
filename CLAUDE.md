@@ -4,11 +4,16 @@ E-commerce de vapeo (Sevilla, Parque Alcosa). Vite + React + Three.js
 (catálogo con 3D) + Supabase (Postgres/Auth/Storage) + Vercel.
 
 **Modelo de negocio**: recogida en tienda física siempre — la web nunca
-envía nada. Desde 2026-07-15 el cliente elige en el checkout entre dos
-formas de pago: reservar y pagar en tienda al recoger (flujo original,
-`create_order()`), o pagar online con Stripe por adelantado
-(`create_paid_order()`, ver "Pago online con Stripe" más abajo). En
-ambos casos se recoge y confirma disponibilidad por Instagram como
+envía nada. El cliente elige en el checkout entre dos formas de pago:
+reservar y pagar en tienda al recoger (flujo original, `create_order()`,
+reserva stock al crear el pedido), o pagar online por adelantado por
+transferencia/Bizum propio (**no Stripe, retirado el 2026-09-13** — ver
+ítem 24 más abajo y `specs/pago-transferencia-whatsapp.md`):
+`create_payment_draft()` valida precio/stock y guarda un borrador (sin
+reservar stock todavía), el cliente confirma por WhatsApp adjuntando el
+comprobante, y el dueño confirma a mano en `/admin/pending-payments`
+(`confirm_payment_draft()`, recién ahí crea el pedido y descuenta stock).
+En ambos casos se recoge y confirma disponibilidad por Instagram como
 hasta ahora.
 
 ## Dónde vive cada cosa
@@ -1144,3 +1149,51 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
     - Categoría `cbd` sin productos cargados — sin exposición hoy, pero
       CBD para consumo (no cosmético) no es legalmente vendible en
       España si algún día se carga algo ahí.
+
+24. **Stripe retirado — pago propio por transferencia/Bizum + confirmación
+    por WhatsApp (2026-09-13).** Pedido explícito del cliente: sin
+    pasarela de pago externa, el pago online pasa por transferir/Bizum
+    directo a la cuenta de la tienda y confirmar a mano por WhatsApp.
+    Detalle completo en `specs/pago-transferencia-whatsapp.md` y el
+    changelog de la sesión en `STATUS.md` — resumen acá:
+    - `Checkout.jsx`: el botón "Pagar online ahora" (Stripe) se reemplazó
+      por "Pagar por transferencia/Bizum", que llama a
+      `create_payment_draft()` (revalida precio/stock real, no crea
+      pedido ni descuenta stock) y redirige a `/pago/:draftId`
+      (`Pago.jsx` — nueva). Esa pantalla muestra IBAN/Bizum (desde
+      `shop_settings`, editables en `/admin/settings`, **hoy vacíos, el
+      cliente tiene que cargarlos**), un timer descendente ficticio
+      (puramente cosmético) y un botón que arma el mensaje de WhatsApp
+      con el carrito completo — mismo mecanismo `wa.me` que ya usaba
+      `CheckoutSuccess.jsx` (**esa página se borró**, cualquier nota
+      vieja que la mencione — ver ítem 23/17 arriba — quedó desactualizada).
+    - El pedido real y el descuento de stock recién ocurren cuando el
+      dueño confirma a mano en `/admin/pending-payments` (página nueva,
+      con badge en el sidebar) → `confirm_payment_draft()`, que revalida
+      stock EN VIVO (nunca confía en el snapshot del borrador) y
+      dispara `odoo-sync` igual que el TPV. Decisión explícita del
+      cliente: no reservar stock hasta la confirmación (a diferencia de
+      "reservar y pagar en tienda", que sí reserva al crear el pedido).
+    - Se dieron de baja `create_paid_order()`, `get_order_by_session()`
+      y `get_checkout_line()` (las 3 solo las usaba Stripe) — sin tocar
+      `orders.stripe_session_id` ni los 2 pedidos históricos reales con
+      `payment_method='stripe'`. `supabase/stripe-checkout.sql` queda
+      marcado como superado en su propio encabezado (mismo criterio que
+      `checkout-policies.sql`, ítem 12). Los Edge Functions
+      `create-checkout-session`/`stripe-webhook` se borraron del repo
+      pero **siguen desplegados en Supabase** — no se pudieron eliminar
+      del todo porque el `supabase` CLI local no tenía sesión
+      (`supabase login`) en este entorno; sin riesgo real mientras tanto
+      (JWT/firma de Stripe siguen exigidos, nada los invoca ya) pero
+      queda pendiente borrarlos a mano.
+    - Bonus fix del hallazgo crítico del ítem 23 (checkboxes de
+      privacidad/mayoría de edad no bloqueaban el envío): ahora sí
+      bloquean, en el mismo `handleSubmit` que se estaba reescribiendo.
+    - Verificado: `npm run build` limpio, `npm test` 9/9. Las 3 funciones
+      RPC nuevas probadas contra la base real (`create_payment_draft` →
+      `get_payment_draft` → `confirm_payment_draft` con sesión admin
+      simulada vía `request.jwt.claims`, doble confirmación rechazada
+      correctamente, datos de prueba limpiados después) — mismo criterio
+      que las pruebas de Stripe/Odoo/TPV de sesiones anteriores. La UI en
+      sí (`Pago.jsx`, `/admin/pending-payments`) todavía no se abrió en
+      un navegador real.

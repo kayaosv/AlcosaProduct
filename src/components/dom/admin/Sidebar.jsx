@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../hooks/useAuth.js'
 import { usePendingOrdersCount } from '../../../hooks/useAdminOrders.js'
+import { usePendingPaymentDraftsCount } from '../../../hooks/usePaymentDrafts.js'
 
 const IconGrid = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -60,6 +61,12 @@ const IconFileText = () => (
     <line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
   </svg>
 )
+const IconClock = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </svg>
+)
 const IconSettings = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <circle cx="12" cy="12" r="3" />
@@ -85,6 +92,7 @@ const NAV_ITEMS = [
   { to: '/admin/products', label: 'Productos', icon: IconBox },
   { to: '/admin/stock-scanner', label: 'Escáner stock', icon: IconBarcode },
   { to: '/admin/orders', label: 'Pedidos', icon: IconCart },
+  { to: '/admin/pending-payments', label: 'Pagos pendientes', icon: IconClock },
   { to: '/admin/categories', label: 'Categorías', icon: IconTag },
   { to: '/admin/wholesale', label: 'Mayorista', icon: IconTruck },
   { to: '/admin/analytics', label: 'Analytics', icon: IconChart },
@@ -96,6 +104,7 @@ export const Sidebar = ({ isOpen, onClose }) => {
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
   const pendingOrders = usePendingOrdersCount()
+  const pendingPayments = usePendingPaymentDraftsCount()
 
   const handleLogout = async () => {
     await signOut()
@@ -116,7 +125,10 @@ export const Sidebar = ({ isOpen, onClose }) => {
       <nav className="sidebar-nav">
         <span className="nav-group-label">General</span>
         {NAV_ITEMS.map(({ to, label, icon: Icon, exact }) => {
-          const showBadge = to === '/admin/orders' && pendingOrders > 0
+          const showBadge =
+            (to === '/admin/orders' && pendingOrders > 0) ||
+            (to === '/admin/pending-payments' && pendingPayments > 0)
+          const badgeCount = to === '/admin/orders' ? pendingOrders : pendingPayments
           return (
             <NavLink
               key={to}
@@ -127,7 +139,7 @@ export const Sidebar = ({ isOpen, onClose }) => {
             >
               <Icon />
               <span>{label}</span>
-              {showBadge && <span className="nav-item-badge">{pendingOrders}</span>}
+              {showBadge && <span className="nav-item-badge">{badgeCount}</span>}
             </NavLink>
           )
         })}

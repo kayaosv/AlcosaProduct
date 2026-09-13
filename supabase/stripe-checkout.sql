@@ -1,4 +1,16 @@
 -- ============================================================
+-- SUPERADO (2026-09-13) — Stripe se retiró del pago online, reemplazado
+-- por transferencia/Bizum + confirmación manual por WhatsApp. Ver
+-- specs/pago-transferencia-whatsapp.md y supabase/transfer-payment.sql.
+-- Este archivo se deja como registro histórico (mismo criterio que
+-- checkout-policies.sql) — NO volver a aplicar: create_paid_order(),
+-- get_order_by_session() y get_checkout_line() ya fueron eliminadas por
+-- transfer-payment.sql. checkout_drafts sigue viva (la reutiliza el
+-- nuevo flujo), orders.stripe_session_id también (2 pedidos históricos
+-- reales la usan, no se tocan).
+-- ============================================================
+
+-- ============================================================
 -- Vapers Alcosa — pago online con Stripe (coexiste con la reserva)
 -- ============================================================
 -- Decision del cliente (2026-07-15): el pago online NO reemplaza la

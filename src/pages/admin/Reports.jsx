@@ -65,7 +65,7 @@ export const Reports = () => {
       <div className="page-header">
         <div>
           <h1 className="page-title">Informes</h1>
-          <p className="page-subtitle">Export de ventas para el gestor — TPV, Stripe y reservas en un solo Excel</p>
+          <p className="page-subtitle">Export de ventas para el gestor — TPV, transferencia/Bizum y reservas en un solo Excel</p>
         </div>
       </div>
 

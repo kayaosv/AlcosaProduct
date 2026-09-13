@@ -34,8 +34,8 @@ export const router = createBrowserRouter([
         lazy: () => import('../pages/Checkout.jsx').then((m) => ({ Component: m.Checkout })),
       },
       {
-        path: 'checkout/success',
-        lazy: () => import('../pages/CheckoutSuccess.jsx').then((m) => ({ Component: m.CheckoutSuccess })),
+        path: 'pago/:draftId',
+        lazy: () => import('../pages/Pago.jsx').then((m) => ({ Component: m.Pago })),
       },
       {
         path: 'aviso-legal',
@@ -110,6 +110,10 @@ export const router = createBrowserRouter([
       {
         path: 'settings',
         lazy: () => import('../pages/admin/Settings.jsx').then((m) => ({ Component: m.Settings })),
+      },
+      {
+        path: 'pending-payments',
+        lazy: () => import('../pages/admin/PendingPayments.jsx').then((m) => ({ Component: m.PendingPayments })),
       },
     ],
   },
