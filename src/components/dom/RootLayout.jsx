@@ -7,6 +7,8 @@ import { CartDrawer } from './CartDrawer.jsx'
 import { SmoothScroll, useLenis } from './SmoothScroll.jsx'
 import { Preloader } from './Preloader.jsx'
 import { AgeGate } from './AgeGate.jsx'
+import { WhatsAppFab } from './WhatsAppFab.jsx'
+import { AnalyticsLoader } from './AnalyticsLoader.jsx'
 import { SectionTransitions } from './SectionTransitions.jsx'
 import { useAppStore } from '../../stores/useAppStore.js'
 import { shouldSimplifyVisuals } from '../../lib/deviceCapability.js'
@@ -70,6 +72,8 @@ const RootLayoutInner = () => {
       <Nav />
       <Outlet />
       <CartDrawer />
+      {isLoaded && ageVerified && <WhatsAppFab />}
+      <AnalyticsLoader />
       {needsCanvas && (
         <Suspense fallback={null}>
           <SharedCanvas />

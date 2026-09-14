@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /cart
+Disallow: /checkout
+Disallow: /pago/
+
+Sitemap: https://vapersalcosa19.com/sitemap.xml

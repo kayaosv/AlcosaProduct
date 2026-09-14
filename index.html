@@ -4,7 +4,22 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/va-favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vapers Alcosa</title>
+    <title>Vapers Alcosa — Tienda de vapeo en Sevilla</title>
+    <!--
+      Defaults estaticos: los bots de vista previa de enlaces (WhatsApp,
+      Facebook, Twitter) leen este HTML crudo sin ejecutar JS, asi que
+      nunca ven lo que pisa src/hooks/useSeo.js en cada pagina - solo
+      Googlebot (que sí ejecuta JS) ve los tags dinamicos por ruta. Estos
+      son el "peor caso" que va a mostrar cualquier link compartido de
+      una pagina sin SEO propio todavia (o cualquier bot que no corre JS).
+    -->
+    <meta name="description" content="Tienda de vapeo en el Parque Alcosa (Sevilla). Negocio familiar — sales de nicotina, longfill, vapers, desechables y resistencias. Recogida en tienda o pago online por transferencia/Bizum." />
+    <meta property="og:site_name" content="Vapers Alcosa" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Vapers Alcosa — Tienda de vapeo en Sevilla" />
+    <meta property="og:description" content="Tienda de vapeo en el Parque Alcosa (Sevilla). Negocio familiar — sales de nicotina, longfill, vapers, desechables y resistencias." />
+    <meta property="og:image" content="https://vapersalcosa19.com/va-favicon.svg" />
+    <meta name="twitter:card" content="summary" />
   </head>
   <body>
     <div id="root"></div>

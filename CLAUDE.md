@@ -1197,3 +1197,104 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
       que las pruebas de Stripe/Odoo/TPV de sesiones anteriores. La UI en
       sí (`Pago.jsx`, `/admin/pending-payments`) todavía no se abrió en
       un navegador real.
+
+25. **Auditoría de 7 pedidos + cámara del escáner rota en iPhone + buscador
+    por nombre en TPV + indicador de código faltante (2026-09-15).** El
+    cliente pidió confirmar 7 puntos (TPV reembolsos/factura, campos de
+    producto, fotos por variante, productos sin código, CTA WhatsApp
+    flotante, SEO/Analytics, cámara del escáner) — se auditó cada uno
+    contra el código real antes de tocar nada (ver detalle en
+    `STATUS.md`). Priorizó arreglar primero:
+    - **`useBarcodeScanner.js` usaba `BarcodeDetector` nativo**, y su
+      propio mensaje de error decía "Safari iOS 16.4+" — **verificado por
+      búsqueda web que es falso**: WebKit/Safari nunca implementó esa
+      API, la cámara del escáner (TPV y `StockScanner.jsx`, comparten el
+      mismo hook) fallaba en silencio en cualquier iPhone. Reemplazado
+      por `@zxing/browser` (decodifica en JS/WASM sobre el `<video>`,
+      funciona igual en Chrome/Android y Safari/iOS) — misma interfaz
+      pública del hook, cero cambios en las dos pantallas que lo usan.
+      **No probado en un iPhone real todavía**, el fix se basa en la
+      investigación de compatibilidad, no en hardware físico.
+    - **Buscador por nombre en el TPV**: antes solo se agregaba al
+      carrito escaneando/tipeando el código exacto. Ahora hay un campo
+      de texto (debounce 250ms, `ilike` sobre `products.name`, hasta 8
+      resultados) que agrega la variante principal al tocar un
+      resultado — se extrajo `addProductRecord()` de `lookup()` para
+      compartir la resolución de precio/variante entre el escaneo y la
+      búsqueda en vez de duplicarla.
+    - **Indicador de productos sin código de barras** en
+      `/admin/products`: `useAdminProducts.js` calcula `missingBarcode`
+      (si tiene variantes, mira cada variante activa; si no, el código
+      del producto base) — contador en el subtítulo, filtro "Solo sin
+      código de barras", badge ⚠ junto a la marca.
+    - **Hallazgos de la auditoría que NO requerían código** (ya
+      funcionaban): marca/categoría/`barcode` por variante ya existían;
+      fotos por variante ya habilitadas en las 6 tipos de variante;
+      **Odoo está conectado y sincronizando de verdad** (2 ventas reales
+      confirmadas el 2026-07-29) — el cliente creía que no, corregido en
+      la respuesta. Reembolso de TPV: no hay botón dedicado, se cancela
+      desde `/admin/orders` (`cancel_order()` + nota de crédito Odoo si
+      ya facturó) — confirmado con el cliente que entiende que es solo
+      registro, sin movimiento de dinero real.
+    - **Pendiente, priorizado explícitamente para después**: CTA
+      flotante de WhatsApp (mensaje fijo, sin datos de carrito) y
+      SEO+Analytics (meta tags, Open Graph, JSON-LD, sitemap, GA4/Pixel)
+      — ver `STATUS.md`.
+    - Verificado: `npm run build` limpio, `npm test` 9/9.
+
+26. **CTA flotante de WhatsApp + SEO orgánico + mecanismo de Analytics/Ads
+    (2026-09-15, specs/seo-analytics-whatsapp-cta.md).** Puntos 5 y 6 del
+    mismo pedido de 7 del ítem 25, encarados en esta misma sesión.
+    - `WhatsAppFab.jsx` (montado en `RootLayout.jsx`, solo páginas
+      públicas): botón flotante, mensaje fijo "Hola, quiero hacer una
+      consulta 🙂" sin datos de carrito — a diferencia de los otros links
+      de WhatsApp del sitio (checkout/pago), que sí arman el mensaje con
+      el pedido. Reutiliza `shop_settings.payment_whatsapp_phone` (mismo
+      número, un solo lugar para cambiarlo). Se oculta en
+      `/pago/:draftId` para no competir con el CTA que ya vive ahí.
+    - `src/hooks/useSeo.js` (`useSeo`/`useJsonLd`, sin dependencia nueva
+      — manipula `document.head` directo, no hace falta react-helmet
+      para una SPA de este tamaño): título/meta description/Open Graph/
+      Twitter Card dinámicos en `Home.jsx`, `Catalog.jsx` (con nombre de
+      categoría activa) y `Product.jsx` (+ JSON-LD `schema.org/Product`
+      con precio/disponibilidad reales, calculados con la variante
+      principal — los hooks se llaman antes de los `return` tempranos de
+      loading/no-encontrado, regla de hooks de React). `Cart.jsx`/
+      `Checkout.jsx`/`Pago.jsx` marcadas `noindex` (páginas
+      transaccionales, no aportan indexadas).
+    - **Limitación real, documentada en la spec, no resuelta**: es una
+      SPA cliente-only (Vite, sin SSR/prerender) — los bots de vista
+      previa de WhatsApp/Facebook/Twitter leen el HTML crudo sin
+      ejecutar JS, así que **siempre** van a mostrar los defaults
+      estáticos de `index.html` (genéricos de la tienda) al compartir
+      cualquier link, nunca la foto/precio del producto específico.
+      Arreglarlo requiere prerenderizado o una función serverless que
+      detecte bots — decisión de arquitectura más grande, no encarada
+      acá. Googlebot sí ejecuta JS, así que el indexado de Google no
+      tiene este problema.
+    - `index.html` con defaults estáticos fuertes (title/description/OG,
+      `og:image` con URL absoluta a `https://vapersalcosa19.com/...` —
+      un `og:image` relativo no resuelve en la mayoría de los bots).
+    - `public/robots.txt` (permite indexar, bloquea `/admin`/`/cart`/
+      `/checkout`/`/pago`) + `scripts/generate-sitemap.js` (nuevo
+      `postbuild` en `package.json`, corre después de `vite build`, lee
+      productos/categorías reales de Supabase con la misma
+      `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` que ya usa el cliente
+      — Vercel expone las mismas env vars al proceso de Node del build,
+      no hace falta ninguna key nueva). Si faltan las credenciales
+      (como en este entorno local, sin `.env`), degrada a un sitemap
+      solo con las rutas estáticas en vez de romper el build — verificado
+      con un build real acá mismo.
+    - `AnalyticsLoader.jsx` (en `RootLayout.jsx`): carga gtag.js (GA4) y/o
+      el Pixel de Meta **solo si** hay un ID real cargado — nunca se
+      inventó ninguno. Nuevos campos `shop_settings.seo_ga4_id`/
+      `seo_meta_pixel_id` (`supabase/add-seo-analytics-settings.sql`,
+      mismo patrón que `payment_iban`/`payment_bizum_phone`), editables
+      desde `/admin/settings` → sección nueva "SEO y Analytics".
+    - Verificado: `npm run build`/`npm test` (incluye el `postbuild`
+      real, generó `dist/sitemap.xml` con las 5 rutas estáticas +
+      advertencia de credenciales faltantes, comportamiento esperado sin
+      `.env` local). **No verificado**: IDs reales de GA4/Meta Pixel
+      (pendiente que el cliente los pase), y nada de esto se abrió en un
+      navegador real todavía — ni el botón de WhatsApp, ni cómo se ve un
+      link compartido, ni el sitemap con credenciales reales de Vercel.

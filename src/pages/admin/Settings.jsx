@@ -15,6 +15,11 @@ export const Settings = () => {
   const [savingPayment, setSavingPayment] = useState(false)
   const [savedPayment, setSavedPayment] = useState(false)
 
+  const [ga4Id, setGa4Id] = useState('')
+  const [pixelId, setPixelId] = useState('')
+  const [savingSeo, setSavingSeo] = useState(false)
+  const [savedSeo, setSavedSeo] = useState(false)
+
   useEffect(() => {
     if (!settings) return
     setEnabled(settings.free_shipping_enabled ?? false)
@@ -23,6 +28,8 @@ export const Settings = () => {
     setBizumPhone(settings.payment_bizum_phone ?? '')
     setWhatsappPhone(settings.payment_whatsapp_phone ?? '')
     setTimerMinutes(settings.payment_timer_minutes ?? 15)
+    setGa4Id(settings.seo_ga4_id ?? '')
+    setPixelId(settings.seo_meta_pixel_id ?? '')
   }, [settings])
 
   const handleSave = async () => {
@@ -58,6 +65,23 @@ export const Settings = () => {
       alert(`Error guardando: ${err.message}`)
     } finally {
       setSavingPayment(false)
+    }
+  }
+
+  const handleSaveSeo = async () => {
+    setSavingSeo(true)
+    setSavedSeo(false)
+    try {
+      await update({
+        seo_ga4_id: ga4Id.trim() || null,
+        seo_meta_pixel_id: pixelId.trim() || null,
+      })
+      setSavedSeo(true)
+      setTimeout(() => setSavedSeo(false), 1500)
+    } catch (err) {
+      alert(`Error guardando: ${err.message}`)
+    } finally {
+      setSavingSeo(false)
     }
   }
 
@@ -157,6 +181,41 @@ export const Settings = () => {
             style={{ alignSelf: 'flex-start' }}
           >
             {savedPayment ? '✓ Guardado' : savingPayment ? 'Guardando…' : 'Guardar'}
+          </button>
+        </div>
+      </section>
+
+      <section className="editor-section" style={{ maxWidth: 480 }}>
+        <h2 className="editor-section-title">SEO y Analytics</h2>
+        <div className="field-group">
+          <div className="field">
+            <label>Google Analytics 4 — Measurement ID</label>
+            <input
+              type="text"
+              value={ga4Id}
+              onChange={(e) => setGa4Id(e.target.value)}
+              placeholder="G-XXXXXXXXXX"
+            />
+            <span className="field-hint">Vacío = no se carga ningún script de Google Analytics.</span>
+          </div>
+          <div className="field">
+            <label>Meta Pixel ID (Facebook/Instagram Ads)</label>
+            <input
+              type="text"
+              value={pixelId}
+              onChange={(e) => setPixelId(e.target.value)}
+              placeholder="ej. 123456789012345"
+            />
+            <span className="field-hint">Vacío = no se carga ningún script de Meta.</span>
+          </div>
+          <button
+            type="button"
+            className={`btn-primary ${savedSeo ? 'btn-primary--saved' : ''}`}
+            onClick={handleSaveSeo}
+            disabled={savingSeo}
+            style={{ alignSelf: 'flex-start' }}
+          >
+            {savedSeo ? '✓ Guardado' : savingSeo ? 'Guardando…' : 'Guardar'}
           </button>
         </div>
       </section>

@@ -5,6 +5,7 @@ import gsap from 'gsap'
 import { useCartStore } from '../stores/useCartStore.js'
 import { useCreateOrder } from '../hooks/useCreateOrder.js'
 import { usePaymentDraft } from '../hooks/usePaymentDraft.js'
+import { useSeo } from '../hooks/useSeo.js'
 
 const formatPrice = (n) => `${Number(n).toFixed(2)}€`
 
@@ -210,6 +211,8 @@ const SuccessState = ({ orderId, total, onContinue }) => {
 }
 
 export const Checkout = () => {
+  useSeo({ title: 'Checkout', noindex: true })
+
   const navigate = useNavigate()
   const containerRef = useRef(null)
   const items = useCartStore((s) => s.items)

@@ -7,7 +7,7 @@ const SELECT = `
   stock, is_active, is_featured, image_url, images, details, category_id,
   created_at, updated_at,
   categories(id, name, slug, color),
-  product_variants(id, label, price, sale_price, wholesale_price, stock, is_primary, is_active, sort_order)
+  product_variants(id, label, barcode, price, sale_price, wholesale_price, stock, is_primary, is_active, sort_order)
 `
 
 // Productos con variantes guardan el stock/precio/mayorista real por
@@ -16,6 +16,17 @@ const SELECT = `
 // variantes. Todas las páginas de admin necesitan estos valores
 // "efectivos" para no mostrar stock/margen mal en la mitad del
 // catálogo (ver src/lib/stockPricing.js).
+// Un producto con variantes se escanea por el codigo de CADA variante
+// (sabor/color/Ω/etc, ver Tpv.jsx/StockScanner.jsx) - si le falta el
+// codigo a una variante activa, esa variante puntual no se puede
+// escanear aunque el producto en si tenga otras que si. Sin variantes,
+// el codigo relevante es el del producto base.
+const missingBarcode = (p) => {
+  const activeVariants = (p.product_variants ?? []).filter((v) => v.is_active !== false)
+  if (activeVariants.length) return activeVariants.some((v) => !v.barcode)
+  return !p.barcode
+}
+
 const withComputed = (p) => ({
   ...p,
   effectiveStock: getStock(p),
@@ -23,6 +34,7 @@ const withComputed = (p) => ({
   effectiveWholesalePrice: getWholesalePrice(p),
   marginPct: getMarginPct(p),
   hasWholesale: hasWholesale(p),
+  missingBarcode: missingBarcode(p),
 })
 
 export const useAdminProducts = () => {
