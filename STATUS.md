@@ -14,6 +14,29 @@ vive en el propio `CLAUDE.md` del repo (convención previa a este
 
 ## Hecho (verificado)
 
+- **Fix: cámara del escáner bloqueada por header de seguridad
+  (2026-09-16)** — el cliente probó en su móvil real y reportó "no hay
+  permisos, no salta la ventana que los pide". Causa raíz encontrada en
+  `vercel.json` (no era el código del escáner): el header
+  `Permissions-Policy: camera=()` desactivaba la cámara para **todo el
+  sitio** a nivel de navegador — con eso, `getUserMedia` nunca llega a
+  mostrar el diálogo nativo de permisos, se rechaza antes. Cambiado a
+  `camera=(self)` (mic/geolocation se dejan bloqueados a propósito, no
+  se usan). De paso, aprovechando que ya estaba tocando la Content-
+  Security-Policy: se sumaron los dominios de GA4
+  (`*.google-analytics.com`, `*.analytics.google.com`,
+  `googletagmanager.com`) y Meta Pixel (`connect.facebook.net`,
+  `facebook.com`) a `script-src`/`connect-src`/`img-src` — sin esto,
+  aunque el cliente cargue un ID real de Analytics en `/admin/settings`,
+  el CSP los iba a bloquear en silencio con el mismo síntoma que la
+  cámara (bug que ya se puede prevenir en vez de repetir).
+  **No verificado todavía**: el cliente tiene que volver a probar la
+  cámara después de este deploy — si sigue sin pedir permiso, el
+  siguiente sospechoso es que el navegador del teléfono ya tenga
+  "bloqueado" este sitio guardado de un intento anterior (hay que
+  resetear el permiso a mano en la configuración del sitio del
+  navegador, no es algo que el código pueda arreglar).
+
 - **CTA flotante de WhatsApp + SEO orgánico + mecanismo de Analytics/Ads
   (2026-09-15, specs/seo-analytics-whatsapp-cta.md)** — puntos 5 y 6 del
   mismo pedido de 7 puntos (ver auditoría abajo).
