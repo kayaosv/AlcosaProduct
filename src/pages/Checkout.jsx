@@ -4,7 +4,7 @@ import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { useCartStore } from '../stores/useCartStore.js'
 import { useCreateOrder } from '../hooks/useCreateOrder.js'
-import { useStripeCheckout } from '../hooks/useStripeCheckout.js'
+import { usePaymentDraft } from '../hooks/usePaymentDraft.js'
 
 const formatPrice = (n) => `${Number(n).toFixed(2)}€`
 
@@ -60,11 +60,11 @@ const ConsentCheckbox = ({ checked, onChange, children }) => (
   </label>
 )
 
-// Segunda verificacion de edad, especifica del pago online con Stripe -
-// se suma al checkbox "Confirmo que soy mayor de edad" ya requerido en el
-// formulario (03 - Confirmacion), como paso explicito adicional justo
-// antes de iniciar el pago.
-const StripeAgeConfirmModal = ({ onConfirm, onCancel }) => (
+// Segunda verificacion de edad, especifica del pago online por
+// transferencia/Bizum - se suma al checkbox "Confirmo que soy mayor de
+// edad" ya requerido en el formulario (03 - Confirmacion), como paso
+// explicito adicional justo antes de iniciar el pago.
+const OnlinePaymentAgeConfirmModal = ({ onConfirm, onCancel }) => (
   <div
     className="fixed inset-0 z-[2000] flex items-center justify-center p-6"
     style={{ background: 'rgba(23,45,109,0.85)' }}
@@ -215,7 +215,7 @@ export const Checkout = () => {
   const items = useCartStore((s) => s.items)
   const clearCart = useCartStore((s) => s.clearCart)
   const { createOrder, loading, error } = useCreateOrder()
-  const { payOnline, loading: stripeLoading, error: stripeError } = useStripeCheckout()
+  const { createDraft, loading: draftLoading, error: draftError } = usePaymentDraft()
 
   const [form, setForm] = useState({
     name: '',
@@ -226,8 +226,9 @@ export const Checkout = () => {
   })
   const [acceptPrivacy, setAcceptPrivacy] = useState(false)
   const [confirmAge, setConfirmAge] = useState(false)
+  const [consentError, setConsentError] = useState(false)
   const [success, setSuccess] = useState(null)
-  const [showStripeAgeGate, setShowStripeAgeGate] = useState(false)
+  const [showOnlineAgeGate, setShowOnlineAgeGate] = useState(false)
 
   const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
 
@@ -253,16 +254,22 @@ export const Checkout = () => {
     e.preventDefault()
     if (items.length === 0) return
 
+    if (!acceptPrivacy || !confirmAge) {
+      setConsentError(true)
+      return
+    }
+    setConsentError(false)
+
     // Dos botones de envio comparten el mismo <form> (mismos datos de
     // cliente, misma validacion nativa required) - el boton pulsado
     // decide el flujo via submitter.value.
-    const method = e.nativeEvent.submitter?.value === 'stripe' ? 'stripe' : 'pickup'
+    const method = e.nativeEvent.submitter?.value === 'transfer' ? 'transfer' : 'pickup'
 
-    if (method === 'stripe') {
-      if (stripeLoading) return
+    if (method === 'transfer') {
+      if (draftLoading) return
       // Segunda verificacion de edad especifica del pago online, antes
-      // de llamar a payOnline - ver StripeAgeConfirmModal.
-      setShowStripeAgeGate(true)
+      // de crear el borrador - ver OnlinePaymentAgeConfirmModal.
+      setShowOnlineAgeGate(true)
       return
     }
 
@@ -280,9 +287,13 @@ export const Checkout = () => {
     }
   }
 
-  const confirmStripePayment = async () => {
-    setShowStripeAgeGate(false)
-    await payOnline({ customer: form, items, notes: form.notes })
+  const confirmOnlinePayment = async () => {
+    setShowOnlineAgeGate(false)
+    const result = await createDraft({ customer: form, items, notes: form.notes })
+    if (result) {
+      clearCart()
+      navigate(`/pago/${result.draftId}`)
+    }
   }
 
   if (success) {
@@ -334,10 +345,10 @@ export const Checkout = () => {
 
   return (
     <main ref={containerRef} className="min-h-screen pt-32 pb-24 px-6 md:px-10">
-      {showStripeAgeGate && (
-        <StripeAgeConfirmModal
-          onConfirm={confirmStripePayment}
-          onCancel={() => setShowStripeAgeGate(false)}
+      {showOnlineAgeGate && (
+        <OnlinePaymentAgeConfirmModal
+          onConfirm={confirmOnlinePayment}
+          onCancel={() => setShowOnlineAgeGate(false)}
         />
       )}
 
@@ -371,8 +382,8 @@ export const Checkout = () => {
           CHECKOUT
         </h1>
         <p className="mt-4 text-[14px] max-w-xl" style={{ color: 'rgba(23,45,109,0.7)' }}>
-          Paga online ahora, o reserva y paga en tienda al recoger. Te avisamos por
-          Instagram en cuanto tu pedido esté listo.
+          Paga por transferencia o Bizum ahora, o reserva y paga en tienda al recoger.
+          Te avisamos por Instagram en cuanto tu pedido esté listo.
         </p>
       </div>
 
@@ -475,12 +486,21 @@ export const Checkout = () => {
             </div>
           </div>
 
-          {(error || stripeError) && (
+          {consentError && (
             <p
               className="text-[12px] tracking-[0.15em] uppercase px-4 py-3"
               style={{ background: 'rgba(229, 62, 62, 0.1)', color: '#b03030' }}
             >
-              ⚠ {error || stripeError}
+              ⚠ Tenés que aceptar la privacidad y confirmar tu mayoría de edad antes de continuar.
+            </p>
+          )}
+
+          {(error || draftError) && (
+            <p
+              className="text-[12px] tracking-[0.15em] uppercase px-4 py-3"
+              style={{ background: 'rgba(229, 62, 62, 0.1)', color: '#b03030' }}
+            >
+              ⚠ {error || draftError}
             </p>
           )}
         </div>
@@ -534,33 +554,33 @@ export const Checkout = () => {
             <button
               type="submit"
               name="paymentMethod"
-              value="stripe"
-              disabled={loading || stripeLoading}
+              value="transfer"
+              disabled={loading || draftLoading}
               data-cursor="link"
               className="block w-full text-center mt-8 py-4 text-[12px] tracking-[0.2em] uppercase transition-opacity"
               style={{
                 background: 'var(--color-lime)',
                 color: 'var(--color-navy)',
                 fontWeight: 900,
-                opacity: loading || stripeLoading ? 0.6 : 1,
-                cursor: stripeLoading ? 'wait' : undefined,
+                opacity: loading || draftLoading ? 0.6 : 1,
+                cursor: draftLoading ? 'wait' : undefined,
               }}
             >
-              {stripeLoading ? 'Redirigiendo…' : '▸ Pagar online ahora'}
+              {draftLoading ? 'Preparando…' : '▸ Pagar por transferencia/Bizum'}
             </button>
 
             <button
               type="submit"
               name="paymentMethod"
               value="pickup"
-              disabled={loading || stripeLoading}
+              disabled={loading || draftLoading}
               data-cursor="link"
               className="block w-full text-center mt-3 py-4 text-[12px] tracking-[0.2em] uppercase transition-opacity"
               style={{
                 border: '1px solid rgba(255,248,240,0.3)',
                 color: 'var(--color-cream)',
                 fontWeight: 700,
-                opacity: loading || stripeLoading ? 0.6 : 1,
+                opacity: loading || draftLoading ? 0.6 : 1,
                 cursor: loading ? 'wait' : undefined,
               }}
             >
@@ -571,7 +591,7 @@ export const Checkout = () => {
               className="mt-4 text-[10px] leading-relaxed text-center"
               style={{ color: 'rgba(255,248,240,0.6)' }}
             >
-              Pago online seguro con Stripe, o reserva y paga al recoger en tienda.
+              Transferencia o Bizum directo a la tienda, o reserva y paga al recoger.
             </p>
           </div>
         </aside>

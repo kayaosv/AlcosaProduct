@@ -11,7 +11,8 @@ import { supabase } from '../../lib/supabase.js'
 const ORDER_HISTORY_DAYS = 14
 const LOW_STOCK_VISIBLE = 4
 const PAYMENT_LABELS = {
-  stripe: 'Stripe', pickup: 'Recogida', pos_efectivo: 'Efectivo (TPV)', pos_tarjeta: 'Tarjeta (TPV)',
+  transferencia: 'Transferencia/Bizum', stripe: 'Stripe', pickup: 'Recogida',
+  pos_efectivo: 'Efectivo (TPV)', pos_tarjeta: 'Tarjeta (TPV)',
 }
 
 const isPhysical = (paymentMethod) => (paymentMethod ?? '').startsWith('pos_')

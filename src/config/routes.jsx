@@ -1,15 +1,16 @@
 import { createBrowserRouter } from 'react-router-dom'
 import { RootLayout } from '../components/dom/RootLayout.jsx'
 import { Home } from '../pages/Home.jsx'
-import { AdminLayout } from '../pages/admin/AdminLayout.jsx'
 
-// Code-splitting via las rutas: solo Home/RootLayout/AdminLayout se
-// cargan de entrada (lo minimo para pintar algo en cualquier ruta). El
-// resto de paginas publicas (Checkout, legales, etc.) y TODO el panel
-// admin (Dashboard, editor de productos, TPV, analytics...) se
-// descargan solo cuando se navega a ellas - antes se importaban todas
-// de forma estatica, asi que un cliente que solo visita la home
-// descargaba tambien el panel admin completo, sin usarlo nunca.
+// Code-splitting via las rutas: solo Home/RootLayout se cargan de
+// entrada (lo minimo para pintar la tienda pública). El resto de
+// paginas publicas (Checkout, legales, etc.) y TODO el panel admin
+// (layout incluido: Sidebar, ProtectedRoute, admin.css, Dashboard,
+// editor de productos, TPV, analytics...) se descargan solo cuando se
+// navega a ellas - antes AdminLayout en sí se importaba de forma
+// estatica (aunque sus hijas ya eran lazy), asi que un cliente que solo
+// visita la home descargaba igual el layout+CSS del panel admin sin
+// usarlo nunca.
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -33,8 +34,8 @@ export const router = createBrowserRouter([
         lazy: () => import('../pages/Checkout.jsx').then((m) => ({ Component: m.Checkout })),
       },
       {
-        path: 'checkout/success',
-        lazy: () => import('../pages/CheckoutSuccess.jsx').then((m) => ({ Component: m.CheckoutSuccess })),
+        path: 'pago/:draftId',
+        lazy: () => import('../pages/Pago.jsx').then((m) => ({ Component: m.Pago })),
       },
       {
         path: 'aviso-legal',
@@ -56,7 +57,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/admin',
-    element: <AdminLayout />,
+    lazy: () => import('../pages/admin/AdminLayout.jsx').then((m) => ({ Component: m.AdminLayout })),
     children: [
       {
         index: true,
@@ -99,12 +100,20 @@ export const router = createBrowserRouter([
         lazy: () => import('../pages/admin/Analytics.jsx').then((m) => ({ Component: m.Analytics })),
       },
       {
+        path: 'reports',
+        lazy: () => import('../pages/admin/Reports.jsx').then((m) => ({ Component: m.Reports })),
+      },
+      {
         path: 'stock-scanner',
         lazy: () => import('../pages/admin/StockScanner.jsx').then((m) => ({ Component: m.StockScanner })),
       },
       {
         path: 'settings',
         lazy: () => import('../pages/admin/Settings.jsx').then((m) => ({ Component: m.Settings })),
+      },
+      {
+        path: 'pending-payments',
+        lazy: () => import('../pages/admin/PendingPayments.jsx').then((m) => ({ Component: m.PendingPayments })),
       },
     ],
   },
