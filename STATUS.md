@@ -140,17 +140,19 @@ vive en el propio `CLAUDE.md` del repo (convención previa a este
 
 ## Pendiente / próximos pasos
 
-- [ ] **CTA flotante de WhatsApp** ("hablá con la tienda", mensaje fijo
-      tipo "hola quiero hacer una consulta", sin datos de carrito) — pedido
-      explícito del cliente 2026-09-15, todavía no encarado.
-- [ ] **SEO + Analytics** (meta tags dinámicos, Open Graph, JSON-LD de
-      producto, sitemap.xml, Google Analytics/Meta Pixel) — el más grande
-      de los pendientes nuevos, necesita que el cliente pase cuenta de
-      GA4/Pixel si ya tiene una.
+- [x] ~~CTA flotante de WhatsApp~~ — **código resuelto 2026-09-15**
+      (`WhatsAppFab.jsx`), ver "Hecho" arriba. Sigue pendiente probarlo
+      visualmente en el preview (nunca se abrió en un navegador real).
+- [x] ~~SEO + Analytics (mecanismo)~~ — **código resuelto 2026-09-15**
+      (`useSeo.js`, JSON-LD, sitemap.xml, robots.txt, `AnalyticsLoader.jsx`),
+      ver "Hecho" arriba. **Sigue bloqueado de verdad**: el cliente todavía
+      no pasó IDs reales de GA4/Meta Pixel — sin eso, Analytics no manda
+      ningún dato pese a que el código ya está listo.
 - [ ] Probar el fix de cámara (`@zxing/browser`) en un iPhone real — el
       fix se basa en que Safari/WebKit nunca implementó `BarcodeDetector`
       (confirmado por búsqueda web), no en una prueba end-to-end con
-      hardware real desde acá.
+      hardware real desde acá. Lo mismo para el buscador por nombre del
+      TPV — código verificado con build/test, no abierto en navegador.
 - [x] ~~Cargar el IBAN y/o número de Bizum reales~~ — **resuelto
       2026-09-14**: el cliente los pasó por chat, cargados directo en
       `shop_settings` vía SQL (no por `/admin/settings`, pero es la misma
