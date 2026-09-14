@@ -8,6 +8,7 @@ import { useAppStore } from '../stores/useAppStore.js'
 import { categoryVariantType, VARIANT_LABELS } from '../lib/productSpecs.js'
 import { ProductSuggestions } from '../components/dom/ProductSuggestions.jsx'
 import { PromoTiers } from '../components/dom/PromoTiers.jsx'
+import { useSeo, useJsonLd } from '../hooks/useSeo.js'
 import { shouldSimplifyVisuals, isDesktopViewport } from '../lib/deviceCapability.js'
 
 // Import dinamico: es un fondo decorativo (ver mas abajo), asi que en
@@ -123,6 +124,43 @@ export const Product = () => {
   const addItem = useCartStore((s) => s.addItem)
   const setCartOpen = useAppStore((s) => s.setCartOpen)
   const [canShowDecorCanvas] = useState(() => !shouldSimplifyVisuals() && isDesktopViewport())
+
+  // SEO/JSON-LD: se calcula con la variante PRINCIPAL, no la que el
+  // usuario vaya eligiendo mas abajo (esa logica se resuelve despues del
+  // return temprano de loading/producto-no-encontrado) - alcanza para
+  // meta tags y datos estructurados, no necesita reaccionar a cada click.
+  const seoPrimaryVariant = variants.find((v) => v.is_primary) ?? variants[0] ?? null
+  const seoPrice = seoPrimaryVariant
+    ? Number(seoPrimaryVariant.sale_price ?? seoPrimaryVariant.price ?? product?.price ?? 0)
+    : Number((product?.is_on_sale && product?.sale_price) ? product.sale_price : (product?.price ?? 0))
+  const seoImage = seoPrimaryVariant?.image_url || product?.image_url
+  const seoStock = seoPrimaryVariant ? seoPrimaryVariant.stock : product?.stock
+
+  useSeo({
+    title: product?.name,
+    description: product
+      ? (product.details?.description ||
+          `${product.name}${product.brand ? ` de ${product.brand}` : ''} — ${seoPrice.toFixed(2)}€. Disponible en Vapers Alcosa, Parque Alcosa (Sevilla).`)
+      : undefined,
+    image: seoImage,
+    type: 'product',
+  })
+
+  useJsonLd('product-jsonld', product ? {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    ...(product.brand ? { brand: { '@type': 'Brand', name: product.brand } } : {}),
+    ...(seoImage ? { image: seoImage } : {}),
+    ...(product.details?.description ? { description: product.details.description } : {}),
+    offers: {
+      '@type': 'Offer',
+      priceCurrency: 'EUR',
+      price: seoPrice.toFixed(2),
+      availability: seoStock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      url: window.location.href,
+    },
+  } : null)
 
   if (loading) {
     return (

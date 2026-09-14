@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { useCartStore } from '../stores/useCartStore.js'
+import { useSeo } from '../hooks/useSeo.js'
 
 const formatPrice = (n) => `${Number(n).toFixed(2)}€`
 
@@ -119,6 +120,8 @@ const CartRow = ({ item, onMinus, onPlus, onRemove }) => (
 )
 
 export const Cart = () => {
+  useSeo({ title: 'Carrito', noindex: true })
+
   const containerRef = useRef(null)
   const items = useCartStore((s) => s.items)
   const updateQuantity = useCartStore((s) => s.updateQuantity)

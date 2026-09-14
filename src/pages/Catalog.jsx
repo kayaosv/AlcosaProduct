@@ -5,6 +5,7 @@ import gsap from 'gsap'
 import { useProducts } from '../hooks/useProducts.js'
 import { useCategories } from '../hooks/useCategories.js'
 import { ProductCard } from '../components/dom/ProductCard.jsx'
+import { useSeo } from '../hooks/useSeo.js'
 
 const CategoryPill = ({ active, label, onClick }) => {
   const ref = useRef(null)
@@ -112,6 +113,14 @@ export const Catalog = () => {
     search,
     page,
     pageSize: PAGE_SIZE,
+  })
+
+  const activeCategoryName = categories.find((c) => c.slug === activeCat)?.name
+  useSeo({
+    title: activeCategoryName ? `${activeCategoryName} — Catálogo` : 'Catálogo',
+    description: activeCategoryName
+      ? `${activeCategoryName} en Vapers Alcosa — tienda de vapeo en el Parque Alcosa, Sevilla. Recogida en tienda o pago online.`
+      : 'Catálogo completo de Vapers Alcosa: sales de nicotina, longfill, vapers, desechables, resistencias y accesorios. Tienda en el Parque Alcosa, Sevilla.',
   })
 
   // El grid solo pinta lo que ya llego pagina a pagina — el hook trae

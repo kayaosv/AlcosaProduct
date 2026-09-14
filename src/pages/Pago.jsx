@@ -4,6 +4,7 @@ import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { supabase } from '../lib/supabase.js'
 import { useShopSettings } from '../hooks/useShopSettings.js'
+import { useSeo } from '../hooks/useSeo.js'
 
 const formatPrice = (n) => `${Number(n).toFixed(2)}€`
 
@@ -70,6 +71,8 @@ const CopyField = ({ label, value }) => {
 }
 
 export const Pago = () => {
+  useSeo({ title: 'Completá tu pago', noindex: true })
+
   const ref = useRef(null)
   const { draftId } = useParams()
   const { settings } = useShopSettings()
