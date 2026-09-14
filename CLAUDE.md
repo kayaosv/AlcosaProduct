@@ -1197,3 +1197,47 @@ Ver `supabase/AUDIT-2026-07.md` para el detalle de base de datos.
       que las pruebas de Stripe/Odoo/TPV de sesiones anteriores. La UI en
       sí (`Pago.jsx`, `/admin/pending-payments`) todavía no se abrió en
       un navegador real.
+
+25. **Auditoría de 7 pedidos + cámara del escáner rota en iPhone + buscador
+    por nombre en TPV + indicador de código faltante (2026-09-15).** El
+    cliente pidió confirmar 7 puntos (TPV reembolsos/factura, campos de
+    producto, fotos por variante, productos sin código, CTA WhatsApp
+    flotante, SEO/Analytics, cámara del escáner) — se auditó cada uno
+    contra el código real antes de tocar nada (ver detalle en
+    `STATUS.md`). Priorizó arreglar primero:
+    - **`useBarcodeScanner.js` usaba `BarcodeDetector` nativo**, y su
+      propio mensaje de error decía "Safari iOS 16.4+" — **verificado por
+      búsqueda web que es falso**: WebKit/Safari nunca implementó esa
+      API, la cámara del escáner (TPV y `StockScanner.jsx`, comparten el
+      mismo hook) fallaba en silencio en cualquier iPhone. Reemplazado
+      por `@zxing/browser` (decodifica en JS/WASM sobre el `<video>`,
+      funciona igual en Chrome/Android y Safari/iOS) — misma interfaz
+      pública del hook, cero cambios en las dos pantallas que lo usan.
+      **No probado en un iPhone real todavía**, el fix se basa en la
+      investigación de compatibilidad, no en hardware físico.
+    - **Buscador por nombre en el TPV**: antes solo se agregaba al
+      carrito escaneando/tipeando el código exacto. Ahora hay un campo
+      de texto (debounce 250ms, `ilike` sobre `products.name`, hasta 8
+      resultados) que agrega la variante principal al tocar un
+      resultado — se extrajo `addProductRecord()` de `lookup()` para
+      compartir la resolución de precio/variante entre el escaneo y la
+      búsqueda en vez de duplicarla.
+    - **Indicador de productos sin código de barras** en
+      `/admin/products`: `useAdminProducts.js` calcula `missingBarcode`
+      (si tiene variantes, mira cada variante activa; si no, el código
+      del producto base) — contador en el subtítulo, filtro "Solo sin
+      código de barras", badge ⚠ junto a la marca.
+    - **Hallazgos de la auditoría que NO requerían código** (ya
+      funcionaban): marca/categoría/`barcode` por variante ya existían;
+      fotos por variante ya habilitadas en las 6 tipos de variante;
+      **Odoo está conectado y sincronizando de verdad** (2 ventas reales
+      confirmadas el 2026-07-29) — el cliente creía que no, corregido en
+      la respuesta. Reembolso de TPV: no hay botón dedicado, se cancela
+      desde `/admin/orders` (`cancel_order()` + nota de crédito Odoo si
+      ya facturó) — confirmado con el cliente que entiende que es solo
+      registro, sin movimiento de dinero real.
+    - **Pendiente, priorizado explícitamente para después**: CTA
+      flotante de WhatsApp (mensaje fijo, sin datos de carrito) y
+      SEO+Analytics (meta tags, Open Graph, JSON-LD, sitemap, GA4/Pixel)
+      — ver `STATUS.md`.
+    - Verificado: `npm run build` limpio, `npm test` 9/9.

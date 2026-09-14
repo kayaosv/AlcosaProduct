@@ -1,24 +1,26 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
-
-const BARCODE_FORMATS = ['ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a', 'upc_e', 'qr_code']
+import { BrowserMultiFormatReader } from '@zxing/browser'
 
 export const hasCamera = () =>
   typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia
-export const hasBarcodeDetector = () =>
-  typeof window !== 'undefined' && 'BarcodeDetector' in window
 
-// Ciclo de vida compartido de escaneo (pistola/teclado + camara con
-// BarcodeDetector) - antes duplicado casi identico en StockScanner.jsx
-// y Tpv.jsx. `onDetect(code)` se llama con el codigo crudo tanto si
-// viene de Enter en el input como si lo detecta la camara; cada
-// pantalla decide que hacer con el codigo (buscar y mostrar stock,
-// o agregar directo al carrito de venta).
+// Ciclo de vida compartido de escaneo (pistola/teclado + camara) - antes
+// duplicado casi identico en StockScanner.jsx y Tpv.jsx. `onDetect(code)`
+// se llama con el codigo crudo tanto si viene de Enter en el input como
+// si lo detecta la camara; cada pantalla decide que hacer con el codigo
+// (buscar y mostrar stock, o agregar directo al carrito de venta).
+//
+// La camara usaba antes la API nativa BarcodeDetector - WebKit (Safari/
+// iOS) nunca la implementa (verificado 2026-09-15: sigue sin soporte),
+// asi que fallaba en silencio en todo iPhone pese a que el mensaje de
+// error viejo decia "Safari iOS 16.4+" (dato incorrecto, ya corregido).
+// @zxing/browser decodifica en JS/WASM sobre el mismo <video>, funciona
+// igual en Chrome/Android y en Safari/iOS.
 export const useBarcodeScanner = (onDetect, { active = true } = {}) => {
   const inputRef = useRef(null)
   const videoRef = useRef(null)
-  const streamRef = useRef(null)
-  const rafRef = useRef(null)
-  const detectorRef = useRef(null)
+  const readerRef = useRef(null)
+  const controlsRef = useRef(null)
 
   const [barcode, setBarcode] = useState('')
   const [cameraMode, setCameraMode] = useState(false)
@@ -42,51 +44,42 @@ export const useBarcodeScanner = (onDetect, { active = true } = {}) => {
   }, [active, cameraMode])
 
   const stopCamera = useCallback(() => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current)
-    streamRef.current?.getTracks().forEach((t) => t.stop())
-    streamRef.current = null
+    controlsRef.current?.stop()
+    controlsRef.current = null
     setScanning(false)
   }, [])
 
   useEffect(() => () => stopCamera(), [stopCamera])
 
-  const scanLoop = useCallback(async () => {
-    if (!videoRef.current || !detectorRef.current) return
-    try {
-      const codes = await detectorRef.current.detect(videoRef.current)
-      if (codes.length > 0) {
-        navigator.vibrate?.(80)
-        stopCamera()
-        setCameraMode(false)
-        onDetect(codes[0].rawValue)
-        return
-      }
-    } catch (_) {}
-    rafRef.current = requestAnimationFrame(scanLoop)
-  }, [onDetect, stopCamera])
-
   const startCamera = useCallback(async () => {
     setCameraError(null)
-    if (!hasBarcodeDetector()) {
-      setCameraError('Tu navegador no soporta detección de códigos. Usa Chrome en Android o Safari iOS 16.4+')
+    if (!hasCamera()) {
+      setCameraError('Este dispositivo no tiene cámara disponible.')
       return
     }
     try {
-      detectorRef.current = new window.BarcodeDetector({ formats: BARCODE_FORMATS })
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 } },
-      })
-      streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
-      }
+      readerRef.current = new BrowserMultiFormatReader()
       setScanning(true)
-      scanLoop()
+      // decodeFromConstraints maneja el getUserMedia y el stream por su
+      // cuenta - el callback se llama en cada intento de frame, "result"
+      // solo viene definido cuando encuentra un codigo real (el resto
+      // del tiempo llega un error de "no encontrado", normal, se ignora).
+      controlsRef.current = await readerRef.current.decodeFromConstraints(
+        { video: { facingMode: 'environment', width: { ideal: 1280 } } },
+        videoRef.current,
+        (result) => {
+          if (!result) return
+          navigator.vibrate?.(80)
+          stopCamera()
+          setCameraMode(false)
+          onDetect(result.getText())
+        },
+      )
     } catch (err) {
+      setScanning(false)
       setCameraError(`No se pudo acceder a la cámara: ${err.message}`)
     }
-  }, [scanLoop])
+  }, [onDetect, stopCamera])
 
   const toggleCamera = useCallback(() => {
     if (cameraMode) {

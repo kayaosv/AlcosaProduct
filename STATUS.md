@@ -1,6 +1,6 @@
 # STATUS
 
-Última actualización: 2026-09-13
+Última actualización: 2026-09-15
 
 ## Estado actual
 
@@ -13,6 +13,43 @@ vive en el propio `CLAUDE.md` del repo (convención previa a este
 `STATUS.md` — se mantiene así, no se migra retroactivamente).
 
 ## Hecho (verificado)
+
+- **Auditoría de 7 pedidos del cliente + fix cámara iPhone + buscador por
+  nombre en TPV + indicador de código de barras faltante (2026-09-15)** —
+  antes de codear nada se auditó el código real contra 7 pedidos del
+  cliente (TPV reembolsos/facturación, campos de producto, fotos por
+  variante, código faltante, CTA WhatsApp flotante, SEO/Analytics, cámara
+  del escáner). Resultado completo en el chat de esta sesión — resumen:
+  ya existían (marca/categoría/barcode por variante, fotos por variante,
+  Odoo conectado y sincronizando de verdad — 2 ventas reales confirmadas
+  el 2026-07-29, no "todavía no" como creía el cliente); no existían CTA
+  WhatsApp flotante y SEO/Analytics (quedan pendientes, ver abajo); se
+  encaró primero:
+  - **Bug real encontrado**: `useBarcodeScanner.js` usaba la API nativa
+    `BarcodeDetector` y su propio mensaje de error afirmaba "Safari iOS
+    16.4+" — **verificado por búsqueda que es falso**, WebKit/Safari no
+    implementa esa API, la cámara fallaba en silencio en todo iPhone.
+    Reemplazado por `@zxing/browser` (decodifica en JS/WASM sobre el
+    mismo `<video>`, funciona en Chrome/Android y Safari/iOS por igual) —
+    mismo hook, misma interfaz pública, así que `Tpv.jsx` y
+    `StockScanner.jsx` no necesitaron tocarse para heredar el fix.
+  - **Buscador por nombre en el TPV** (`Tpv.jsx`): antes solo se podía
+    agregar al carrito escaneando/tipeando el código de barras exacto —
+    ahora hay un campo de texto debajo que busca por nombre (`ilike`,
+    debounce 250ms, hasta 8 resultados) y agrega la variante principal al
+    tocar un resultado, mismo criterio de resolución de precio que ya
+    usaba el escaneo (`addProductRecord`, extraído de `lookup()` para
+    compartir la lógica en vez de duplicarla).
+  - **Indicador de "sin código de barras"** (`/admin/products`): nuevo
+    campo calculado `missingBarcode` en `useAdminProducts.js` (si el
+    producto tiene variantes, mira cada variante activa; si no, el
+    código del producto base) — contador en el subtítulo, filtro "Solo
+    sin código de barras", y badge ⚠ junto a la marca en cada fila.
+  - `npm run build` y `npm test` (9/9) verificados. **No probado
+    visualmente en un iPhone real** — el fix de `BarcodeDetector`→zxing
+    se basa en que WebKit nunca implementó la API vieja (fuente:
+    búsqueda web, no ejecución real en un dispositivo), no en una prueba
+    end-to-end con cámara física desde acá.
 
 - **Pago propio por transferencia/Bizum + confirmación por WhatsApp
   (2026-09-13, specs/pago-transferencia-whatsapp.md)** — reemplaza a
@@ -61,6 +98,17 @@ vive en el propio `CLAUDE.md` del repo (convención previa a este
 
 ## Pendiente / próximos pasos
 
+- [ ] **CTA flotante de WhatsApp** ("hablá con la tienda", mensaje fijo
+      tipo "hola quiero hacer una consulta", sin datos de carrito) — pedido
+      explícito del cliente 2026-09-15, todavía no encarado.
+- [ ] **SEO + Analytics** (meta tags dinámicos, Open Graph, JSON-LD de
+      producto, sitemap.xml, Google Analytics/Meta Pixel) — el más grande
+      de los pendientes nuevos, necesita que el cliente pase cuenta de
+      GA4/Pixel si ya tiene una.
+- [ ] Probar el fix de cámara (`@zxing/browser`) en un iPhone real — el
+      fix se basa en que Safari/WebKit nunca implementó `BarcodeDetector`
+      (confirmado por búsqueda web), no en una prueba end-to-end con
+      hardware real desde acá.
 - [x] ~~Cargar el IBAN y/o número de Bizum reales~~ — **resuelto
       2026-09-14**: el cliente los pasó por chat, cargados directo en
       `shop_settings` vía SQL (no por `/admin/settings`, pero es la misma

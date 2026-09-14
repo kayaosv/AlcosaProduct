@@ -32,6 +32,7 @@ export const Products = () => {
   const [brand, setBrand] = useState('all')
   const [onlyOutOfStock, setOnlyOutOfStock] = useState(false)
   const [onlyLowStock, setOnlyLowStock] = useState(false)
+  const [onlyMissingBarcode, setOnlyMissingBarcode] = useState(false)
   const [priceMin, setPriceMin] = useState('')
   const [priceMax, setPriceMax] = useState('')
   const [sort, setSort] = useState({ field: null, dir: 'asc' })
@@ -47,12 +48,18 @@ export const Products = () => {
     [products],
   )
 
+  const missingBarcodeCount = useMemo(
+    () => products.filter((p) => p.missingBarcode).length,
+    [products],
+  )
+
   const filtered = useMemo(() => {
     let list = products
     if (categorySlug !== 'all') list = list.filter((p) => p.categories?.slug === categorySlug)
     if (brand !== 'all') list = list.filter((p) => p.brand === brand)
     if (onlyOutOfStock) list = list.filter((p) => p.effectiveStock === 0)
     if (onlyLowStock) list = list.filter((p) => p.effectiveStock > 0 && p.effectiveStock <= LOW_STOCK_THRESHOLD)
+    if (onlyMissingBarcode) list = list.filter((p) => p.missingBarcode)
     if (priceMin !== '') list = list.filter((p) => (p.effectivePrice ?? 0) >= parseFloat(priceMin))
     if (priceMax !== '') list = list.filter((p) => (p.effectivePrice ?? 0) <= parseFloat(priceMax))
     if (search.trim()) {
@@ -66,7 +73,7 @@ export const Products = () => {
       if (sort.dir === 'desc') list = list.reverse()
     }
     return list
-  }, [products, categorySlug, brand, onlyOutOfStock, onlyLowStock, priceMin, priceMax, search, sort])
+  }, [products, categorySlug, brand, onlyOutOfStock, onlyLowStock, onlyMissingBarcode, priceMin, priceMax, search, sort])
 
   useGSAP(() => {
     gsap.from('.table-row', { opacity: 0, y: 8, duration: 0.3, stagger: 0.02, ease: 'power2.out' })
@@ -85,6 +92,7 @@ export const Products = () => {
     setBrand('all')
     setOnlyOutOfStock(false)
     setOnlyLowStock(false)
+    setOnlyMissingBarcode(false)
     setPriceMin('')
     setPriceMax('')
   }
@@ -111,7 +119,8 @@ export const Products = () => {
   )
 
   const hasFilters =
-    search || categorySlug !== 'all' || brand !== 'all' || onlyOutOfStock || onlyLowStock || priceMin || priceMax
+    search || categorySlug !== 'all' || brand !== 'all' || onlyOutOfStock || onlyLowStock ||
+    onlyMissingBarcode || priceMin || priceMax
 
   return (
     <div ref={ref} className="page-content">
@@ -122,6 +131,9 @@ export const Products = () => {
             {loading ? 'Cargando…' : `${filtered.length} resultado${filtered.length !== 1 ? 's' : ''}`}
             {!loading && lowStockCount > 0 && (
               <span className="page-subtitle-alert"> · {lowStockCount} con stock bajo</span>
+            )}
+            {!loading && missingBarcodeCount > 0 && (
+              <span className="page-subtitle-alert"> · {missingBarcodeCount} sin código de barras</span>
             )}
           </p>
         </div>
@@ -183,6 +195,14 @@ export const Products = () => {
           />
           <span>Solo stock bajo</span>
         </label>
+        <label className="filter-toggle">
+          <input
+            type="checkbox"
+            checked={onlyMissingBarcode}
+            onChange={(e) => setOnlyMissingBarcode(e.target.checked)}
+          />
+          <span>Solo sin código de barras</span>
+        </label>
         {hasFilters && (
           <button className="btn-ghost" onClick={resetFilters}>Limpiar</button>
         )}
@@ -217,7 +237,14 @@ export const Products = () => {
                     </div>
                     <div>
                       <p className="producto-nombre">{p.name}</p>
-                      <p className="producto-marca">{p.brand || '—'}</p>
+                      <p className="producto-marca">
+                        {p.brand || '—'}
+                        {p.missingBarcode && (
+                          <span className="odoo-badge odoo-badge--error" title="Falta código de barras en al menos un ítem escaneable">
+                            ⚠ Sin código
+                          </span>
+                        )}
+                      </p>
                     </div>
                   </td>
                   <td>

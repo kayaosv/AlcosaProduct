@@ -119,22 +119,69 @@ export const Tpv = () => {
       return
     }
 
-    // El codigo escaneado puede ser el del PRODUCTO (impreso en el
-    // envase) aunque el producto tenga variantes con su propio precio/
-    // stock real — products.price/stock quedan en 0 a proposito en ese
-    // caso (ver stockPricing.js). Sin este chequeo se agregaba al
-    // carrito con precio 0 en vez de resolver la variante principal.
+    addProductRecord(product)
+  }, [])
+
+  // El codigo escaneado (o el producto elegido por nombre) puede ser el
+  // del PRODUCTO (impreso en el envase) aunque el producto tenga
+  // variantes con su propio precio/stock real — products.price/stock
+  // quedan en 0 a proposito en ese caso (ver stockPricing.js). Sin este
+  // chequeo se agregaba al carrito con precio 0 en vez de resolver la
+  // variante principal. Compartido entre el escaneo de codigo y el
+  // buscador por nombre.
+  const addProductRecord = useCallback((product) => {
     const activeVariants = (product.product_variants ?? []).filter((v) => v.is_active !== false)
     if (activeVariants.length) {
       const primary = activeVariants.find((v) => v.is_primary) ?? activeVariants[0]
       addToCart(buildLineFromVariant({ ...primary, product_id: product.id, products: product }, primary))
       return
     }
-
     addToCart(buildLineFromProduct(product))
   }, [])
 
   const scanner = useBarcodeScanner(lookup, { active: !lastSale })
+
+  // Buscador por nombre — el escaner cubre codigo de barras/camara, pero
+  // no siempre el producto tiene codigo o el vendedor lo tiene a mano.
+  // Mismo campo de busqueda (nombre/marca/codigo) que ya usa
+  // /admin/products, adaptado para agregar directo al carrito.
+  const [nameQuery, setNameQuery] = useState('')
+  const [nameResults, setNameResults] = useState([])
+  const [searchingName, setSearchingName] = useState(false)
+
+  useEffect(() => {
+    const q = nameQuery.trim()
+    if (q.length < 2) {
+      setNameResults([])
+      setSearchingName(false)
+      return
+    }
+    let cancelled = false
+    setSearchingName(true)
+    const timer = setTimeout(async () => {
+      const { data } = await supabase
+        .from('products')
+        .select(`
+          id, name, brand, price, sale_price, is_on_sale, stock, categories(id, kind, promo_tiers),
+          product_variants(id, label, price, sale_price, stock, is_primary, is_active)
+        `)
+        .eq('is_active', true)
+        .ilike('name', `%${q}%`)
+        .order('name')
+        .limit(8)
+      if (!cancelled) {
+        setNameResults(data ?? [])
+        setSearchingName(false)
+      }
+    }, 250)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [nameQuery])
+
+  const addFromNameSearch = (product) => {
+    addProductRecord(product)
+    setNameQuery('')
+    setNameResults([])
+  }
 
   // Handoff desde StockScanner.jsx ("+ Añadir a venta") - un producto/
   // variante ya identificado por id, no por codigo de barras, se agrega
@@ -293,6 +340,41 @@ export const Tpv = () => {
               </div>
             </div>
           )}
+
+          <div className="tpv-name-search">
+            <div className="scanner-input-wrap">
+              <input
+                className="scanner-input tpv-name-search-input"
+                value={nameQuery}
+                onChange={(e) => setNameQuery(e.target.value)}
+                placeholder="…o buscá por nombre"
+              />
+              {nameQuery && (
+                <button type="button" className="scanner-clear" onClick={() => setNameQuery('')}>✕</button>
+              )}
+            </div>
+            {nameQuery.trim().length >= 2 && (
+              <div className="tpv-name-results">
+                {searchingName ? (
+                  <p className="tpv-name-results-empty">Buscando…</p>
+                ) : nameResults.length === 0 ? (
+                  <p className="tpv-name-results-empty">Sin resultados.</p>
+                ) : (
+                  nameResults.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className="tpv-name-result"
+                      onClick={() => addFromNameSearch(p)}
+                    >
+                      <span className="tpv-name-result-name">{p.name}</span>
+                      {p.brand && <span className="tpv-name-result-brand">{p.brand}</span>}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="tpv-cart">
