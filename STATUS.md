@@ -61,11 +61,12 @@ vive en el propio `CLAUDE.md` del repo (convención previa a este
 
 ## Pendiente / próximos pasos
 
-- [ ] **Cargar el IBAN y/o número de Bizum reales desde `/admin/settings`**
-      — hoy están vacíos (`shop_settings.payment_iban`/`payment_bizum_phone`
-      = NULL), la pantalla `/pago/:draftId` va a mostrar "todavía no
-      cargamos los datos de cobro" hasta que el cliente los cargue. No se
-      inventó ningún dato bancario — regla dura de `CLAUDE.md` raíz.
+- [x] ~~Cargar el IBAN y/o número de Bizum reales~~ — **resuelto
+      2026-09-14**: el cliente los pasó por chat, cargados directo en
+      `shop_settings` vía SQL (no por `/admin/settings`, pero es la misma
+      fila — igual de editable desde ahí a futuro si hace falta
+      cambiarlos). `payment_whatsapp_phone` se dejó en el `34682725780`
+      que ya usaba la tienda, sin cambios.
 - [ ] Probar el flujo completo en el preview de Vercel: carrito → checkout
       → `/pago/:draftId` (ver IBAN/Bizum, timer, botón WhatsApp) →
       `/admin/pending-payments` → confirmar → pedido real en `/admin/orders`
@@ -104,8 +105,7 @@ vive en el propio `CLAUDE.md` del repo (convención previa a este
   base real (ver "Hecho" arriba), pero la UI (`Checkout.jsx`, `Pago.jsx`,
   `/admin/pending-payments`) todavía no se abrió en un navegador real —
   pendiente confirmar visualmente antes de confiar en esto con clientes
-  reales. `/pago/:draftId` sin IBAN/Bizum cargados todavía (ver pendiente
-  arriba).
+  reales. IBAN/Bizum ya están cargados (ver "Hecho" arriba).
 - El export nunca se probó contra datos reales en el navegador — solo
   build limpio (`npm run build`, verificado) + 9 tests unitarios pasando
   (`npm test`, verificado) de las funciones de agregación.
