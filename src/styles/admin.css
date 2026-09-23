@@ -2114,14 +2114,18 @@
 .camera-hint {
   position: absolute;
   bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 12px;
+  right: 12px;
   background: rgba(0,0,0,0.7);
   color: #aaa;
   font-size: 11px;
-  padding: 4px 10px;
-  border-radius: 20px;
-  white-space: nowrap;
+  padding: 6px 12px;
+  border-radius: 14px;
+  text-align: center;
+  /* Sin white-space:nowrap a proposito — el aviso de "codigo no
+     reconocido" (superficie curva) es mas largo que el resto de los
+     hints y necesita poder envolver en pantallas chicas sin desbordar
+     el video. */
 }
 
 /* Multi-image grid */

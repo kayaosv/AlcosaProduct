@@ -359,6 +359,40 @@ vive en el propio `CLAUDE.md` del repo (convención previa a este
     catálogo de packs, el editor de packs, el buscador de packs en el
     TPV, el modal de descuento, el modal de venta rápida) — pendiente
     confirmar en el preview.
+- **Cámara del escáner: códigos chicos/en superficie curva (2026-09-23,
+  mismo día, specs/escaner-camara-codigos-dificiles.md)** — pedido
+  urgente del cliente, botes chicos con códigos diminutos o impresos en
+  curva que la cámara no reconocía. Mejoras gratuitas al motor actual
+  (`@zxing/browser`) antes de evaluar migrar a otro:
+  - Resolución de cámara pedida subida de 1280×(auto) a 1920×1080 — más
+    píxeles reales por código chico.
+  - `BrowserMultiFormatReader` ahora usa hints `TRY_HARDER` (modo
+    exhaustivo, más lento por frame pero más preciso) +
+    `POSSIBLE_FORMATS` acotado a EAN-13/8, UPC-A/E y Code128 (lo único
+    que aparece en este catálogo) en vez de probar ~10 formatos.
+    Requirió agregar `@zxing/library` como dependencia directa (antes
+    solo transitiva vía `@zxing/browser`) para importar
+    `DecodeHintType`/`BarcodeFormat`.
+  - Zoom digital + linterna nuevos (`ScannerCameraControls.jsx`,
+    compartido entre `Tpv.jsx` y `StockScanner.jsx`) — usan
+    `IScannerControls` que `@zxing/browser` ya expone (`switchTorch`,
+    `streamVideoConstraintsApply`, `streamVideoCapabilitiesGet`), no
+    hizo falta código nuevo de bajo nivel. Se auto-ocultan si el
+    navegador/dispositivo no los soporta (típicamente sí Chrome/Android,
+    no iOS Safari todavía).
+  - Mensaje de "no se reconoce" (a los 6s) ahora sugiere girar el envase
+    para aplanar la parte del código hacia la cámara — una curva muy
+    cerrada es un límite físico/óptico, ningún ajuste de software lo
+    resuelve del todo.
+  - **Se le explicó al cliente que existen motores de pago (Dynamsoft,
+    Scandit) notablemente mejores para este caso puntual, y uno gratuito
+    alternativo (`quagga2`) — se decidió probar primero estas mejoras
+    gratuitas al motor actual antes de evaluar migrar.**
+  - Verificado: `npm run build` limpio, `npm test` 13/13. **No
+    verificado**: nada de esto se probó en un dispositivo real (sin
+    cámara física ni navegador en este entorno) — pendiente que el
+    cliente lo pruebe en el preview, idealmente con el mismo bote que le
+    está fallando hoy. Si no alcanza, siguiente paso es `quagga2`.
 
 ## Pendiente / próximos pasos
 

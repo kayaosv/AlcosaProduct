@@ -1,8 +1,25 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { BrowserMultiFormatReader } from '@zxing/browser'
+import { DecodeHintType, BarcodeFormat } from '@zxing/library'
 
 export const hasCamera = () =>
   typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia
+
+// TRY_HARDER activa el modo mas exhaustivo del decodificador (mas lento
+// por frame, pero lee codigos chicos/borrosos/en curva que el modo
+// rapido default descarta) - pedido explicito del cliente (botes
+// pequeños, codigos en superficie curva). POSSIBLE_FORMATS acotado a lo
+// que realmente aparece en este catalogo (EAN-13/8, UPC-A/E de
+// fabricante + Code128 de las etiquetas propias generadas en
+// src/lib/barcode.js) en vez de probar los ~10 formatos que soporta la
+// libreria por default, para no gastar ciclos en formatos que nunca van
+// a aparecer.
+const HINTS = new Map([
+  [DecodeHintType.TRY_HARDER, true],
+  [DecodeHintType.POSSIBLE_FORMATS, [
+    BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.UPC_E, BarcodeFormat.CODE_128,
+  ]],
+])
 
 // Ciclo de vida compartido de escaneo (pistola/teclado + camara) - antes
 // duplicado casi identico en StockScanner.jsx y Tpv.jsx. `onDetect(code)`
@@ -28,6 +45,15 @@ export const useBarcodeScanner = (onDetect, { active = true } = {}) => {
   const [scanning, setScanning] = useState(false)
   const [noDetection, setNoDetection] = useState(false)
   const noDetectionTimer = useRef(null)
+
+  // Zoom digital y linterna — ambos vienen gratis de @zxing/browser
+  // (IScannerControls) cuando el dispositivo/navegador los soporta
+  // (tipicamente Chrome/Android; iOS Safari no expone ninguno de los
+  // dos todavia). null = "no soportado, no mostrar el control".
+  const [torchOn, setTorchOn] = useState(false)
+  const [torchSupported, setTorchSupported] = useState(false)
+  const [zoomCaps, setZoomCaps] = useState(null) // { min, max, step } | null
+  const [zoom, setZoom] = useState(null)
 
   useEffect(() => {
     if (active && !cameraMode) inputRef.current?.focus()
@@ -57,6 +83,10 @@ export const useBarcodeScanner = (onDetect, { active = true } = {}) => {
     controlsRef.current = null
     setScanning(false)
     setNoDetection(false)
+    setTorchOn(false)
+    setTorchSupported(false)
+    setZoomCaps(null)
+    setZoom(null)
     clearNoDetectionTimer()
   }, [])
 
@@ -70,7 +100,7 @@ export const useBarcodeScanner = (onDetect, { active = true } = {}) => {
       return
     }
     try {
-      readerRef.current = new BrowserMultiFormatReader()
+      readerRef.current = new BrowserMultiFormatReader(HINTS)
       setScanning(true)
       // A los 6s sin encontrar nada, se lo decimos explícitamente al
       // vendedor (pedido del cliente: "si no reconoce, que indique no
@@ -81,8 +111,12 @@ export const useBarcodeScanner = (onDetect, { active = true } = {}) => {
       // cuenta - el callback se llama en cada intento de frame, "result"
       // solo viene definido cuando encuentra un codigo real (el resto
       // del tiempo llega un error de "no encontrado", normal, se ignora).
+      // Resolucion alta a proposito (antes 1280 de ancho, sin alto
+      // pedido) — un codigo chico en un bote necesita mas pixeles reales
+      // para que las barras se distingan; el navegador cae solo a la
+      // maxima que soporte la camara si esta pide de mas.
       controlsRef.current = await readerRef.current.decodeFromConstraints(
-        { video: { facingMode: 'environment', width: { ideal: 1280 } } },
+        { video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } },
         videoRef.current,
         (result) => {
           if (!result) return
@@ -92,12 +126,44 @@ export const useBarcodeScanner = (onDetect, { active = true } = {}) => {
           onDetect(result.getText())
         },
       )
+
+      // Zoom/linterna: soporte real depende del dispositivo/navegador
+      // (tipicamente si en Chrome/Android, no en iOS Safari todavia) -
+      // se detecta despues de tener el stream real, nunca se asume.
+      setTorchSupported(!!controlsRef.current.switchTorch)
+      try {
+        const caps = controlsRef.current.streamVideoCapabilitiesGet?.(() => true)
+        if (caps?.zoom) {
+          setZoomCaps({ min: caps.zoom.min, max: caps.zoom.max, step: caps.zoom.step || 0.1 })
+          setZoom(caps.zoom.min)
+        }
+      } catch {
+        // getCapabilities() no soportado en este navegador - sin zoom, no rompe el escaneo.
+      }
     } catch (err) {
       setScanning(false)
       clearNoDetectionTimer()
       setCameraError(`No se pudo acceder a la cámara: ${err.message}`)
     }
   }, [onDetect, stopCamera])
+
+  const toggleTorch = useCallback(async () => {
+    if (!controlsRef.current?.switchTorch) return
+    const next = !torchOn
+    try {
+      await controlsRef.current.switchTorch(next)
+      setTorchOn(next)
+    } catch {
+      // Algunos navegadores anuncian soporte pero fallan al aplicarlo en
+      // el momento (torch experimental) - no rompe el resto del escaneo.
+    }
+  }, [torchOn])
+
+  const setZoomLevel = useCallback((value) => {
+    if (!controlsRef.current?.streamVideoConstraintsApply) return
+    controlsRef.current.streamVideoConstraintsApply({ advanced: [{ zoom: value }] })
+    setZoom(value)
+  }, [])
 
   const toggleCamera = useCallback(() => {
     if (cameraMode) {
@@ -133,5 +199,11 @@ export const useBarcodeScanner = (onDetect, { active = true } = {}) => {
     toggleCamera,
     handleKeyDown,
     stopCamera,
+    torchOn,
+    torchSupported,
+    toggleTorch,
+    zoomCaps,
+    zoom,
+    setZoomLevel,
   }
 }

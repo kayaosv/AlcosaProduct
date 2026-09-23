@@ -7,6 +7,7 @@ import { PosTicket } from '../../components/dom/admin/PosTicket.jsx'
 import { applyDesechablesTiers } from '../../lib/promoTiers.js'
 import { useBarcodeScanner, hasCamera } from '../../hooks/useBarcodeScanner.js'
 import { lookupByBarcode } from '../../lib/barcodeLookup.js'
+import { ScannerCameraControls } from '../../components/dom/admin/ScannerCameraControls.jsx'
 
 const VARIANT_SELECT = `
   id, label, stock, price, sale_price, is_primary, product_id,
@@ -437,12 +438,13 @@ export const Tpv = () => {
             ) : (
               <div className="camera-wrap">
                 <video ref={scanner.videoRef} className="camera-video" playsInline muted />
+                <ScannerCameraControls scanner={scanner} />
                 <div className="camera-aim">
                   <div className="camera-aim-box" />
                 </div>
                 <span className="camera-hint">
                   {scanner.noDetection
-                    ? 'No se reconoce ningún código — acercá la cámara o mejorá la luz'
+                    ? 'No se reconoce — si el código está en una superficie curva, girá el envase para aplanarlo hacia la cámara'
                     : scanner.scanning
                     ? 'Apuntá al código de barras…'
                     : 'Iniciando cámara…'}
