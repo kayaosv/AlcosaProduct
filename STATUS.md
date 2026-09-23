@@ -1,6 +1,6 @@
 # STATUS
 
-Última actualización: 2026-09-15
+Última actualización: 2026-09-23
 
 ## Estado actual
 
@@ -160,6 +160,71 @@ vive en el propio `CLAUDE.md` del repo (convención previa a este
   `import()` dinámico, nunca entra al bundle inicial. Tests unitarios
   (Vitest, recién agregado al proyecto — no existía antes) sobre las
   funciones puras de agregación en `src/lib/salesExport.js`.
+- **Auditoría de duplicación TPV/Escáner/Pedidos/Analytics + idioma
+  (2026-09-23)** — pedido explícito del cliente tras notar que TPV y
+  Escáner "comparten lógica que en verdad está duplicada", que Pedidos
+  y Pagos pendientes duplican función, y que Analytics/Informes debería
+  ser una sola cosa con mejor desglose. Se auditó el código real antes
+  de tocar nada (tres specs nuevas en `specs/`), se confirmaron 3
+  decisiones de diseño con el cliente antes de implementar, y se
+  encaró todo en la misma sesión:
+  - **`src/lib/barcodeLookup.js`** (specs/tpv-scanner-lookup-compartido.md):
+    la cascada "código → variante (por `barcode`) → si no, producto
+    base" estaba copiada casi textual en `Tpv.jsx` y `StockScanner.jsx`
+    (la cámara/pistola ya compartían `useBarcodeScanner.js`, eso no
+    estaba duplicado). Extraída a una función única
+    (`lookupByBarcode(code, { variantSelect, productSelect })`) —
+    cada pantalla sigue pidiendo los campos que necesita (TPV quiere
+    precio/promos, el escáner quiere stock/imagen), solo se comparte el
+    orden de resolución. 4 tests nuevos (Vitest + `vi.mock` del cliente
+    de Supabase, primera vez que se mockea en este proyecto).
+    De paso, confirmado que el buscador por nombre del TPV (pedido
+    original del cliente) **ya existía** desde el 2026-09-15 — si no se
+    ve en el sitio real, es un problema de deploy/caché, no de código
+    faltante.
+  - **Pagos pendientes fusionado en Pedidos**
+    (specs/pedidos-pagos-pendientes-unificado.md): `/admin/pending-payments`
+    (`PendingPayments.jsx`, borrado) ahora es una pestaña más dentro de
+    `Orders.jsx` ("Pendientes de pago", junto a Todos/Pendiente/
+    Preparando/Listo/Entregado/Cancelado), con la misma tabla y el mismo
+    botón "✅ Confirmar pago recibido" (`confirm_payment_draft` +
+    `odoo-sync`, sin tocar). El sidebar (`Sidebar.jsx`) ahora muestra
+    **un solo** badge rojo en "Pedidos" (`pendingOrders + pendingPayments`)
+    en vez de dos badges separados. El link viejo `/admin/pending-payments`
+    redirige a `/admin/orders?tab=pending-payments` (`routes.jsx`,
+    `<Navigate replace>`) en vez de dar 404.
+  - **Analítica unificada** (specs/analitica-unificada.md): `Analytics.jsx`
+    (catálogo/margen/inventario) e "Informes" (`Reports.jsx`, ventas por
+    período, borrado) eran dos páginas separadas que nunca se cruzaban.
+    Ahora `/admin/analytics` tiene dos pestañas — **Catálogo** (contenido
+    idéntico al `Analytics.jsx` de antes, sin cambios de lógica) y
+    **Ventas** (lo que era `Reports.jsx`, mismo `salesExport.js` sin
+    tocar, con un agregado real: antes solo mostraba tarjetas de totales
+    por canal, ahora también una tabla con un pedido por fila —fecha,
+    canal, cliente, estado, total, sync Odoo— expandible para ver las
+    líneas de producto de ese pedido; el filtro por canal y el checkbox
+    "incluir cancelados" ahora sí filtran esa tabla, antes solo influían
+    en el Excel). El botón "Exportar a Excel" sigue siendo el mismo
+    archivo/columnas de siempre, pensado para el gestor/contabilidad.
+    `/admin/reports` redirige a `/admin/analytics?tab=ventas`.
+  - **Idioma**: `Sidebar.jsx`/`Dashboard.jsx` decían "Dashboard" y
+    "Analytics" en inglés en medio de un panel en español — renombrados
+    a "Panel" y "Analítica". Se aprovechó para sacar del sidebar los
+    íconos (`IconClock`/`IconFileText`) que quedaron sin uso al fusionar
+    esas dos páginas.
+  - **Pregunta del cliente sobre reconocimiento de producto por foto**:
+    respondida, no implementada — `@zxing/browser` (la librería que ya
+    usa la cámara del escáner) solo decodifica códigos de barra/QR
+    dentro del cuadro, no reconoce el producto por su apariencia.
+    Reconocimiento visual sin código de barras necesitaría un modelo de
+    visión (clasificación/similitud) + fotos de referencia por producto
+    + servicio de inferencia — evaluado como fuera de alcance de este
+    pedido, no como algo que faltó prender.
+  - Verificado: `npm run build` limpio, `npm test` 13/13 (9 preexistentes
+    + 4 nuevos de `barcodeLookup.js`). **No verificado**: nada de esto se
+    abrió en un navegador real (mismo bloqueo de siempre, SSO de Vercel)
+    — ni las 3 pestañas nuevas, ni el badge combinado del sidebar, ni los
+    dos redirects viejos.
 
 ## Pendiente / próximos pasos
 
@@ -196,8 +261,14 @@ vive en el propio `CLAUDE.md` del repo (convención previa a este
       cargan, ver qué se puede diferir o recortar).
 - [ ] Fase 3: bot de sugerencias/consultas de productos vía OpenRouter
       (modelo `:free`, grounded en catálogo real de Supabase).
-- [ ] Confirmar visualmente en el admin real que `/admin/reports` funciona
-      contra datos reales (no verificado en navegador desde acá).
+- [ ] Confirmar visualmente en el admin real la pestaña "Ventas" de
+      Analítica (antes `/admin/reports`, fusionada el 2026-09-23) contra
+      datos reales (no verificado en navegador desde acá).
+- [ ] Confirmar visualmente la fusión del 2026-09-23 (ver "Hecho" arriba):
+      pestaña "Pendientes de pago" dentro de Pedidos, badge combinado del
+      sidebar, pestañas Catálogo/Ventas de Analítica, y los dos redirects
+      viejos (`/admin/pending-payments`, `/admin/reports`) — nada de esto
+      se abrió en un navegador real todavía.
 
 ## Decisiones tomadas
 

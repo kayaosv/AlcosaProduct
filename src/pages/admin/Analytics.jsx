@@ -1,12 +1,59 @@
-import { useRef, useMemo, useState } from 'react'
+import { Fragment, useRef, useMemo, useState } from 'react'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
+import { useSearchParams } from 'react-router-dom'
 import { useAnalyticsData, getStock, getEffectivePrice, getWholesalePrice, getMarginPct, hasWholesale } from '../../hooks/useAnalyticsData.js'
 import { useCategories } from '../../hooks/useCategories.js'
 import { categoryColor, categoryKind } from '../../lib/productSpecs.js'
+import { CHANNELS, channelLabel, fetchOrdersForExport, filterOrders, buildSummary, downloadSalesExcel } from '../../lib/salesExport.js'
 
+// Antes "Analytics" (catálogo/inventario) e "Informes" (ventas) eran dos
+// páginas del sidebar sin relación entre sí — ver
+// specs/analitica-unificada.md. Se unifican acá con pestañas; el
+// contenido de cada pestaña no cambia de lógica, solo de dónde vive.
 export const Analytics = () => {
   const ref = useRef(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = searchParams.get('tab') === 'ventas' ? 'ventas' : 'catalogo'
+  const setTab = (next) => setSearchParams(next === 'catalogo' ? {} : { tab: next }, { replace: true })
+
+  return (
+    <div ref={ref} className="page-content">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Analítica</h1>
+          <p className="page-subtitle">
+            {tab === 'catalogo'
+              ? 'Distribuciones y métricas del catálogo'
+              : 'Ventas por período — TPV, transferencia/Bizum y reservas'}
+          </p>
+        </div>
+      </div>
+
+      <div className="status-tabs" style={{ marginBottom: 20 }}>
+        <button
+          type="button"
+          className={`status-tab ${tab === 'catalogo' ? 'status-tab--active' : ''}`}
+          onClick={() => setTab('catalogo')}
+        >
+          Catálogo
+        </button>
+        <button
+          type="button"
+          className={`status-tab ${tab === 'ventas' ? 'status-tab--active' : ''}`}
+          onClick={() => setTab('ventas')}
+        >
+          Ventas
+        </button>
+      </div>
+
+      {tab === 'catalogo' ? <CatalogTab /> : <SalesTab />}
+    </div>
+  )
+}
+
+const CatalogTab = () => {
+  const sectionRef = useRef(null)
   const { products, loading } = useAnalyticsData()
   const { categories } = useCategories()
 
@@ -135,10 +182,10 @@ export const Analytics = () => {
       if (loading) return
       gsap.from('.analytics-section', { y: 20, opacity: 0, duration: 0.45, stagger: 0.1, ease: 'power3.out' })
     },
-    { scope: ref, dependencies: [loading] },
+    { scope: sectionRef, dependencies: [loading] },
   )
 
-  if (loading) return <div className="page-content"><p style={{ color: '#444' }}>Cargando…</p></div>
+  if (loading) return <div ref={sectionRef}><p style={{ color: '#444' }}>Cargando…</p></div>
 
   // ── Scatter axes — always based on full dataset so positions never jump ──
   const allPrices  = scatterAll.map((d) => d.price)
@@ -194,14 +241,7 @@ export const Analytics = () => {
   )
 
   return (
-    <div ref={ref} className="page-content">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Analytics</h1>
-          <p className="page-subtitle">Distribuciones y métricas del catálogo</p>
-        </div>
-      </div>
-
+    <div ref={sectionRef}>
       {/* KPIs */}
       <div className="analytics-section dash-row" style={{ marginBottom: 20, gap: 12 }}>
         {[
@@ -469,6 +509,225 @@ export const Analytics = () => {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+const STATUS_LABEL = {
+  pending: 'Pendiente', preparing: 'Preparando', ready: 'Listo para recoger',
+  delivered: 'Entregado', cancelled: 'Cancelado',
+}
+
+const formatDateTime = (iso) => {
+  const d = new Date(iso)
+  return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+const todayISO = () => new Date().toISOString().slice(0, 10)
+const firstOfMonthISO = () => {
+  const d = new Date()
+  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)
+}
+
+// Antes era Reports.jsx / "/admin/reports" — misma lógica de
+// fetch/filtro/export (src/lib/salesExport.js, sin cambios), ahora con
+// el desglose pedido por pedido en pantalla en vez de solo tarjetas de
+// totales (ver specs/analitica-unificada.md).
+const SalesTab = () => {
+  const sectionRef = useRef(null)
+  const [dateFrom, setDateFrom] = useState(firstOfMonthISO())
+  const [dateTo, setDateTo] = useState(todayISO())
+  const [channels, setChannels] = useState(() =>
+    Object.fromEntries(Object.keys(CHANNELS).map((k) => [k, true])),
+  )
+  const [includeCancelled, setIncludeCancelled] = useState(false)
+  const [orders, setOrders] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [error, setError] = useState(null)
+  const [expandedId, setExpandedId] = useState(null)
+
+  useGSAP(() => {
+    gsap.from('.reports-section', { y: 16, opacity: 0, duration: 0.4, stagger: 0.08, ease: 'power3.out' })
+  }, { scope: sectionRef })
+
+  const filtered = useMemo(
+    () => (orders ? filterOrders(orders, { channels, includeCancelled }) : []),
+    [orders, channels, includeCancelled],
+  )
+  const summary = useMemo(() => buildSummary(filtered), [filtered])
+
+  const runPreview = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      setOrders(await fetchOrdersForExport(dateFrom, dateTo))
+    } catch (err) {
+      setError(err.message)
+      setOrders(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleExport = async () => {
+    if (!orders) return
+    setExporting(true)
+    try {
+      await downloadSalesExcel(filtered, { dateFrom, dateTo })
+    } catch (err) {
+      alert(`No se pudo generar el Excel: ${err.message}`)
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const toggleChannel = (key) =>
+    setChannels((prev) => ({ ...prev, [key]: !prev[key] }))
+
+  return (
+    <div ref={sectionRef}>
+      <div className="reports-section dash-section" style={{ marginBottom: 20 }}>
+        <h2 className="section-title">Rango y canales</h2>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 16 }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: '#888' }}>
+            Desde
+            <input type="date" value={dateFrom} max={dateTo} onChange={(e) => setDateFrom(e.target.value)} />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: '#888' }}>
+            Hasta
+            <input type="date" value={dateTo} min={dateFrom} max={todayISO()} onChange={(e) => setDateTo(e.target.value)} />
+          </label>
+          <button className="btn-primary" onClick={runPreview} disabled={loading}>
+            {loading ? 'Cargando…' : 'Ver ventas del período'}
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+          {Object.entries(CHANNELS).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              className={`profit-filter-btn ${channels[key] ? 'profit-filter-btn--active' : ''}`}
+              onClick={() => toggleChannel(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#888' }}>
+          <input type="checkbox" checked={includeCancelled} onChange={(e) => setIncludeCancelled(e.target.checked)} />
+          Incluir pedidos cancelados
+        </label>
+
+        {error && <p style={{ color: '#ef4444', fontSize: 12, marginTop: 10 }}>{error}</p>}
+      </div>
+
+      {orders && (
+        <>
+          <div className="reports-section dash-section" style={{ marginBottom: 20 }}>
+            <h2 className="section-title">Resumen del período</h2>
+            <p className="section-desc">
+              {summary.totalPedidos} pedidos · {summary.totalVentas.toFixed(2)} € · ticket promedio {summary.ticketPromedio.toFixed(2)} €
+            </p>
+
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', margin: '12px 0 20px' }}>
+              {summary.rows.map((r) => (
+                <div key={r.canal} className="dash-section" style={{ flex: 1, minWidth: 160 }}>
+                  <p className="section-desc" style={{ marginBottom: 4 }}>{r.canal}</p>
+                  <p style={{ fontSize: 20, fontWeight: 700, color: '#e8e8e8', margin: 0 }}>{r.total.toFixed(2)} €</p>
+                  <p style={{ fontSize: 11, color: '#666', margin: 0 }}>{r.pedidos} pedidos</p>
+                </div>
+              ))}
+              {summary.rows.length === 0 && (
+                <p style={{ color: '#444', fontSize: 12 }}>Sin ventas en este período con los filtros elegidos.</p>
+              )}
+            </div>
+
+            <button className="btn-primary" onClick={handleExport} disabled={exporting || filtered.length === 0}>
+              {exporting ? 'Generando…' : 'Exportar a Excel (para gestoría/contabilidad)'}
+            </button>
+          </div>
+
+          <div className="reports-section dash-section">
+            <h2 className="section-title">Desglose de pedidos</h2>
+            <p className="section-desc">{filtered.length} pedidos con los filtros elegidos · clic en una fila para ver sus líneas</p>
+
+            {filtered.length === 0 ? (
+              <p style={{ color: '#444', fontSize: 12 }}>Sin pedidos que coincidan con los filtros.</p>
+            ) : (
+              <div className="table-wrapper">
+                <table className="productos-table">
+                  <thead>
+                    <tr>
+                      <th>Pedido</th>
+                      <th>Fecha</th>
+                      <th>Canal</th>
+                      <th>Cliente</th>
+                      <th>Estado</th>
+                      <th>Total</th>
+                      <th>Odoo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((o) => (
+                      <Fragment key={o.id}>
+                        <tr
+                          className="table-row"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setExpandedId(expandedId === o.id ? null : o.id)}
+                        >
+                          <td><span className="order-id">#{o.id.slice(0, 8)}</span></td>
+                          <td style={{ fontSize: 11, color: '#666', whiteSpace: 'nowrap' }}>{formatDateTime(o.created_at)}</td>
+                          <td style={{ fontSize: 12 }}>{channelLabel(o.payment_method)}</td>
+                          <td className="producto-nombre">{o.customer_name || '—'}</td>
+                          <td style={{ fontSize: 12, color: o.status === 'cancelled' ? '#ef4444' : '#aaa' }}>
+                            {STATUS_LABEL[o.status] ?? o.status}
+                          </td>
+                          <td className="td-precio">{Number(o.total ?? 0).toFixed(2)} €</td>
+                          <td style={{ fontSize: 11 }}>
+                            {o.payment_method?.startsWith('pos_')
+                              ? (o.odoo_sync_status === 'synced' ? '✓' : o.odoo_sync_status === 'error' ? '⚠' : '—')
+                              : '—'}
+                          </td>
+                        </tr>
+                        {expandedId === o.id && (
+                          <tr key={`${o.id}-detail`}>
+                            <td colSpan={7} style={{ background: '#0d0d0d', padding: '8px 16px' }}>
+                              {(o.order_items ?? []).length === 0 ? (
+                                <p style={{ fontSize: 12, color: '#555', margin: 0 }}>Sin líneas registradas.</p>
+                              ) : (
+                                <table style={{ width: '100%', fontSize: 12 }}>
+                                  <tbody>
+                                    {o.order_items.map((item, i) => (
+                                      <tr key={i}>
+                                        <td style={{ padding: '4px 8px', color: '#ccc' }}>
+                                          {item.product_name}
+                                          {item.variant_label && <span style={{ color: '#666' }}> · {item.variant_label}</span>}
+                                        </td>
+                                        <td style={{ padding: '4px 8px', color: '#888', textAlign: 'right' }}>{item.quantity} u.</td>
+                                        <td style={{ padding: '4px 8px', color: '#888', textAlign: 'right' }}>{Number(item.product_price ?? 0).toFixed(2)} €/u</td>
+                                        <td style={{ padding: '4px 8px', color: '#e8e8e8', textAlign: 'right' }}>
+                                          {(Number(item.product_price ?? 0) * item.quantity).toFixed(2)} €
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }

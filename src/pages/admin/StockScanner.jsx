@@ -4,8 +4,15 @@ import gsap from 'gsap'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase.js'
 import { useBarcodeScanner, hasCamera } from '../../hooks/useBarcodeScanner.js'
+import { lookupByBarcode } from '../../lib/barcodeLookup.js'
 
 const QUICK_DELTAS = [1, 5, 10, -1, -5]
+
+const VARIANT_SELECT = `
+  id, label, stock, sort_order, product_id,
+  products(id, name, brand, image_url, categories(name))
+`
+const PRODUCT_SELECT = 'id, name, brand, stock, image_url, categories(name)'
 
 export const StockScanner = () => {
   const ref        = useRef(null)
@@ -30,17 +37,10 @@ export const StockScanner = () => {
     setSelectedVariantId(null)
     setDelta(1)
 
-    // Primero se busca por codigo de VARIANTE -- si la unidad fisica
-    // escaneada tiene su propio EAN (sabor/mg/color/Ω distinto), esto
-    // identifica exactamente cual es sin pedirle al usuario que la
-    // elija a mano en la lista (ver variants mas abajo).
-    const { data: variantHit } = await supabase
-      .from('product_variants')
-      .select('id, label, stock, sort_order, product_id, products(id, name, brand, image_url, categories(name))')
-      .eq('barcode', clean)
-      .single()
+    const hit = await lookupByBarcode(clean, { variantSelect: VARIANT_SELECT, productSelect: PRODUCT_SELECT })
 
-    if (variantHit?.products) {
+    if (hit?.type === 'variant') {
+      const variantHit = hit.variant
       setProduct(variantHit.products)
       const { data: variantRows } = await supabase
         .from('product_variants')
@@ -56,34 +56,29 @@ export const StockScanner = () => {
       return
     }
 
-    const { data } = await supabase
-      .from('products')
-      .select('id, name, brand, stock, image_url, categories(name)')
-      .eq('barcode', clean)
-      .single()
+    if (hit?.type === 'product') {
+      const data = hit.product
+      setProduct(data)
 
-    if (!data) {
-      setNotFound(true)
-      gsap.from('.scanner-not-found', { y: 8, opacity: 0, duration: 0.25, ease: 'power2.out' })
+      // Productos con variantes guardan el stock real por variante, no en
+      // products.stock (mismo motivo que en la ficha pública y el checkout
+      // de variantes) — hay que traerlas para poder pedir cuál se repuso.
+      const { data: variantRows } = await supabase
+        .from('product_variants')
+        .select('id, label, stock, sort_order')
+        .eq('product_id', data.id)
+        .order('sort_order')
+      setVariants(variantRows ?? [])
+
+      requestAnimationFrame(() => {
+        if (resultRef.current)
+          gsap.from(resultRef.current, { y: 10, opacity: 0, duration: 0.3, ease: 'power2.out' })
+      })
       return
     }
 
-    setProduct(data)
-
-    // Productos con variantes guardan el stock real por variante, no en
-    // products.stock (mismo motivo que en la ficha pública y el checkout
-    // de variantes) — hay que traerlas para poder pedir cuál se repuso.
-    const { data: variantRows } = await supabase
-      .from('product_variants')
-      .select('id, label, stock, sort_order')
-      .eq('product_id', data.id)
-      .order('sort_order')
-    setVariants(variantRows ?? [])
-
-    requestAnimationFrame(() => {
-      if (resultRef.current)
-        gsap.from(resultRef.current, { y: 10, opacity: 0, duration: 0.3, ease: 'power2.out' })
-    })
+    setNotFound(true)
+    gsap.from('.scanner-not-found', { y: 8, opacity: 0, duration: 0.25, ease: 'power2.out' })
   }, [])
 
   const scanner = useBarcodeScanner(lookup, { active: scanMode })
