@@ -305,10 +305,27 @@ export const Tpv = () => {
       <div className="tpv-grid">
         <div className="tpv-scanner scanner-zone">
           {scanner.cameraMode ? (
-            <div className="scanner-camera-wrap">
-              <video ref={scanner.videoRef} className="scanner-camera-video" playsInline muted />
-              {scanner.cameraError && <p className="scanner-nf-sub">{scanner.cameraError}</p>}
-            </div>
+            scanner.cameraError ? (
+              <div className="scanner-not-found" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 8 }}>
+                <p className="scanner-nf-title">Cámara no disponible</p>
+                <p className="scanner-nf-sub">{scanner.cameraError}</p>
+                <button className="btn-ghost" onClick={scanner.toggleCamera}>Usar pistola</button>
+              </div>
+            ) : (
+              <div className="camera-wrap">
+                <video ref={scanner.videoRef} className="camera-video" playsInline muted />
+                <div className="camera-aim">
+                  <div className="camera-aim-box" />
+                </div>
+                <span className="camera-hint">
+                  {scanner.noDetection
+                    ? 'No se reconoce ningún código — acercá la cámara o mejorá la luz'
+                    : scanner.scanning
+                    ? 'Apuntá al código de barras…'
+                    : 'Iniciando cámara…'}
+                </span>
+              </div>
+            )
           ) : (
             <div className="scanner-input-wrap">
               <input

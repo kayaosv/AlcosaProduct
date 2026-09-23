@@ -225,7 +225,21 @@ export const ProductEditor = () => {
 
       {error && <p className="admin-login-error" style={{ marginBottom: 16 }}>{error}</p>}
 
-      <form id="product-form" onSubmit={handleSubmit} className="editor-layout">
+      {/* Enter en cualquier input de este formulario gigante no debe
+          guardar el producto — la pistola de código de barras manda un
+          Enter automático después de cada escaneo, y el campo de
+          código de barras de una variante nueva (sin guardar todavía)
+          no tenía forma de distinguir eso de un Enter real: disparaba
+          el submit completo y navegaba fuera de la página. El botón
+          real de guardar vive afuera de este <form> (`form="product-form"
+          type="submit"` en el header), así que bloquear Enter acá no
+          afecta guardar con el mouse/touch. */}
+      <form
+        id="product-form"
+        onSubmit={handleSubmit}
+        onKeyDown={(e) => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') e.preventDefault() }}
+        className="editor-layout"
+      >
         <div className="editor-main">
           <section className="editor-section">
             <h2 className="editor-section-title">Información general</h2>
@@ -252,7 +266,6 @@ export const ProductEditor = () => {
                   <input
                     value={form.barcode || ''}
                     onChange={(e) => set('barcode', e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault() }}
                     placeholder="ej. 8410076470038"
                     maxLength={50}
                   />

@@ -26,6 +26,8 @@ export const useBarcodeScanner = (onDetect, { active = true } = {}) => {
   const [cameraMode, setCameraMode] = useState(false)
   const [cameraError, setCameraError] = useState(null)
   const [scanning, setScanning] = useState(false)
+  const [noDetection, setNoDetection] = useState(false)
+  const noDetectionTimer = useRef(null)
 
   useEffect(() => {
     if (active && !cameraMode) inputRef.current?.focus()
@@ -43,16 +45,26 @@ export const useBarcodeScanner = (onDetect, { active = true } = {}) => {
     return () => window.removeEventListener('keydown', capture, true)
   }, [active, cameraMode])
 
+  const clearNoDetectionTimer = () => {
+    if (noDetectionTimer.current) {
+      clearTimeout(noDetectionTimer.current)
+      noDetectionTimer.current = null
+    }
+  }
+
   const stopCamera = useCallback(() => {
     controlsRef.current?.stop()
     controlsRef.current = null
     setScanning(false)
+    setNoDetection(false)
+    clearNoDetectionTimer()
   }, [])
 
   useEffect(() => () => stopCamera(), [stopCamera])
 
   const startCamera = useCallback(async () => {
     setCameraError(null)
+    setNoDetection(false)
     if (!hasCamera()) {
       setCameraError('Este dispositivo no tiene cámara disponible.')
       return
@@ -60,6 +72,11 @@ export const useBarcodeScanner = (onDetect, { active = true } = {}) => {
     try {
       readerRef.current = new BrowserMultiFormatReader()
       setScanning(true)
+      // A los 6s sin encontrar nada, se lo decimos explícitamente al
+      // vendedor (pedido del cliente: "si no reconoce, que indique no
+      // hay un código de barra") — sin esto, un código sucio/borroso o
+      // mal encuadrado se ve igual que un lector que nunca arrancó.
+      noDetectionTimer.current = setTimeout(() => setNoDetection(true), 6000)
       // decodeFromConstraints maneja el getUserMedia y el stream por su
       // cuenta - el callback se llama en cada intento de frame, "result"
       // solo viene definido cuando encuentra un codigo real (el resto
@@ -77,6 +94,7 @@ export const useBarcodeScanner = (onDetect, { active = true } = {}) => {
       )
     } catch (err) {
       setScanning(false)
+      clearNoDetectionTimer()
       setCameraError(`No se pudo acceder a la cámara: ${err.message}`)
     }
   }, [onDetect, stopCamera])
@@ -111,6 +129,7 @@ export const useBarcodeScanner = (onDetect, { active = true } = {}) => {
     cameraMode,
     cameraError,
     scanning,
+    noDetection,
     toggleCamera,
     handleKeyDown,
     stopCamera,

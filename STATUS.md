@@ -225,6 +225,50 @@ vive en el propio `CLAUDE.md` del repo (convención previa a este
     abrió en un navegador real (mismo bloqueo de siempre, SSO de Vercel)
     — ni las 3 pestañas nuevas, ni el badge combinado del sidebar, ni los
     dos redirects viejos.
+- **Cámara del TPV sin feedback + pistola disparaba el guardado del
+  producto (2026-09-23, mismo día, reportado por el cliente tras probar
+  la fusión de arriba).** Dos bugs distintos, ambos encontrados leyendo
+  el código real (sin poder probar en dispositivo físico desde acá):
+  - **Cámara del TPV**: `Tpv.jsx` usaba clases CSS propias
+    (`scanner-camera-wrap`/`scanner-camera-video`) que **no existen en
+    `admin.css`** — el `<video>` se renderizaba sin tamaño/aspect-ratio/
+    `object-fit`, y a diferencia de `StockScanner.jsx` no mostraba
+    ningún texto tipo "Apuntá al código de barras…". El mecanismo de
+    decodificación (`@zxing/browser`, ya arreglado el 2026-09-15) nunca
+    estuvo roto — lo que faltaba era retroalimentación visual, así que
+    parecía que la cámara "no hacía nada". Fix: `Tpv.jsx` ahora reusa
+    exactamente el mismo markup ya probado de `StockScanner.jsx`
+    (`.camera-wrap`/`.camera-video`/`.camera-aim`/`.camera-hint`, con
+    su caja de encuadre). De paso, pedido explícito del cliente: si no
+    reconoce ningún código en 6s de cámara abierta, el hint cambia a
+    "No se reconoce ningún código — acercá la cámara o mejorá la luz"
+    (`noDetection` nuevo en `useBarcodeScanner.js`, compartido, también
+    se ve en `StockScanner.jsx`).
+  - **Pistola disparaba el guardado del producto** — en
+    `ProductEditor.jsx`, el campo de código de barras de una **variante
+    nueva sin guardar todavía** (`draft.barcode`, dentro del formulario
+    gigante `<form id="product-form">`) no tenía guard de `Enter` (los
+    otros dos campos de barcode del mismo archivo sí lo tenían: el del
+    producto y el de una variante ya guardada). La pistola manda un
+    Enter automático después de cada código escaneado — sin guard, ese
+    Enter disparaba el `submit` nativo del formulario completo,
+    guardaba el producto y navegaba a `/admin/products` (lo que el
+    cliente describió como "se devuelve al home de stock"). Fix: en vez
+    de agregar un guard más a un campo más (mismo bug latente en
+    cualquier otro input del formulario), se movió el guard al
+    `<form>` mismo (`onKeyDown` que bloquea Enter en cualquier
+    `<input>`) — el botón real de "Guardar" vive fuera de este `<form>`
+    (`form="product-form" type="submit"` en el header), así que no se
+    ve afectado. El guard puntual que ya tenía el campo de barcode del
+    producto quedó redundante y se sacó; el de la variante ya guardada
+    se dejó porque además dispara el commit inmediato del campo al
+    presionar Enter (comportamiento útil, no solo el guard).
+  - Verificado: `npm run build` limpio, `npm test` 13/13 (sin cambios
+    de lógica testeable, ningún test nuevo aplica acá). **No
+    verificado**: ninguno de los dos fixes se probó con hardware real
+    (cámara de un móvil real, pistola física) desde acá — el cliente
+    los reportó y hay que confirmar en el preview tras el próximo
+    deploy.
 
 ## Pendiente / próximos pasos
 

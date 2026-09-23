@@ -199,7 +199,11 @@ export const StockScanner = () => {
                     <div className="camera-aim-box" />
                   </div>
                   <span className="camera-hint">
-                    {scanner.scanning ? 'Apunta al código de barras…' : 'Iniciando cámara…'}
+                    {scanner.noDetection
+                      ? 'No se reconoce ningún código — acercá la cámara o mejorá la luz'
+                      : scanner.scanning
+                      ? 'Apunta al código de barras…'
+                      : 'Iniciando cámara…'}
                   </span>
                 </div>
               )}
