@@ -8,6 +8,7 @@ import { useShopSettings } from '../../hooks/useShopSettings.js'
 
 const LINKS = [
   { to: '/catalog', label: 'Tienda' },
+  { to: '/packs', label: 'Packs' },
   { to: '/catalog?cat=vapers-desechables', label: 'Desechables' },
   { to: '/catalog?cat=sales-de-nicotina', label: 'Sales' },
   { to: '/catalog?cat=vapers', label: 'Vapers' },

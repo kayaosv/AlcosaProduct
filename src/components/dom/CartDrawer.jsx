@@ -89,7 +89,7 @@ export const CartDrawer = () => {
           ) : (
             <ul className="space-y-5">
               {items.map((item) => (
-                <li key={`${item.productId}-${item.variantId ?? 'base'}`} className="flex gap-4">
+                <li key={item.packId ?? `${item.productId}-${item.variantId ?? 'base'}`} className="flex gap-4">
                   <div
                     className="w-16 h-20 shrink-0 flex items-center justify-center overflow-hidden"
                     style={{ background: 'var(--color-navy)', color: 'var(--color-cream)' }}
@@ -124,7 +124,7 @@ export const CartDrawer = () => {
                       <div className="inline-flex items-center" style={{ border: '1px solid rgba(23,45,109,0.2)' }}>
                         <button
                           data-cursor="link"
-                          onClick={() => updateQuantity(item.productId, item.variantId, item.quantity - 1)}
+                          onClick={() => updateQuantity(item.productId, item.variantId, item.quantity - 1, item.packId)}
                           className="px-2 py-1 text-[12px]"
                         >
                           −
@@ -134,7 +134,7 @@ export const CartDrawer = () => {
                         </span>
                         <button
                           data-cursor="link"
-                          onClick={() => updateQuantity(item.productId, item.variantId, item.quantity + 1)}
+                          onClick={() => updateQuantity(item.productId, item.variantId, item.quantity + 1, item.packId)}
                           className="px-2 py-1 text-[12px]"
                         >
                           +
@@ -142,7 +142,7 @@ export const CartDrawer = () => {
                       </div>
                       <button
                         data-cursor="link"
-                        onClick={() => removeItem(item.productId, item.variantId)}
+                        onClick={() => removeItem(item.productId, item.variantId, item.packId)}
                         className="text-[10px] tracking-[0.2em] uppercase"
                         style={{ color: 'rgba(23,45,109,0.5)' }}
                       >
