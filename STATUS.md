@@ -396,6 +396,16 @@ vive en el propio `CLAUDE.md` del repo (convención previa a este
 
 ## Pendiente / próximos pasos
 
+- [ ] **Retomar acá primero**: la mejora de cámara del escáner
+  (resolución 1920×1080, `TRY_HARDER`, zoom/linterna —
+  specs/escaner-camara-codigos-dificiles.md, commit `859946f`) está
+  **solo en `preview/alcosa`, todavía NO mergeada a `main`** — el
+  cliente la pidió por códigos chicos/en curva que no leía bien, pero
+  todavía no la probó en su celular real. Todo lo anterior en la misma
+  sesión (dedupe TPV/Escáner, fusión Pedidos+Analítica, packs/combos,
+  descuento manual TPV, venta rápida TPV) **sí fue probado por el
+  cliente y ya está en `main`**. Esperar confirmación antes de mergear
+  esta última.
 - [x] ~~CTA flotante de WhatsApp~~ — **código resuelto 2026-09-15**
       (`WhatsAppFab.jsx`), ver "Hecho" arriba. Sigue pendiente probarlo
       visualmente en el preview (nunca se abrió en un navegador real).
