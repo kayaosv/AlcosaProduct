@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { useNavigate, useParams, Link } from 'react-router-dom'
+import { useNavigate, useParams, useLocation, Link } from 'react-router-dom'
 import { useCategories } from '../../hooks/useCategories.js'
 import { useUploadImage } from '../../hooks/useUploadImage.js'
 import { useProductVariants } from '../../hooks/useProductVariants.js'
@@ -37,6 +37,7 @@ const EMPTY = {
 export const ProductEditor = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const isNew = id === 'new'
 
   const { categories, update: updateCategory } = useCategories()
@@ -63,7 +64,12 @@ export const ProductEditor = () => {
     setDraftVariants((d) => d.map((v) => ({ ...v, is_primary: v.id === id })))
   }, [])
 
-  const [form, setForm] = useState(EMPTY)
+  // Llega precargado desde el "Escáner de stock" cuando un código
+  // escaneado no matchea ningún producto (ver Código no encontrado en
+  // StockScanner.jsx) — evita reescribir a mano un EAN largo.
+  const [form, setForm] = useState(() =>
+    isNew && location.state?.barcode ? { ...EMPTY, barcode: location.state.barcode } : EMPTY,
+  )
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)

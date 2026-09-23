@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react'
+import { useRef, useState, useCallback, useEffect } from 'react'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { Link, useNavigate } from 'react-router-dom'
@@ -14,6 +14,11 @@ const VARIANT_SELECT = `
 `
 const PRODUCT_SELECT = 'id, name, brand, stock, image_url, categories(name)'
 
+// Para "vincular a un producto existente" (código no encontrado) — trae
+// las variantes activas para saber si hay que pedir cuál antes de
+// guardar el código, mismo criterio que addProductRecord() en Tpv.jsx.
+const LINK_SEARCH_SELECT = 'id, name, brand, product_variants(id, label, is_active)'
+
 export const StockScanner = () => {
   const ref        = useRef(null)
   const resultRef  = useRef(null)
@@ -23,10 +28,33 @@ export const StockScanner = () => {
   const [variants, setVariants]   = useState([])
   const [selectedVariantId, setSelectedVariantId] = useState(null)
   const [notFound, setNotFound]   = useState(false)
+  const [scannedCode, setScannedCode] = useState('')
   const [delta, setDelta]         = useState(1)
   const [saving, setSaving]       = useState(false)
   const [history, setHistory]     = useState([])
   const [scanMode, setScanMode]   = useState(true)
+
+  // "Vincular a un producto existente" — el código escaneado no matchea
+  // nada, pero el producto puede ya existir sin ese código cargado (ver
+  // el indicador missingBarcode de /admin/products). Buscar por nombre
+  // reutiliza el mismo patrón ilike/debounce del TPV.
+  const [linking, setLinking]         = useState(false)
+  const [linkQuery, setLinkQuery]     = useState('')
+  const [linkResults, setLinkResults] = useState([])
+  const [linkSearching, setLinkSearching] = useState(false)
+  const [linkTarget, setLinkTarget]   = useState(null) // { id, name, variants }
+  const [linkSaving, setLinkSaving]   = useState(false)
+  const [linkError, setLinkError]     = useState(null)
+  const [linkSuccess, setLinkSuccess] = useState(null)
+
+  const resetLinking = () => {
+    setLinking(false)
+    setLinkQuery('')
+    setLinkResults([])
+    setLinkTarget(null)
+    setLinkError(null)
+    setLinkSuccess(null)
+  }
 
   const lookup = useCallback(async (code) => {
     const clean = (code ?? '').trim()
@@ -36,6 +64,8 @@ export const StockScanner = () => {
     setVariants([])
     setSelectedVariantId(null)
     setDelta(1)
+    setScannedCode(clean)
+    resetLinking()
 
     const hit = await lookupByBarcode(clean, { variantSelect: VARIANT_SELECT, productSelect: PRODUCT_SELECT })
 
@@ -80,6 +110,58 @@ export const StockScanner = () => {
     setNotFound(true)
     gsap.from('.scanner-not-found', { y: 8, opacity: 0, duration: 0.25, ease: 'power2.out' })
   }, [])
+
+  useEffect(() => {
+    const q = linkQuery.trim()
+    if (q.length < 2) {
+      setLinkResults([])
+      setLinkSearching(false)
+      return
+    }
+    let cancelled = false
+    setLinkSearching(true)
+    const timer = setTimeout(async () => {
+      const { data } = await supabase
+        .from('products')
+        .select(LINK_SEARCH_SELECT)
+        .eq('is_active', true)
+        .ilike('name', `%${q}%`)
+        .order('name')
+        .limit(8)
+      if (!cancelled) {
+        setLinkResults(data ?? [])
+        setLinkSearching(false)
+      }
+    }, 250)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [linkQuery])
+
+  const pickLinkTarget = (p) => {
+    const activeVariants = (p.product_variants ?? []).filter((v) => v.is_active !== false)
+    if (activeVariants.length === 0) {
+      attachBarcode({ productId: p.id, variantId: null, name: p.name })
+      return
+    }
+    setLinkTarget({ id: p.id, name: p.name, variants: activeVariants })
+  }
+
+  const attachBarcode = async ({ productId, variantId, name, variantLabel }) => {
+    setLinkSaving(true)
+    setLinkError(null)
+    try {
+      const table = variantId ? 'product_variants' : 'products'
+      const { error } = await supabase.from(table).update({ barcode: scannedCode }).eq('id', variantId ?? productId)
+      if (error) throw error
+      setLinkTarget(null)
+      setLinkResults([])
+      setLinkQuery('')
+      setLinkSuccess(`Código vinculado a "${name}"${variantLabel ? ` · ${variantLabel}` : ''}.`)
+    } catch (err) {
+      setLinkError(err.code === '23505' ? 'Ese código ya está en uso por otro producto o variante.' : `No se pudo vincular: ${err.message}`)
+    } finally {
+      setLinkSaving(false)
+    }
+  }
 
   const scanner = useBarcodeScanner(lookup, { active: scanMode })
 
@@ -131,6 +213,8 @@ export const StockScanner = () => {
     setVariants([])
     setSelectedVariantId(null)
     setNotFound(false)
+    setScannedCode('')
+    resetLinking()
     scanner.setBarcode('')
     setScanMode(true)
     scanner.stopCamera()
@@ -231,17 +315,99 @@ export const StockScanner = () => {
             </div>
           )}
 
-          {/* Producto no encontrado */}
+          {/* Producto no encontrado — vincular a uno existente o crear nuevo */}
           {notFound && !product && (
-            <div className="scanner-not-found">
-              <span className="scanner-nf-icon">⊘</span>
-              <div>
-                <p className="scanner-nf-title">Producto no encontrado</p>
-                <p className="scanner-nf-sub">
-                  El código escaneado no existe. <Link to="/admin/products/new">Crear producto</Link>
-                </p>
+            <div className="scanner-not-found" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <span className="scanner-nf-icon">⊘</span>
+                <div style={{ flex: 1 }}>
+                  <p className="scanner-nf-title">Producto no encontrado</p>
+                  <p className="scanner-nf-sub">
+                    El código <strong>{scannedCode}</strong> no está cargado en ningún producto ni variante.
+                  </p>
+                </div>
+                <button className="btn-ghost" onClick={reset}>Reintentar</button>
               </div>
-              <button className="btn-ghost" style={{ marginLeft: 'auto' }} onClick={reset}>Reintentar</button>
+
+              {linkSuccess ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                  <p className="scanner-nf-sub" style={{ color: '#4ade80' }}>{linkSuccess}</p>
+                  <button className="btn-primary" style={{ fontSize: 12 }} onClick={reset}>Escanear otro</button>
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button
+                      className={`btn-ghost ${linking ? 'camera-btn--active' : ''}`}
+                      style={{ fontSize: 12 }}
+                      onClick={() => (linking ? resetLinking() : setLinking(true))}
+                    >
+                      🔗 Vincular a un producto existente
+                    </button>
+                    <Link to="/admin/products/new" state={{ barcode: scannedCode }} className="btn-ghost" style={{ fontSize: 12 }}>
+                      + Crear producto nuevo
+                    </Link>
+                  </div>
+
+                  {linking && !linkTarget && (
+                    <div className="tpv-name-search" style={{ marginTop: 0 }}>
+                      <input
+                        className="scanner-input tpv-name-search-input"
+                        value={linkQuery}
+                        onChange={(e) => setLinkQuery(e.target.value)}
+                        placeholder="Buscar producto por nombre…"
+                        autoFocus
+                      />
+                      {linkQuery.trim().length >= 2 && (
+                        <div className="tpv-name-results">
+                          {linkSearching ? (
+                            <p className="tpv-name-results-empty">Buscando…</p>
+                          ) : linkResults.length === 0 ? (
+                            <p className="tpv-name-results-empty">Sin resultados.</p>
+                          ) : (
+                            linkResults.map((p) => (
+                              <button
+                                key={p.id}
+                                type="button"
+                                className="tpv-name-result"
+                                onClick={() => pickLinkTarget(p)}
+                              >
+                                <span className="tpv-name-result-name">{p.name}</span>
+                                {p.brand && <span className="tpv-name-result-brand">{p.brand}</span>}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {linkTarget && (
+                    <div>
+                      <p style={{ fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+                        "{linkTarget.name}" tiene variantes — elegí a cuál pertenece este código
+                      </p>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {linkTarget.variants.map((v) => (
+                          <button
+                            key={v.id}
+                            type="button"
+                            className="btn-ghost"
+                            style={{ fontSize: 12 }}
+                            disabled={linkSaving}
+                            onClick={() => attachBarcode({ productId: linkTarget.id, variantId: v.id, name: linkTarget.name, variantLabel: v.label })}
+                          >
+                            {v.label}
+                          </button>
+                        ))}
+                        <button className="btn-ghost" style={{ fontSize: 12 }} onClick={() => setLinkTarget(null)}>Cancelar</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {linkError && <p className="scanner-nf-sub" style={{ color: '#ef4444' }}>{linkError}</p>}
+                </>
+              )}
             </div>
           )}
 

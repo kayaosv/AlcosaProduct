@@ -269,6 +269,41 @@ vive en el propio `CLAUDE.md` del repo (convención previa a este
     (cámara de un móvil real, pistola física) desde acá — el cliente
     los reportó y hay que confirmar en el preview tras el próximo
     deploy.
+- **Escáner de stock — vincular código a producto existente o crear uno
+  nuevo (2026-09-23, mismo día, specs/escaner-vincular-o-crear-por-codigo.md)**.
+  Pedido explícito del cliente inspirado en una funcionalidad de otro
+  proyecto propio (`kayaosv/Stylo019`, revisado antes de diseñar —
+  `VentaFisica.jsx`): al escanear un código no encontrado, la única
+  salida era un link genérico a "Crear producto" sin el código
+  precargado. Adaptado a este catálogo en vez de clonado literal:
+  Stylo019 resuelve "no existe" creando un producto oculto de venta
+  rápida sin categoría real (`activo:false`, categoría `venta_rapida`)
+  — no aplica acá porque este catálogo depende de moldes de categoría
+  reales (`ProductEditor.jsx`) para specs/variantes, y no hay concepto
+  de "vender sin catalogar".
+  - **Vincular a un producto existente** (`StockScanner.jsx`): nueva
+    acción "🔗 Vincular a un producto existente" en el estado "no
+    encontrado" — buscador por nombre (mismo patrón `ilike`/debounce
+    250ms del buscador del TPV). Si el producto elegido no tiene
+    variantes, el código se guarda directo en `products.barcode`; si
+    tiene, pide elegir cuál (chips) antes de guardar en
+    `product_variants.barcode`. Pensado para resolver de a uno los
+    productos que ya señala `missingBarcode` en `/admin/products`
+    (agregado el 2026-09-15) sin tener que entrar al editor completo.
+  - **Crear producto nuevo**: el botón "+ Crear producto nuevo" navega a
+    `/admin/products/new` pasando el código escaneado por
+    `location.state.barcode` — `ProductEditor.jsx` lo precarga en el
+    campo "Código de barras" (antes había que reescribirlo a mano). Es
+    el editor completo real (categoría/molde/variantes desde el
+    principio, decisión explícita del cliente), no un formulario
+    paralelo simplificado.
+  - Verificado: `npm run build` limpio, `npm test` 13/13 (sin tests
+    nuevos — es un flujo de Supabase directo contra la base real, mismo
+    patrón sin tests que `applyDelta`/`sellThis` ya existentes en el
+    mismo archivo). **No verificado**: nada de esto se abrió en un
+    navegador real todavía (ni el buscador, ni el vínculo contra un
+    producto con variantes, ni el prefill del código en
+    `ProductEditor.jsx`) — pendiente confirmar en el preview.
 
 ## Pendiente / próximos pasos
 
