@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { useNavigate, useParams, Link } from 'react-router-dom'
+import { useNavigate, useParams, useLocation, Link } from 'react-router-dom'
 import { useCategories } from '../../hooks/useCategories.js'
 import { useUploadImage } from '../../hooks/useUploadImage.js'
 import { useProductVariants } from '../../hooks/useProductVariants.js'
@@ -37,6 +37,7 @@ const EMPTY = {
 export const ProductEditor = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const isNew = id === 'new'
 
   const { categories, update: updateCategory } = useCategories()
@@ -63,7 +64,12 @@ export const ProductEditor = () => {
     setDraftVariants((d) => d.map((v) => ({ ...v, is_primary: v.id === id })))
   }, [])
 
-  const [form, setForm] = useState(EMPTY)
+  // Llega precargado desde el "Escáner de stock" cuando un código
+  // escaneado no matchea ningún producto (ver Código no encontrado en
+  // StockScanner.jsx) — evita reescribir a mano un EAN largo.
+  const [form, setForm] = useState(() =>
+    isNew && location.state?.barcode ? { ...EMPTY, barcode: location.state.barcode } : EMPTY,
+  )
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -225,7 +231,21 @@ export const ProductEditor = () => {
 
       {error && <p className="admin-login-error" style={{ marginBottom: 16 }}>{error}</p>}
 
-      <form id="product-form" onSubmit={handleSubmit} className="editor-layout">
+      {/* Enter en cualquier input de este formulario gigante no debe
+          guardar el producto — la pistola de código de barras manda un
+          Enter automático después de cada escaneo, y el campo de
+          código de barras de una variante nueva (sin guardar todavía)
+          no tenía forma de distinguir eso de un Enter real: disparaba
+          el submit completo y navegaba fuera de la página. El botón
+          real de guardar vive afuera de este <form> (`form="product-form"
+          type="submit"` en el header), así que bloquear Enter acá no
+          afecta guardar con el mouse/touch. */}
+      <form
+        id="product-form"
+        onSubmit={handleSubmit}
+        onKeyDown={(e) => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') e.preventDefault() }}
+        className="editor-layout"
+      >
         <div className="editor-main">
           <section className="editor-section">
             <h2 className="editor-section-title">Información general</h2>
@@ -252,7 +272,6 @@ export const ProductEditor = () => {
                   <input
                     value={form.barcode || ''}
                     onChange={(e) => set('barcode', e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault() }}
                     placeholder="ej. 8410076470038"
                     maxLength={50}
                   />

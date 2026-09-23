@@ -212,7 +212,7 @@ export const Dashboard = () => {
     <div ref={ref} className="page-content">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Dashboard</h1>
+          <h1 className="page-title">Panel</h1>
           <p className="page-subtitle">Resumen general del catálogo</p>
         </div>
         <div className="dash-quick-links">

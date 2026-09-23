@@ -6,6 +6,16 @@ import { supabase } from '../../lib/supabase.js'
 import { PosTicket } from '../../components/dom/admin/PosTicket.jsx'
 import { applyDesechablesTiers } from '../../lib/promoTiers.js'
 import { useBarcodeScanner, hasCamera } from '../../hooks/useBarcodeScanner.js'
+import { lookupByBarcode } from '../../lib/barcodeLookup.js'
+
+const VARIANT_SELECT = `
+  id, label, stock, price, sale_price, is_primary, product_id,
+  products(id, name, price, sale_price, is_on_sale, categories(id, kind, promo_tiers))
+`
+const PRODUCT_SELECT = `
+  id, name, price, sale_price, is_on_sale, stock, categories(id, kind, promo_tiers),
+  product_variants(id, label, price, sale_price, stock, is_primary, is_active)
+`
 
 // Misma resolucion de precio que create_pos_sale()/create_order() en
 // el server (variante propia -> variante principal -> precio base) -
@@ -78,19 +88,10 @@ export const Tpv = () => {
     if (!clean) return
     setNotFound(false)
 
-    // Igual que StockScanner.jsx: primero se busca por codigo de
-    // VARIANTE (sabor/mg/color/Ω propio), si no aparece se busca por
-    // codigo del producto base.
-    const { data: variantHit } = await supabase
-      .from('product_variants')
-      .select(`
-        id, label, stock, price, sale_price, is_primary, product_id,
-        products(id, name, price, sale_price, is_on_sale, categories(id, kind, promo_tiers))
-      `)
-      .eq('barcode', clean)
-      .maybeSingle()
+    const hit = await lookupByBarcode(clean, { variantSelect: VARIANT_SELECT, productSelect: PRODUCT_SELECT })
 
-    if (variantHit?.products) {
+    if (hit?.type === 'variant') {
+      const variantHit = hit.variant
       const { data: primary } = variantHit.is_primary
         ? { data: variantHit }
         : await supabase
@@ -104,22 +105,13 @@ export const Tpv = () => {
       return
     }
 
-    const { data: product } = await supabase
-      .from('products')
-      .select(`
-        id, name, price, sale_price, is_on_sale, stock, categories(id, kind, promo_tiers),
-        product_variants(id, label, price, sale_price, stock, is_primary, is_active)
-      `)
-      .eq('barcode', clean)
-      .maybeSingle()
-
-    if (!product) {
-      setNotFound(true)
-      gsap.from('.tpv-not-found', { y: 8, opacity: 0, duration: 0.25, ease: 'power2.out' })
+    if (hit?.type === 'product') {
+      addProductRecord(hit.product)
       return
     }
 
-    addProductRecord(product)
+    setNotFound(true)
+    gsap.from('.tpv-not-found', { y: 8, opacity: 0, duration: 0.25, ease: 'power2.out' })
   }, [])
 
   // El codigo escaneado (o el producto elegido por nombre) puede ser el
@@ -313,10 +305,27 @@ export const Tpv = () => {
       <div className="tpv-grid">
         <div className="tpv-scanner scanner-zone">
           {scanner.cameraMode ? (
-            <div className="scanner-camera-wrap">
-              <video ref={scanner.videoRef} className="scanner-camera-video" playsInline muted />
-              {scanner.cameraError && <p className="scanner-nf-sub">{scanner.cameraError}</p>}
-            </div>
+            scanner.cameraError ? (
+              <div className="scanner-not-found" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 8 }}>
+                <p className="scanner-nf-title">Cámara no disponible</p>
+                <p className="scanner-nf-sub">{scanner.cameraError}</p>
+                <button className="btn-ghost" onClick={scanner.toggleCamera}>Usar pistola</button>
+              </div>
+            ) : (
+              <div className="camera-wrap">
+                <video ref={scanner.videoRef} className="camera-video" playsInline muted />
+                <div className="camera-aim">
+                  <div className="camera-aim-box" />
+                </div>
+                <span className="camera-hint">
+                  {scanner.noDetection
+                    ? 'No se reconoce ningún código — acercá la cámara o mejorá la luz'
+                    : scanner.scanning
+                    ? 'Apuntá al código de barras…'
+                    : 'Iniciando cámara…'}
+                </span>
+              </div>
+            )
           ) : (
             <div className="scanner-input-wrap">
               <input

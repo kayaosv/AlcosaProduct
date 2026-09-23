@@ -1,6 +1,6 @@
 # STATUS
 
-Última actualización: 2026-09-15
+Última actualización: 2026-09-23
 
 ## Estado actual
 
@@ -160,6 +160,150 @@ vive en el propio `CLAUDE.md` del repo (convención previa a este
   `import()` dinámico, nunca entra al bundle inicial. Tests unitarios
   (Vitest, recién agregado al proyecto — no existía antes) sobre las
   funciones puras de agregación en `src/lib/salesExport.js`.
+- **Auditoría de duplicación TPV/Escáner/Pedidos/Analytics + idioma
+  (2026-09-23)** — pedido explícito del cliente tras notar que TPV y
+  Escáner "comparten lógica que en verdad está duplicada", que Pedidos
+  y Pagos pendientes duplican función, y que Analytics/Informes debería
+  ser una sola cosa con mejor desglose. Se auditó el código real antes
+  de tocar nada (tres specs nuevas en `specs/`), se confirmaron 3
+  decisiones de diseño con el cliente antes de implementar, y se
+  encaró todo en la misma sesión:
+  - **`src/lib/barcodeLookup.js`** (specs/tpv-scanner-lookup-compartido.md):
+    la cascada "código → variante (por `barcode`) → si no, producto
+    base" estaba copiada casi textual en `Tpv.jsx` y `StockScanner.jsx`
+    (la cámara/pistola ya compartían `useBarcodeScanner.js`, eso no
+    estaba duplicado). Extraída a una función única
+    (`lookupByBarcode(code, { variantSelect, productSelect })`) —
+    cada pantalla sigue pidiendo los campos que necesita (TPV quiere
+    precio/promos, el escáner quiere stock/imagen), solo se comparte el
+    orden de resolución. 4 tests nuevos (Vitest + `vi.mock` del cliente
+    de Supabase, primera vez que se mockea en este proyecto).
+    De paso, confirmado que el buscador por nombre del TPV (pedido
+    original del cliente) **ya existía** desde el 2026-09-15 — si no se
+    ve en el sitio real, es un problema de deploy/caché, no de código
+    faltante.
+  - **Pagos pendientes fusionado en Pedidos**
+    (specs/pedidos-pagos-pendientes-unificado.md): `/admin/pending-payments`
+    (`PendingPayments.jsx`, borrado) ahora es una pestaña más dentro de
+    `Orders.jsx` ("Pendientes de pago", junto a Todos/Pendiente/
+    Preparando/Listo/Entregado/Cancelado), con la misma tabla y el mismo
+    botón "✅ Confirmar pago recibido" (`confirm_payment_draft` +
+    `odoo-sync`, sin tocar). El sidebar (`Sidebar.jsx`) ahora muestra
+    **un solo** badge rojo en "Pedidos" (`pendingOrders + pendingPayments`)
+    en vez de dos badges separados. El link viejo `/admin/pending-payments`
+    redirige a `/admin/orders?tab=pending-payments` (`routes.jsx`,
+    `<Navigate replace>`) en vez de dar 404.
+  - **Analítica unificada** (specs/analitica-unificada.md): `Analytics.jsx`
+    (catálogo/margen/inventario) e "Informes" (`Reports.jsx`, ventas por
+    período, borrado) eran dos páginas separadas que nunca se cruzaban.
+    Ahora `/admin/analytics` tiene dos pestañas — **Catálogo** (contenido
+    idéntico al `Analytics.jsx` de antes, sin cambios de lógica) y
+    **Ventas** (lo que era `Reports.jsx`, mismo `salesExport.js` sin
+    tocar, con un agregado real: antes solo mostraba tarjetas de totales
+    por canal, ahora también una tabla con un pedido por fila —fecha,
+    canal, cliente, estado, total, sync Odoo— expandible para ver las
+    líneas de producto de ese pedido; el filtro por canal y el checkbox
+    "incluir cancelados" ahora sí filtran esa tabla, antes solo influían
+    en el Excel). El botón "Exportar a Excel" sigue siendo el mismo
+    archivo/columnas de siempre, pensado para el gestor/contabilidad.
+    `/admin/reports` redirige a `/admin/analytics?tab=ventas`.
+  - **Idioma**: `Sidebar.jsx`/`Dashboard.jsx` decían "Dashboard" y
+    "Analytics" en inglés en medio de un panel en español — renombrados
+    a "Panel" y "Analítica". Se aprovechó para sacar del sidebar los
+    íconos (`IconClock`/`IconFileText`) que quedaron sin uso al fusionar
+    esas dos páginas.
+  - **Pregunta del cliente sobre reconocimiento de producto por foto**:
+    respondida, no implementada — `@zxing/browser` (la librería que ya
+    usa la cámara del escáner) solo decodifica códigos de barra/QR
+    dentro del cuadro, no reconoce el producto por su apariencia.
+    Reconocimiento visual sin código de barras necesitaría un modelo de
+    visión (clasificación/similitud) + fotos de referencia por producto
+    + servicio de inferencia — evaluado como fuera de alcance de este
+    pedido, no como algo que faltó prender.
+  - Verificado: `npm run build` limpio, `npm test` 13/13 (9 preexistentes
+    + 4 nuevos de `barcodeLookup.js`). **No verificado**: nada de esto se
+    abrió en un navegador real (mismo bloqueo de siempre, SSO de Vercel)
+    — ni las 3 pestañas nuevas, ni el badge combinado del sidebar, ni los
+    dos redirects viejos.
+- **Cámara del TPV sin feedback + pistola disparaba el guardado del
+  producto (2026-09-23, mismo día, reportado por el cliente tras probar
+  la fusión de arriba).** Dos bugs distintos, ambos encontrados leyendo
+  el código real (sin poder probar en dispositivo físico desde acá):
+  - **Cámara del TPV**: `Tpv.jsx` usaba clases CSS propias
+    (`scanner-camera-wrap`/`scanner-camera-video`) que **no existen en
+    `admin.css`** — el `<video>` se renderizaba sin tamaño/aspect-ratio/
+    `object-fit`, y a diferencia de `StockScanner.jsx` no mostraba
+    ningún texto tipo "Apuntá al código de barras…". El mecanismo de
+    decodificación (`@zxing/browser`, ya arreglado el 2026-09-15) nunca
+    estuvo roto — lo que faltaba era retroalimentación visual, así que
+    parecía que la cámara "no hacía nada". Fix: `Tpv.jsx` ahora reusa
+    exactamente el mismo markup ya probado de `StockScanner.jsx`
+    (`.camera-wrap`/`.camera-video`/`.camera-aim`/`.camera-hint`, con
+    su caja de encuadre). De paso, pedido explícito del cliente: si no
+    reconoce ningún código en 6s de cámara abierta, el hint cambia a
+    "No se reconoce ningún código — acercá la cámara o mejorá la luz"
+    (`noDetection` nuevo en `useBarcodeScanner.js`, compartido, también
+    se ve en `StockScanner.jsx`).
+  - **Pistola disparaba el guardado del producto** — en
+    `ProductEditor.jsx`, el campo de código de barras de una **variante
+    nueva sin guardar todavía** (`draft.barcode`, dentro del formulario
+    gigante `<form id="product-form">`) no tenía guard de `Enter` (los
+    otros dos campos de barcode del mismo archivo sí lo tenían: el del
+    producto y el de una variante ya guardada). La pistola manda un
+    Enter automático después de cada código escaneado — sin guard, ese
+    Enter disparaba el `submit` nativo del formulario completo,
+    guardaba el producto y navegaba a `/admin/products` (lo que el
+    cliente describió como "se devuelve al home de stock"). Fix: en vez
+    de agregar un guard más a un campo más (mismo bug latente en
+    cualquier otro input del formulario), se movió el guard al
+    `<form>` mismo (`onKeyDown` que bloquea Enter en cualquier
+    `<input>`) — el botón real de "Guardar" vive fuera de este `<form>`
+    (`form="product-form" type="submit"` en el header), así que no se
+    ve afectado. El guard puntual que ya tenía el campo de barcode del
+    producto quedó redundante y se sacó; el de la variante ya guardada
+    se dejó porque además dispara el commit inmediato del campo al
+    presionar Enter (comportamiento útil, no solo el guard).
+  - Verificado: `npm run build` limpio, `npm test` 13/13 (sin cambios
+    de lógica testeable, ningún test nuevo aplica acá). **No
+    verificado**: ninguno de los dos fixes se probó con hardware real
+    (cámara de un móvil real, pistola física) desde acá — el cliente
+    los reportó y hay que confirmar en el preview tras el próximo
+    deploy.
+- **Escáner de stock — vincular código a producto existente o crear uno
+  nuevo (2026-09-23, mismo día, specs/escaner-vincular-o-crear-por-codigo.md)**.
+  Pedido explícito del cliente inspirado en una funcionalidad de otro
+  proyecto propio (`kayaosv/Stylo019`, revisado antes de diseñar —
+  `VentaFisica.jsx`): al escanear un código no encontrado, la única
+  salida era un link genérico a "Crear producto" sin el código
+  precargado. Adaptado a este catálogo en vez de clonado literal:
+  Stylo019 resuelve "no existe" creando un producto oculto de venta
+  rápida sin categoría real (`activo:false`, categoría `venta_rapida`)
+  — no aplica acá porque este catálogo depende de moldes de categoría
+  reales (`ProductEditor.jsx`) para specs/variantes, y no hay concepto
+  de "vender sin catalogar".
+  - **Vincular a un producto existente** (`StockScanner.jsx`): nueva
+    acción "🔗 Vincular a un producto existente" en el estado "no
+    encontrado" — buscador por nombre (mismo patrón `ilike`/debounce
+    250ms del buscador del TPV). Si el producto elegido no tiene
+    variantes, el código se guarda directo en `products.barcode`; si
+    tiene, pide elegir cuál (chips) antes de guardar en
+    `product_variants.barcode`. Pensado para resolver de a uno los
+    productos que ya señala `missingBarcode` en `/admin/products`
+    (agregado el 2026-09-15) sin tener que entrar al editor completo.
+  - **Crear producto nuevo**: el botón "+ Crear producto nuevo" navega a
+    `/admin/products/new` pasando el código escaneado por
+    `location.state.barcode` — `ProductEditor.jsx` lo precarga en el
+    campo "Código de barras" (antes había que reescribirlo a mano). Es
+    el editor completo real (categoría/molde/variantes desde el
+    principio, decisión explícita del cliente), no un formulario
+    paralelo simplificado.
+  - Verificado: `npm run build` limpio, `npm test` 13/13 (sin tests
+    nuevos — es un flujo de Supabase directo contra la base real, mismo
+    patrón sin tests que `applyDelta`/`sellThis` ya existentes en el
+    mismo archivo). **No verificado**: nada de esto se abrió en un
+    navegador real todavía (ni el buscador, ni el vínculo contra un
+    producto con variantes, ni el prefill del código en
+    `ProductEditor.jsx`) — pendiente confirmar en el preview.
 
 ## Pendiente / próximos pasos
 
@@ -196,8 +340,14 @@ vive en el propio `CLAUDE.md` del repo (convención previa a este
       cargan, ver qué se puede diferir o recortar).
 - [ ] Fase 3: bot de sugerencias/consultas de productos vía OpenRouter
       (modelo `:free`, grounded en catálogo real de Supabase).
-- [ ] Confirmar visualmente en el admin real que `/admin/reports` funciona
-      contra datos reales (no verificado en navegador desde acá).
+- [ ] Confirmar visualmente en el admin real la pestaña "Ventas" de
+      Analítica (antes `/admin/reports`, fusionada el 2026-09-23) contra
+      datos reales (no verificado en navegador desde acá).
+- [ ] Confirmar visualmente la fusión del 2026-09-23 (ver "Hecho" arriba):
+      pestaña "Pendientes de pago" dentro de Pedidos, badge combinado del
+      sidebar, pestañas Catálogo/Ventas de Analítica, y los dos redirects
+      viejos (`/admin/pending-payments`, `/admin/reports`) — nada de esto
+      se abrió en un navegador real todavía.
 
 ## Decisiones tomadas
 

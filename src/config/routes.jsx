@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router-dom'
+import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { RootLayout } from '../components/dom/RootLayout.jsx'
 import { Home } from '../pages/Home.jsx'
 
@@ -100,8 +100,11 @@ export const router = createBrowserRouter([
         lazy: () => import('../pages/admin/Analytics.jsx').then((m) => ({ Component: m.Analytics })),
       },
       {
+        // Ahora es la pestaña "Ventas" de Analítica, ver
+        // specs/analitica-unificada.md — se mantiene el link viejo
+        // redirigiendo en vez de dar 404.
         path: 'reports',
-        lazy: () => import('../pages/admin/Reports.jsx').then((m) => ({ Component: m.Reports })),
+        element: <Navigate to="/admin/analytics?tab=ventas" replace />,
       },
       {
         path: 'stock-scanner',
@@ -112,8 +115,11 @@ export const router = createBrowserRouter([
         lazy: () => import('../pages/admin/Settings.jsx').then((m) => ({ Component: m.Settings })),
       },
       {
+        // Ahora es la pestaña "Pendientes de pago" de Pedidos, ver
+        // specs/pedidos-pagos-pendientes-unificado.md — se mantiene el
+        // link viejo redirigiendo en vez de dar 404.
         path: 'pending-payments',
-        lazy: () => import('../pages/admin/PendingPayments.jsx').then((m) => ({ Component: m.PendingPayments })),
+        element: <Navigate to="/admin/orders?tab=pending-payments" replace />,
       },
     ],
   },
