@@ -304,6 +304,61 @@ vive en el propio `CLAUDE.md` del repo (convención previa a este
     navegador real todavía (ni el buscador, ni el vínculo contra un
     producto con variantes, ni el prefill del código en
     `ProductEditor.jsx`) — pendiente confirmar en el preview.
+- **Packs/combos + descuento manual TPV + venta rápida TPV (2026-09-23,
+  mismo día, specs/packs-combos.md, specs/tpv-descuento-manual.md,
+  specs/tpv-venta-rapida.md).** Pedido grande del cliente, tres piezas:
+  - **Packs**: tablas nuevas `packs`/`pack_items` (RLS: lectura pública
+    si `is_active`, escritura solo admin) + `order_items.pack_id`.
+    `consume_pack_stock()` es la única fuente de verdad para vender un
+    pack — bloquea y descuenta el stock real de cada componente,
+    atómico. `create_order`, `create_payment_draft`/`get_checkout_lines`,
+    `confirm_payment_draft` y `create_pos_sale` ganan soporte para una
+    línea `{ pack_id, quantity }` (mismo criterio no-DRY-a-propósito que
+    ya usa este proyecto entre esas 4 funciones — ver promo tiers).
+    `/admin/packs` (nuevo, en el sidebar): crear/editar packs buscando
+    productos por nombre (variante específica si aplica), precio final
+    a mano con la suma de componentes como referencia. Storefront:
+    `/packs` (nuevo, en el menú), tarjetas con precio de oferta, se
+    ocultan solos si no hay stock para armar ninguno. TPV: el buscador
+    por nombre ahora también encuentra packs (🎁) y los agrega como una
+    sola línea a su precio fijo. `OrderDetail.jsx` muestra qué compone
+    una línea de pack (join a `pack_items` vía `order_items.pack_id`).
+    **Verificado contra la base real**: pack de prueba con 2 componentes
+    reales, vendido con `create_pos_sale` (pack + una línea normal con
+    descuento manual en la misma venta) → total correcto, stock
+    descontado en ambos componentes, `order_items` con las 2 filas
+    esperadas (`pack_id` vs `product_id`). Probado también el rechazo
+    por precio manual inflado y por stock insuficiente del pack (mensaje
+    señala el componente exacto que falta). Todo revertido después.
+  - **Descuento manual en el TPV**: botón "%" por línea (no en líneas de
+    pack) — accesos rápidos −10/−20/−30% + campo libre, nunca puede
+    superar el precio ya resuelto por catálogo/tramo. `create_pos_sale`
+    valida el tope server-side (nunca confía en el precio que mande el
+    cliente, solo en que el manual sea ≤ al que ella misma calculó).
+  - **Venta rápida en el TPV** (pedido explícito del cliente, tipo
+    `kayaosv/Stylo019`, revisado ese repo antes de construir esto):
+    botón "+ Venta rápida" siempre visible junto al escáner — crea un
+    producto oculto real (`is_active:false`, `category_id:null`, stock =
+    la cantidad de esa venta) y lo agrega al carrito. **Bug real
+    encontrado recién al probar contra la base** (no visible leyendo el
+    código): `create_pos_sale` rechazaba cualquier producto
+    `is_active=false`, lo que bloqueaba justo este caso. Fix en
+    `supabase/fix-tpv-quick-sale-inactive-guard.sql`: acepta un producto
+    inactivo únicamente cuando además no tiene categoría — combinación
+    que un producto real desactivado desde `/admin/products` nunca tiene
+    (el editor exige categoría), así que no abre la puerta a vender algo
+    descatalogado de verdad. **Verificado con ambos casos reales**: el
+    producto de venta rápida se pudo vender (stock a 0); un producto
+    real desactivado temporalmente para la prueba siguió bloqueado con
+    "ya no está disponible". Revertido después.
+  - `get_advisors` (seguridad) revisado tras las 3 migraciones — sin
+    hallazgos nuevos, todo lo que aparece ya estaba investigado y
+    aceptado en sesiones anteriores (ítem 19 de este mismo archivo).
+  - Verificado: `npm run build` limpio, `npm test` 13/13. **No
+    verificado**: nada de esto se abrió en un navegador real (el
+    catálogo de packs, el editor de packs, el buscador de packs en el
+    TPV, el modal de descuento, el modal de venta rápida) — pendiente
+    confirmar en el preview.
 
 ## Pendiente / próximos pasos
 

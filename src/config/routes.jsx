@@ -22,6 +22,10 @@ export const router = createBrowserRouter([
         lazy: () => import('../pages/Catalog.jsx').then((m) => ({ Component: m.Catalog })),
       },
       {
+        path: 'packs',
+        lazy: () => import('../pages/Packs.jsx').then((m) => ({ Component: m.Packs })),
+      },
+      {
         path: 'product/:id',
         lazy: () => import('../pages/Product.jsx').then((m) => ({ Component: m.Product })),
       },
@@ -94,6 +98,10 @@ export const router = createBrowserRouter([
       {
         path: 'wholesale',
         lazy: () => import('../pages/admin/Wholesale.jsx').then((m) => ({ Component: m.Wholesale })),
+      },
+      {
+        path: 'packs',
+        lazy: () => import('../pages/admin/Packs.jsx').then((m) => ({ Component: m.Packs })),
       },
       {
         path: 'analytics',

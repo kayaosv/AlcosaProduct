@@ -522,7 +522,7 @@ export const Checkout = () => {
 
             <ul className="mt-6 space-y-4">
               {items.map((item) => (
-                <li key={item.productId} className="flex justify-between gap-4 text-[13px]">
+                <li key={item.packId ?? `${item.productId}-${item.variantId ?? 'base'}`} className="flex justify-between gap-4 text-[13px]">
                   <div className="min-w-0">
                     <p style={{ fontWeight: 700 }} className="truncate">
                       {item.name}

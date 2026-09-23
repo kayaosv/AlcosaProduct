@@ -28,7 +28,10 @@ const DETAIL_SELECT = `
   id, customer_name, customer_email, customer_phone, customer_address,
   status, total, notes, created_at, payment_method, payment_status,
   odoo_sync_status, odoo_invoice_id, odoo_sync_error,
-  order_items(id, product_id, product_name, product_price, quantity, variant_id, variant_label)
+  order_items(
+    id, product_id, product_name, product_price, quantity, variant_id, variant_label, pack_id,
+    packs(name, pack_items(quantity, products(name), product_variants(label)))
+  )
 `
 
 export const useAdminOrders = () => {

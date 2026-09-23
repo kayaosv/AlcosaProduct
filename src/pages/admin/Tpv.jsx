@@ -63,9 +63,33 @@ export const Tpv = () => {
 
   const [cart, setCart] = useState([])
   const [notFound, setNotFound] = useState(false)
+  const [scannedCode, setScannedCode] = useState('')
   const [paymentType, setPaymentType] = useState(null)
   const [charging, setCharging] = useState(false)
   const [lastSale, setLastSale] = useState(null)
+
+  // "Venta rápida" — vender algo que no está cargado en el catálogo,
+  // igual que en kayaosv/Stylo019: crea un producto mínimo oculto
+  // (is_active:false, sin categoría — no pasa por el editor completo ni
+  // sus moldes) con el stock justo de esta venta, y lo agrega al
+  // carrito. Queda registrado como cualquier otra venta (orders/
+  // order_items, visible en Pedidos y Analítica) — no es una línea
+  // "libre" aparte del resto del sistema.
+  const [quickAdd, setQuickAdd] = useState(null) // { code: string | null }
+  const [quickName, setQuickName] = useState('')
+  const [quickPrice, setQuickPrice] = useState('')
+  const [quickQty, setQuickQty] = useState('1')
+  const [quickCodeInput, setQuickCodeInput] = useState('') // solo si quickAdd.code es null
+  const [quickSaving, setQuickSaving] = useState(false)
+  const [quickError, setQuickError] = useState(null)
+
+  // Descuento/precio manual por línea — para rebajarle a alguien en el
+  // mostrador sin tener que ir a bajarle el precio al producto en
+  // general. discountStep.catalogPrice es el precio efectivo actual de
+  // esa línea (ya con el tramo de desechables aplicado si corresponde,
+  // sin el manual) — la referencia contra la que se valida el tope.
+  const [discountStep, setDiscountStep] = useState(null) // { key, catalogPrice }
+  const [discountValue, setDiscountValue] = useState('')
 
   useGSAP(() => {
     gsap.from('.tpv-scanner', { y: 16, opacity: 0, duration: 0.4, ease: 'power3.out' })
@@ -74,7 +98,7 @@ export const Tpv = () => {
 
   const addToCart = (line) => {
     setCart((prev) => {
-      const key = `${line.productId}:${line.variantId ?? 'base'}`
+      const key = line.packId ? `pack:${line.packId}` : `${line.productId}:${line.variantId ?? 'base'}`
       const existing = prev.find((l) => l.key === key)
       if (existing) {
         return prev.map((l) => (l.key === key ? { ...l, quantity: l.quantity + 1 } : l))
@@ -87,6 +111,7 @@ export const Tpv = () => {
     const clean = (code ?? '').trim()
     if (!clean) return
     setNotFound(false)
+    setScannedCode(clean)
 
     const hit = await lookupByBarcode(clean, { variantSelect: VARIANT_SELECT, productSelect: PRODUCT_SELECT })
 
@@ -151,28 +176,97 @@ export const Tpv = () => {
     let cancelled = false
     setSearchingName(true)
     const timer = setTimeout(async () => {
-      const { data } = await supabase
-        .from('products')
-        .select(`
-          id, name, brand, price, sale_price, is_on_sale, stock, categories(id, kind, promo_tiers),
-          product_variants(id, label, price, sale_price, stock, is_primary, is_active)
-        `)
-        .eq('is_active', true)
-        .ilike('name', `%${q}%`)
-        .order('name')
-        .limit(8)
+      const [{ data: products }, { data: packs }] = await Promise.all([
+        supabase
+          .from('products')
+          .select(`
+            id, name, brand, price, sale_price, is_on_sale, stock, categories(id, kind, promo_tiers),
+            product_variants(id, label, price, sale_price, stock, is_primary, is_active)
+          `)
+          .eq('is_active', true)
+          .ilike('name', `%${q}%`)
+          .order('name')
+          .limit(6),
+        supabase.from('packs').select('id, name, price').eq('is_active', true).ilike('name', `%${q}%`).order('name').limit(3),
+      ])
       if (!cancelled) {
-        setNameResults(data ?? [])
+        setNameResults([
+          ...(products ?? []).map((p) => ({ type: 'product', data: p })),
+          ...(packs ?? []).map((p) => ({ type: 'pack', data: p })),
+        ])
         setSearchingName(false)
       }
     }, 250)
     return () => { cancelled = true; clearTimeout(timer) }
   }, [nameQuery])
 
-  const addFromNameSearch = (product) => {
-    addProductRecord(product)
+  const addFromNameSearch = (result) => {
+    if (result.type === 'pack') {
+      const pack = result.data
+      addToCart({
+        productId: null, variantId: null, packId: pack.id,
+        name: pack.name, variantLabel: null,
+        unitPrice: Number(pack.price), maxStock: null,
+        categoryId: null, categoryKind: null, promoTiers: null,
+      })
+    } else {
+      addProductRecord(result.data)
+    }
     setNameQuery('')
     setNameResults([])
+  }
+
+  const openQuickAdd = () => {
+    const code = (notFound ? scannedCode : scanner.barcode).trim()
+    setQuickAdd({ code: code || null })
+    setQuickName('')
+    setQuickPrice('')
+    setQuickQty('1')
+    setQuickCodeInput('')
+    setQuickError(null)
+    setNotFound(false)
+    scanner.setBarcode('')
+  }
+
+  const saveQuickAdd = async () => {
+    const name = quickName.trim()
+    const price = Number(quickPrice)
+    const qty = Math.max(1, Math.floor(Number(quickQty) || 1))
+    if (!name) {
+      setQuickError('Escribí una descripción.')
+      return
+    }
+    if (!Number.isFinite(price) || price <= 0) {
+      setQuickError('El precio tiene que ser mayor que 0.')
+      return
+    }
+    setQuickSaving(true)
+    setQuickError(null)
+    const barcode = quickAdd.code || quickCodeInput.trim() || null
+    // category_id null a propósito — es un producto oculto de venta
+    // puntual, no pasa por el editor completo ni sus moldes por
+    // categoría (ver specs/tpv-venta-rapida.md). stock = la cantidad
+    // exacta de esta venta, para que create_pos_sale la descuente igual
+    // que a cualquier producto real.
+    const { data, error } = await supabase
+      .from('products')
+      .insert({ name, price, stock: qty, category_id: null, is_active: false, barcode })
+      .select()
+      .single()
+    setQuickSaving(false)
+    if (error) {
+      setQuickError(error.code === '23505' ? 'Ese código de barras ya está en uso.' : `No se pudo guardar: ${error.message}`)
+      return
+    }
+    setCart((prev) => [
+      ...prev,
+      {
+        key: `${data.id}:base`, productId: data.id, variantId: null,
+        name: data.name, variantLabel: null, unitPrice: price, maxStock: qty,
+        categoryId: null, categoryKind: null, promoTiers: null, quantity: qty,
+      },
+    ])
+    setQuickAdd(null)
   }
 
   // Handoff desde StockScanner.jsx ("+ Añadir a venta") - un producto/
@@ -229,9 +323,36 @@ export const Tpv = () => {
   // Ajuste por tramo de volumen (desechables) — mismo calculo que
   // apply_desechables_tier() en el server, ver src/lib/promoTiers.js.
   // El vendedor tiene que ver el precio ya con el tramo aplicado antes
-  // de cobrar en el datafono fisico, no despues.
-  const displayCart = useMemo(() => applyDesechablesTiers(cart), [cart])
+  // de cobrar en el datafono fisico, no despues. Se calcula sobre el
+  // carrito crudo (sin manualPrice) para que un descuento manual en una
+  // linea no distorsione el conteo de unidades del tramo en las demas.
+  const tieredCart = useMemo(() => applyDesechablesTiers(cart), [cart])
+  const displayCart = useMemo(
+    () => tieredCart.map((l) => (l.manualPrice != null ? { ...l, unitPrice: l.manualPrice } : l)),
+    [tieredCart],
+  )
   const total = displayCart.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0)
+
+  const openDiscount = (key) => {
+    const line = tieredCart.find((l) => l.key === key)
+    if (!line) return
+    setDiscountStep({ key, catalogPrice: line.unitPrice })
+    setDiscountValue((cart.find((l) => l.key === key)?.manualPrice ?? line.unitPrice).toFixed(2))
+  }
+
+  const applyDiscount = () => {
+    if (!discountStep) return
+    const value = Number(discountValue)
+    if (!Number.isFinite(value) || value < 0 || value > discountStep.catalogPrice) return
+    setCart((prev) => prev.map((l) => (l.key === discountStep.key ? { ...l, manualPrice: value } : l)))
+    setDiscountStep(null)
+  }
+
+  const clearDiscount = () => {
+    if (!discountStep) return
+    setCart((prev) => prev.map((l) => (l.key === discountStep.key ? { ...l, manualPrice: null } : l)))
+    setDiscountStep(null)
+  }
 
   const charge = async () => {
     if (cart.length === 0 || !paymentType || charging) return
@@ -241,7 +362,9 @@ export const Tpv = () => {
         p_items: cart.map((l) => ({
           product_id: l.productId,
           variant_id: l.variantId,
+          pack_id: l.packId ?? null,
           quantity: l.quantity,
+          manual_price: l.manualPrice ?? null,
         })),
         p_payment_type: paymentType,
       })
@@ -350,6 +473,15 @@ export const Tpv = () => {
             </div>
           )}
 
+          <button
+            type="button"
+            className="btn-ghost"
+            style={{ fontSize: 12, marginTop: 10 }}
+            onClick={openQuickAdd}
+          >
+            + Venta rápida (producto no registrado)
+          </button>
+
           <div className="tpv-name-search">
             <div className="scanner-input-wrap">
               <input
@@ -369,15 +501,21 @@ export const Tpv = () => {
                 ) : nameResults.length === 0 ? (
                   <p className="tpv-name-results-empty">Sin resultados.</p>
                 ) : (
-                  nameResults.map((p) => (
+                  nameResults.map((r) => (
                     <button
-                      key={p.id}
+                      key={r.type === 'pack' ? `pack:${r.data.id}` : r.data.id}
                       type="button"
                       className="tpv-name-result"
-                      onClick={() => addFromNameSearch(p)}
+                      onClick={() => addFromNameSearch(r)}
                     >
-                      <span className="tpv-name-result-name">{p.name}</span>
-                      {p.brand && <span className="tpv-name-result-brand">{p.brand}</span>}
+                      <span className="tpv-name-result-name">
+                        {r.type === 'pack' ? `🎁 ${r.data.name}` : r.data.name}
+                      </span>
+                      {r.type === 'pack' ? (
+                        <span className="tpv-name-result-brand">{Number(r.data.price).toFixed(2)} €</span>
+                      ) : (
+                        r.data.brand && <span className="tpv-name-result-brand">{r.data.brand}</span>
+                      )}
                     </button>
                   ))
                 )}
@@ -396,7 +534,10 @@ export const Tpv = () => {
                   <div className="tpv-cart-line-info">
                     <p className="tpv-cart-line-name">{l.name}</p>
                     {l.variantLabel && <p className="tpv-cart-line-variant">{l.variantLabel}</p>}
-                    <p className="tpv-cart-line-price">{l.unitPrice.toFixed(2)} € / u</p>
+                    <p className="tpv-cart-line-price">
+                      {l.unitPrice.toFixed(2)} € / u
+                      {l.manualPrice != null && <span style={{ color: '#4ade80' }}> · rebajado</span>}
+                    </p>
                   </div>
                   <div className="tpv-cart-line-qty">
                     <button onClick={() => changeQty(l.key, -1)}>−</button>
@@ -406,6 +547,16 @@ export const Tpv = () => {
                   <div className="tpv-cart-line-subtotal">
                     {(l.unitPrice * l.quantity).toFixed(2)} €
                   </div>
+                  {!l.packId && (
+                    <button
+                      className="btn-ghost"
+                      style={{ fontSize: 12, padding: '4px 8px' }}
+                      title="Editar precio / aplicar descuento"
+                      onClick={() => openDiscount(l.key)}
+                    >
+                      %
+                    </button>
+                  )}
                   <button className="tpv-cart-line-remove" onClick={() => removeLine(l.key)} aria-label="Quitar">✕</button>
                 </div>
               ))}
@@ -441,6 +592,109 @@ export const Tpv = () => {
           </button>
         </div>
       </div>
+
+      {discountStep && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', padding: 20 }}
+          onClick={() => setDiscountStep(null)}
+        >
+          <div
+            style={{ background: '#111', border: '1px solid #1e1e1e', borderRadius: 10, padding: 24, maxWidth: 340, width: '100%' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 4px' }}>Precio de esta línea</h3>
+            <p style={{ fontSize: 12, color: '#666', margin: '0 0 16px' }}>
+              Precio actual: {discountStep.catalogPrice.toFixed(2)} €
+            </p>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              max={discountStep.catalogPrice}
+              value={discountValue}
+              onChange={(e) => setDiscountValue(e.target.value)}
+              autoFocus
+              className="scanner-input"
+              style={{ width: '100%', marginBottom: 12 }}
+            />
+            <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+              {[10, 20, 30].map((pct) => (
+                <button
+                  key={pct}
+                  className="btn-ghost"
+                  style={{ fontSize: 12 }}
+                  onClick={() => setDiscountValue((discountStep.catalogPrice * (1 - pct / 100)).toFixed(2))}
+                >
+                  −{pct}%
+                </button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn-primary" style={{ flex: 1 }} onClick={applyDiscount}>Aplicar</button>
+              <button className="btn-ghost" onClick={clearDiscount}>Sin descuento</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {quickAdd && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', padding: 20 }}
+          onClick={() => setQuickAdd(null)}
+        >
+          <div
+            style={{ background: '#111', border: '1px solid #1e1e1e', borderRadius: 10, padding: 24, maxWidth: 360, width: '100%' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 4px' }}>Venta rápida</h3>
+            <p style={{ fontSize: 12, color: '#666', margin: '0 0 16px' }}>
+              {quickAdd.code
+                ? `Código ${quickAdd.code} — no existe en el catálogo. `
+                : ''}
+              Queda cargado como producto oculto (no se muestra en la web), disponible para vender ahora.
+            </p>
+            <input
+              value={quickName}
+              onChange={(e) => setQuickName(e.target.value)}
+              placeholder="Descripción (ej: Bufanda gris)"
+              autoFocus
+              className="scanner-input"
+              style={{ width: '100%', marginBottom: 10 }}
+            />
+            {!quickAdd.code && (
+              <input
+                value={quickCodeInput}
+                onChange={(e) => setQuickCodeInput(e.target.value)}
+                placeholder="Código de barras (opcional)"
+                className="scanner-input"
+                style={{ width: '100%', marginBottom: 10 }}
+              />
+            )}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <input
+                type="number" step="0.01" min="0"
+                value={quickPrice}
+                onChange={(e) => setQuickPrice(e.target.value)}
+                placeholder="Precio €"
+                className="scanner-input"
+                style={{ flex: 1 }}
+              />
+              <input
+                type="number" step="1" min="1"
+                value={quickQty}
+                onChange={(e) => setQuickQty(e.target.value)}
+                placeholder="Cantidad"
+                className="scanner-input"
+                style={{ width: 90 }}
+              />
+            </div>
+            {quickError && <p style={{ color: '#ef4444', fontSize: 12, marginBottom: 12 }}>{quickError}</p>}
+            <button className="btn-primary" style={{ width: '100%' }} disabled={quickSaving} onClick={saveQuickAdd}>
+              {quickSaving ? 'Guardando…' : 'Agregar al carrito'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -126,9 +126,22 @@ export const OrderDetail = () => {
                 {(order.order_items ?? []).map((it) => (
                   <tr key={it.id} className="table-row">
                     <td>
-                      <div className="producto-nombre">{it.product_name}</div>
+                      <div className="producto-nombre">
+                        {it.product_name}
+                        {it.pack_id && <span style={{ marginLeft: 5, fontSize: 9, color: '#818cf8', verticalAlign: 'middle' }}>PACK</span>}
+                      </div>
                       {it.variant_label && (
                         <div style={{ fontSize: 11, color: '#888' }}>{it.variant_label}</div>
+                      )}
+                      {it.pack_id && it.packs?.pack_items?.length > 0 && (
+                        <ul style={{ fontSize: 11, color: '#888', margin: '4px 0 0', paddingLeft: 14 }}>
+                          {it.packs.pack_items.map((pi, i) => (
+                            <li key={i}>
+                              {pi.quantity}× {pi.products?.name}
+                              {pi.product_variants?.label && ` — ${pi.product_variants.label}`}
+                            </li>
+                          ))}
+                        </ul>
                       )}
                       {it.product_id && (
                         <Link

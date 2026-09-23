@@ -9,7 +9,7 @@ import { createClient } from '@supabase/supabase-js'
 import { writeFileSync } from 'node:fs'
 
 const SITE_URL = 'https://vapersalcosa19.com'
-const STATIC_ROUTES = ['/', '/catalog', '/aviso-legal', '/privacidad', '/cookies']
+const STATIC_ROUTES = ['/', '/catalog', '/packs', '/aviso-legal', '/privacidad', '/cookies']
 
 const urlEntry = (loc, lastmod) =>
   `  <url>\n    <loc>${loc}</loc>${lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : ''}\n  </url>`

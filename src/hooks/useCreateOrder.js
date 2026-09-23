@@ -17,9 +17,10 @@ export const useCreateOrder = () => {
         p_customer_address: customer.address,
         p_notes: notes || null,
         p_items: items.map((i) => ({
-          product_id: i.productId,
+          product_id: i.productId ?? null,
           quantity: i.quantity,
           variant_id: i.variantId ?? null,
+          pack_id: i.packId ?? null,
         })),
       })
 

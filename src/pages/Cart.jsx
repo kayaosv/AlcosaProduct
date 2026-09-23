@@ -187,12 +187,12 @@ export const Cart = () => {
         <div className="mt-12 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-12">
           <ul style={{ borderBottom: '1px solid rgba(23,45,109,0.12)' }}>
             {items.map((item) => (
-              <div key={`${item.productId}-${item.variantId ?? 'base'}`} data-anim="cart-row">
+              <div key={item.packId ?? `${item.productId}-${item.variantId ?? 'base'}`} data-anim="cart-row">
                 <CartRow
                   item={item}
-                  onMinus={() => updateQuantity(item.productId, item.variantId, item.quantity - 1)}
-                  onPlus={() => updateQuantity(item.productId, item.variantId, item.quantity + 1)}
-                  onRemove={() => removeItem(item.productId, item.variantId)}
+                  onMinus={() => updateQuantity(item.productId, item.variantId, item.quantity - 1, item.packId)}
+                  onPlus={() => updateQuantity(item.productId, item.variantId, item.quantity + 1, item.packId)}
+                  onRemove={() => removeItem(item.productId, item.variantId, item.packId)}
                 />
               </div>
             ))}
