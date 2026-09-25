@@ -1,6 +1,6 @@
 # STATUS
 
-Última actualización: 2026-09-23
+Última actualización: 2026-09-25
 
 ## Estado actual
 
@@ -13,6 +13,18 @@ vive en el propio `CLAUDE.md` del repo (convención previa a este
 `STATUS.md` — se mantiene así, no se migra retroactivamente).
 
 ## Hecho (verificado)
+
+- **Fix: el TPV no dejaba elegir variante (2026-09-25,
+  specs/tpv-elegir-variante.md)** — el cliente reportó ventas reales
+  registradas con la variante equivocada: desde el buscador por nombre
+  (y escaneando el código del producto base) se agregaba siempre la
+  variante principal (ej. "Shades Dry Shot" → HIGH, aunque existe
+  MEDIUM). Ahora, con 2+ variantes activas se abre un selector con foto/
+  precio/stock por variante; con 1 sola se agrega directo como antes. Los
+  resultados del buscador muestran miniatura. Lógica en
+  `src/lib/posVariants.js` (+ test de regresión). `npm test` 18/18,
+  `npm run build` OK. **No verificado en navegador** — requiere prueba
+  manual en `/admin/tpv`. Las ventas ya registradas mal no se tocaron.
 
 - **Fix: cámara del escáner bloqueada por header de seguridad
   (2026-09-16)** — el cliente probó en su móvil real y reportó "no hay

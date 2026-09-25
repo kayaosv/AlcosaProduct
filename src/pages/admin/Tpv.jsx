@@ -8,14 +8,15 @@ import { applyDesechablesTiers } from '../../lib/promoTiers.js'
 import { useBarcodeScanner, hasCamera } from '../../hooks/useBarcodeScanner.js'
 import { lookupByBarcode } from '../../lib/barcodeLookup.js'
 import { ScannerCameraControls } from '../../components/dom/admin/ScannerCameraControls.jsx'
+import { activeVariants, primaryVariant, needsVariantPick, productThumb } from '../../lib/posVariants.js'
 
 const VARIANT_SELECT = `
   id, label, stock, price, sale_price, is_primary, product_id,
   products(id, name, price, sale_price, is_on_sale, categories(id, kind, promo_tiers))
 `
 const PRODUCT_SELECT = `
-  id, name, price, sale_price, is_on_sale, stock, categories(id, kind, promo_tiers),
-  product_variants(id, label, price, sale_price, stock, is_primary, is_active)
+  id, name, price, sale_price, is_on_sale, stock, image_url, categories(id, kind, promo_tiers),
+  product_variants(id, label, price, sale_price, stock, is_primary, is_active, image_url)
 `
 
 // Misma resolucion de precio que create_pos_sale()/create_order() en
@@ -92,6 +93,8 @@ export const Tpv = () => {
   const [discountStep, setDiscountStep] = useState(null) // { key, catalogPrice }
   const [discountValue, setDiscountValue] = useState('')
 
+  const [variantPick, setVariantPick] = useState(null) // producto con 2+ variantes activas
+
   useGSAP(() => {
     gsap.from('.tpv-scanner', { y: 16, opacity: 0, duration: 0.4, ease: 'power3.out' })
     gsap.from('.tpv-cart', { y: 16, opacity: 0, duration: 0.4, delay: 0.1, ease: 'power3.out' })
@@ -143,15 +146,23 @@ export const Tpv = () => {
   // El codigo escaneado (o el producto elegido por nombre) puede ser el
   // del PRODUCTO (impreso en el envase) aunque el producto tenga
   // variantes con su propio precio/stock real — products.price/stock
-  // quedan en 0 a proposito en ese caso (ver stockPricing.js). Sin este
-  // chequeo se agregaba al carrito con precio 0 en vez de resolver la
-  // variante principal. Compartido entre el escaneo de codigo y el
-  // buscador por nombre.
+  // quedan en 0 a proposito en ese caso (ver stockPricing.js), hay que
+  // resolver una variante. Con 2+ variantes se pregunta cual
+  // (specs/tpv-elegir-variante.md). Compartido entre el escaneo de
+  // codigo y el buscador por nombre.
+  const addVariantOf = (product, variant) => {
+    const primary = primaryVariant(activeVariants(product))
+    addToCart(buildLineFromVariant({ ...variant, product_id: product.id, products: product }, primary))
+  }
+
   const addProductRecord = useCallback((product) => {
-    const activeVariants = (product.product_variants ?? []).filter((v) => v.is_active !== false)
-    if (activeVariants.length) {
-      const primary = activeVariants.find((v) => v.is_primary) ?? activeVariants[0]
-      addToCart(buildLineFromVariant({ ...primary, product_id: product.id, products: product }, primary))
+    if (needsVariantPick(product)) {
+      setVariantPick(product)
+      return
+    }
+    const variants = activeVariants(product)
+    if (variants.length) {
+      addVariantOf(product, variants[0])
       return
     }
     addToCart(buildLineFromProduct(product))
@@ -181,8 +192,8 @@ export const Tpv = () => {
         supabase
           .from('products')
           .select(`
-            id, name, brand, price, sale_price, is_on_sale, stock, categories(id, kind, promo_tiers),
-            product_variants(id, label, price, sale_price, stock, is_primary, is_active)
+            id, name, brand, price, sale_price, is_on_sale, stock, image_url, categories(id, kind, promo_tiers),
+            product_variants(id, label, price, sale_price, stock, is_primary, is_active, image_url)
           `)
           .eq('is_active', true)
           .ilike('name', `%${q}%`)
@@ -510,9 +521,17 @@ export const Tpv = () => {
                       className="tpv-name-result"
                       onClick={() => addFromNameSearch(r)}
                     >
+                      {r.type === 'product' && (
+                        productThumb(r.data)
+                          ? <img src={productThumb(r.data)} alt="" className="tpv-thumb" />
+                          : <span className="tpv-thumb" />
+                      )}
                       <span className="tpv-name-result-name">
                         {r.type === 'pack' ? `🎁 ${r.data.name}` : r.data.name}
                       </span>
+                      {r.type === 'product' && needsVariantPick(r.data) && (
+                        <span className="tpv-name-result-brand">{activeVariants(r.data).length} variantes</span>
+                      )}
                       {r.type === 'pack' ? (
                         <span className="tpv-name-result-brand">{Number(r.data.price).toFixed(2)} €</span>
                       ) : (
@@ -594,6 +613,42 @@ export const Tpv = () => {
           </button>
         </div>
       </div>
+
+      {variantPick && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', padding: 20 }}
+          onClick={() => setVariantPick(null)}
+        >
+          <div
+            style={{ background: '#111', border: '1px solid #1e1e1e', borderRadius: 10, padding: 20, maxWidth: 420, width: '100%', maxHeight: '85vh', overflowY: 'auto' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 4px' }}>{variantPick.name}</h3>
+            <p style={{ fontSize: 12, color: '#666', margin: '0 0 14px' }}>Elegí la variante</p>
+            <div className="tpv-variant-grid">
+              {activeVariants(variantPick).map((v) => {
+                const img = v.image_url || variantPick.image_url
+                const price = resolveVariantPrice(variantPick, v, primaryVariant(activeVariants(variantPick)))
+                return (
+                  <button
+                    key={v.id}
+                    type="button"
+                    className={`tpv-variant-opt ${v.stock > 0 ? '' : 'tpv-variant-opt--out'}`}
+                    onClick={() => { addVariantOf(variantPick, v); setVariantPick(null) }}
+                  >
+                    {img ? <img src={img} alt="" className="tpv-thumb" /> : <span className="tpv-thumb" />}
+                    <span className="tpv-variant-opt-label">{v.label}</span>
+                    <span className="tpv-name-result-brand">
+                      {price.toFixed(2)} € · {v.stock > 0 ? `stock ${v.stock}` : 'sin stock'}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+            <button className="btn-ghost" style={{ width: '100%', marginTop: 12 }} onClick={() => setVariantPick(null)}>Cancelar</button>
+          </div>
+        </div>
+      )}
 
       {discountStep && (
         <div
