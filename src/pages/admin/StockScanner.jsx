@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase.js'
 import { useBarcodeScanner, hasCamera } from '../../hooks/useBarcodeScanner.js'
 import { lookupByBarcode } from '../../lib/barcodeLookup.js'
+import { ScannerCameraControls } from '../../components/dom/admin/ScannerCameraControls.jsx'
 
 const QUICK_DELTAS = [1, 5, 10, -1, -5]
 
@@ -279,12 +280,13 @@ export const StockScanner = () => {
               ) : (
                 <div className="camera-wrap">
                   <video ref={scanner.videoRef} className="camera-video" playsInline muted />
+                  <ScannerCameraControls scanner={scanner} />
                   <div className="camera-aim">
                     <div className="camera-aim-box" />
                   </div>
                   <span className="camera-hint">
                     {scanner.noDetection
-                      ? 'No se reconoce ningún código — acercá la cámara o mejorá la luz'
+                      ? 'No se reconoce — si el código está en una superficie curva, girá el envase para aplanarlo hacia la cámara'
                       : scanner.scanning
                       ? 'Apunta al código de barras…'
                       : 'Iniciando cámara…'}

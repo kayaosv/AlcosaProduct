@@ -1,6 +1,6 @@
 # STATUS
 
-Última actualización: 2026-09-23
+Última actualización: 2026-09-25
 
 ## Estado actual
 
@@ -13,6 +13,18 @@ vive en el propio `CLAUDE.md` del repo (convención previa a este
 `STATUS.md` — se mantiene así, no se migra retroactivamente).
 
 ## Hecho (verificado)
+
+- **Fix: el TPV no dejaba elegir variante (2026-09-25,
+  specs/tpv-elegir-variante.md)** — el cliente reportó ventas reales
+  registradas con la variante equivocada: desde el buscador por nombre
+  (y escaneando el código del producto base) se agregaba siempre la
+  variante principal (ej. "Shades Dry Shot" → HIGH, aunque existe
+  MEDIUM). Ahora, con 2+ variantes activas se abre un selector con foto/
+  precio/stock por variante; con 1 sola se agrega directo como antes. Los
+  resultados del buscador muestran miniatura. Lógica en
+  `src/lib/posVariants.js` (+ test de regresión). `npm test` 18/18,
+  `npm run build` OK. **No verificado en navegador** — requiere prueba
+  manual en `/admin/tpv`. Las ventas ya registradas mal no se tocaron.
 
 - **Fix: cámara del escáner bloqueada por header de seguridad
   (2026-09-16)** — el cliente probó en su móvil real y reportó "no hay
@@ -359,9 +371,53 @@ vive en el propio `CLAUDE.md` del repo (convención previa a este
     catálogo de packs, el editor de packs, el buscador de packs en el
     TPV, el modal de descuento, el modal de venta rápida) — pendiente
     confirmar en el preview.
+- **Cámara del escáner: códigos chicos/en superficie curva (2026-09-23,
+  mismo día, specs/escaner-camara-codigos-dificiles.md)** — pedido
+  urgente del cliente, botes chicos con códigos diminutos o impresos en
+  curva que la cámara no reconocía. Mejoras gratuitas al motor actual
+  (`@zxing/browser`) antes de evaluar migrar a otro:
+  - Resolución de cámara pedida subida de 1280×(auto) a 1920×1080 — más
+    píxeles reales por código chico.
+  - `BrowserMultiFormatReader` ahora usa hints `TRY_HARDER` (modo
+    exhaustivo, más lento por frame pero más preciso) +
+    `POSSIBLE_FORMATS` acotado a EAN-13/8, UPC-A/E y Code128 (lo único
+    que aparece en este catálogo) en vez de probar ~10 formatos.
+    Requirió agregar `@zxing/library` como dependencia directa (antes
+    solo transitiva vía `@zxing/browser`) para importar
+    `DecodeHintType`/`BarcodeFormat`.
+  - Zoom digital + linterna nuevos (`ScannerCameraControls.jsx`,
+    compartido entre `Tpv.jsx` y `StockScanner.jsx`) — usan
+    `IScannerControls` que `@zxing/browser` ya expone (`switchTorch`,
+    `streamVideoConstraintsApply`, `streamVideoCapabilitiesGet`), no
+    hizo falta código nuevo de bajo nivel. Se auto-ocultan si el
+    navegador/dispositivo no los soporta (típicamente sí Chrome/Android,
+    no iOS Safari todavía).
+  - Mensaje de "no se reconoce" (a los 6s) ahora sugiere girar el envase
+    para aplanar la parte del código hacia la cámara — una curva muy
+    cerrada es un límite físico/óptico, ningún ajuste de software lo
+    resuelve del todo.
+  - **Se le explicó al cliente que existen motores de pago (Dynamsoft,
+    Scandit) notablemente mejores para este caso puntual, y uno gratuito
+    alternativo (`quagga2`) — se decidió probar primero estas mejoras
+    gratuitas al motor actual antes de evaluar migrar.**
+  - Verificado: `npm run build` limpio, `npm test` 13/13. **No
+    verificado**: nada de esto se probó en un dispositivo real (sin
+    cámara física ni navegador en este entorno) — pendiente que el
+    cliente lo pruebe en el preview, idealmente con el mismo bote que le
+    está fallando hoy. Si no alcanza, siguiente paso es `quagga2`.
 
 ## Pendiente / próximos pasos
 
+- [ ] **Retomar acá primero**: la mejora de cámara del escáner
+  (resolución 1920×1080, `TRY_HARDER`, zoom/linterna —
+  specs/escaner-camara-codigos-dificiles.md, commit `859946f`) está
+  **solo en `preview/alcosa`, todavía NO mergeada a `main`** — el
+  cliente la pidió por códigos chicos/en curva que no leía bien, pero
+  todavía no la probó en su celular real. Todo lo anterior en la misma
+  sesión (dedupe TPV/Escáner, fusión Pedidos+Analítica, packs/combos,
+  descuento manual TPV, venta rápida TPV) **sí fue probado por el
+  cliente y ya está en `main`**. Esperar confirmación antes de mergear
+  esta última.
 - [x] ~~CTA flotante de WhatsApp~~ — **código resuelto 2026-09-15**
       (`WhatsAppFab.jsx`), ver "Hecho" arriba. Sigue pendiente probarlo
       visualmente en el preview (nunca se abrió en un navegador real).
